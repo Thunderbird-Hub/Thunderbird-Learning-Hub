@@ -69,9 +69,9 @@ include __DIR__ . '/../includes/header.php';
     color: #4b5563;
 }
 
-.course-progress-table th:nth-child(1) { width: 40%; }
-.course-progress-table th:nth-child(2) { width: 15%; }
-.course-progress-table th:nth-child(3) { width: 45%; }
+.course-progress-table th:nth-child(1) { width: 25%; } /* Content - 1st quarter */
+.course-progress-table th:nth-child(2) { width: 25%; } /* Status - 2nd quarter */
+.course-progress-table th:nth-child(3) { width: 50%; } /* Quiz - right half */
 
 .status-pill {
     display: inline-block;
