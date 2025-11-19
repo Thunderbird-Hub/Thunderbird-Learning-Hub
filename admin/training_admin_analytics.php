@@ -103,7 +103,7 @@ include __DIR__ . '/../includes/header.php';
     .table > :not(caption) > * > * { vertical-align: middle; }
 </style>
 
-<div class="container">
+<div class="main-container">
     <?php
 // Page title
 $page_title = 'Training Analytics Dashboard';
