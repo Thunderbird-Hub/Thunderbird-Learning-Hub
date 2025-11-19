@@ -140,6 +140,82 @@ include __DIR__ . '/../includes/header.php';
     background: #f9fafb;
 }
 
+/* Quiz filter controls styling */
+.quiz-controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.quiz-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.quiz-filter-group label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.quiz-filter-select {
+    padding: 6px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 12px;
+    background: white;
+    color: #374151;
+    min-width: 120px;
+}
+
+.quiz-filter-select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.quiz-pagination-info {
+    font-size: 12px;
+    color: #6b7280;
+    margin-left: auto;
+    align-self: center;
+}
+
+.quiz-summary-stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+    font-size: 12px;
+}
+
+.quiz-stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.quiz-stat.passed {
+    color: #059669;
+}
+
+.quiz-stat.failed {
+    color: #dc2626;
+}
+
+.quiz-stat.total {
+    color: #6b7280;
+}
+
+.quiz-stat-number {
+    font-weight: 700;
+    font-size: 14px;
+}
+
 /* Enhanced stat tiles with modern styling */
 .stat-tile {
     background: white;
