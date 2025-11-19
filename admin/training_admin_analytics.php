@@ -149,7 +149,7 @@ try {
 <div class="card analytics-card mb-4">
     <div class="card-header analytics-header d-flex align-items-center justify-content-between">
         <h5 class="mb-0">Course Overview</h5>
-        <span class="badge bg-secondary">Live snapshot</span>
+        
     </div>
     <div class="card-body">
 
@@ -483,7 +483,7 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
         <div class='card analytics-card mb-4'>
             <div class='card-header analytics-header d-flex align-items-center justify-content-between'>
                 <h5 class='mb-0'>Course Progress</h5>
-                <span class='badge bg-secondary'>User snapshot</span>
+                
             </div>
             <div class='card-body'>
                 <div class='row g-3 mb-3 text-center'>
