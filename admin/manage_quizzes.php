@@ -121,11 +121,17 @@ $stmt->bindValue(':passing', $passing_score, PDO::PARAM_INT);
 $stmt->bindValue(':active',  $is_active, PDO::PARAM_INT);
 $stmt->bindValue(':id',      $quiz_id, PDO::PARAM_INT);
 
-/* Bind nullable time limit explicitly */
+/* Bind nullable values explicitly */
 if ($time_limit === null) {
     $stmt->bindValue(':tlimit', null, PDO::PARAM_NULL);
 } else {
     $stmt->bindValue(':tlimit', $time_limit, PDO::PARAM_INT);
+}
+
+if ($retest_period === null) {
+    $stmt->bindValue(':retest_period', null, PDO::PARAM_NULL);
+} else {
+    $stmt->bindValue(':retest_period', $retest_period, PDO::PARAM_INT);
 }
 
 $stmt->execute();
