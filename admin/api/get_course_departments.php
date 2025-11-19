@@ -8,6 +8,7 @@
 require_once __DIR__ . '/../../includes/auth_check.php';
 require_once __DIR__ . '/../../includes/db_connect.php';
 require_once __DIR__ . '/../../includes/user_helpers.php';
+require_once __DIR__ . '/../../includes/department_helpers.php';
 
 header('Content-Type: application/json');
 
@@ -27,23 +28,28 @@ if ($course_id <= 0) {
 }
 
 try {
-    // Get current department assignments for this course
+    // Get departments assigned to this course
     $stmt = $pdo->prepare("
-        SELECT department_id
-        FROM course_departments
-        WHERE course_id = ?
+        SELECT d.id, d.name
+        FROM departments d
+        JOIN course_departments cd ON d.id = cd.department_id
+        WHERE cd.course_id = ?
+        ORDER BY d.name
     ");
     $stmt->execute([$course_id]);
-    $assigned_dept_ids = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
+    $assigned_departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Get all departments
-    $stmt = $pdo->query("SELECT id, name FROM departments ORDER BY name ASC");
-    $all_departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Get all departments for the dropdown
+    $all_departments = get_all_departments($pdo);
+
+    // Get assigned department IDs for filtering
+    $assigned_dept_ids = array_column($assigned_departments, 'id');
 
     echo json_encode([
         'success' => true,
-        'assigned_dept_ids' => $assigned_dept_ids,
-        'all_departments' => $all_departments
+        'assigned_departments' => $assigned_departments,
+        'all_departments' => $all_departments,
+        'assigned_dept_ids' => $assigned_dept_ids
     ]);
 } catch (Exception $e) {
     http_response_code(500);
