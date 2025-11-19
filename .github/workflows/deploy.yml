@@ -1,0 +1,65 @@
+name: FTP Deploy to InfinityFree (Dev & Prod)
+
+on:
+  push:
+    branches:
+      - main
+      - development
+  workflow_dispatch:
+
+jobs:
+  # Deploy dev branch → devknowledgebase.xo.je
+  deploy-dev:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/development'
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Upload via FTP (DEV)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ secrets.FTP_PORT }}
+          local-dir: ./
+          server-dir: ${{ secrets.FTP_REMOTE_DIR_DEV }}
+          protocol: ftp
+          log-level: standard
+          dangerous-clean-slate: false
+          exclude: |
+            .git/**
+            .github/**
+            **/node_modules/**
+            **/vendor/**/tests/**
+            **/*.md
+
+  # Deploy main branch → svsknowledgebase.xo.je
+  deploy-prod:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Upload via FTP (PROD)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ secrets.FTP_PORT }}
+          local-dir: ./
+          server-dir: ${{ secrets.FTP_REMOTE_DIR_PROD }}
+          protocol: ftp
+          log-level: standard
+          dangerous-clean-slate: false
+          exclude: |
+            .git/**
+            .github/**
+            **/node_modules/**
+            **/vendor/**/tests/**
+            **/*.md
