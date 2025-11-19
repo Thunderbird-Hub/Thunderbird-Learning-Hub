@@ -728,7 +728,7 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
             }
             
             if ($quiz_info !== '') {
-                $quiz_info = "<div class='quiz-latest'>{$quiz_info}</div>";
+                $quiz_info = "<div class='quiz-section'><div class='quiz-latest'>{$quiz_info}</div>";
             }
 
                         echo "
