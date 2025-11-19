@@ -775,6 +775,11 @@ include __DIR__ . '/../includes/header.php';
                         <?php if (!empty($quiz['time_limit_minutes'])): ?>
                             • Time Limit: <?php echo (int)$quiz['time_limit_minutes']; ?> minutes
                         <?php endif; ?>
+                        <?php if (!empty($quiz['retest_period_months'])): ?>
+                            • Retest: Every <?php echo (int)$quiz['retest_period_months']; ?> month<?php echo ((int)$quiz['retest_period_months'] != 1) ? 's' : ''; ?>
+                        <?php else: ?>
+                            • Retest: Not required
+                        <?php endif; ?>
                         • Created by <?php echo htmlspecialchars($quiz['creator_name'] ?? 'Unknown'); ?>
                     </div>
                 </div>
