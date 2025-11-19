@@ -376,36 +376,24 @@ if (isset($_GET['course_id']) && ($course_id = intval($_GET['course_id'])) > 0 &
                     . '</tr>';
             }
 
-            // Summary block above the table
+            // Summary block above the table using modern stats-grid
             echo "
-                <div class='row g-3 mb-3 text-center'>
-                    <div class='col-sm-6 col-lg-3'>
-                        <div class='stat-tile'>
-                            <h6>Assigned</h6>
-                            <div class='value'>{$total_assigned}</div>
-                            <div class='subtext'>Users enrolled</div>
-                        </div>
+                <div class='stats-grid mb-3'>
+                    <div class='stat-card'>
+                        <div class='stat-number'>{$total_assigned}</div>
+                        <div class='stat-label'>Users Enrolled</div>
                     </div>
-                    <div class='col-sm-6 col-lg-3'>
-                        <div class='stat-tile'>
-                            <h6>In Progress</h6>
-                            <div class='value text-warning'>{$total_in_progress}</div>
-                            <div class='subtext'>Actively working</div>
-                        </div>
+                    <div class='stat-card'>
+                        <div class='stat-number' style='color: #f59e0b;'>{$total_in_progress}</div>
+                        <div class='stat-label'>In Progress</div>
                     </div>
-                    <div class='col-sm-6 col-lg-3'>
-                        <div class='stat-tile'>
-                            <h6>Completed</h6>
-                            <div class='value text-success'>{$total_completed}</div>
-                            <div class='subtext'>Finished training</div>
-                        </div>
+                    <div class='stat-card'>
+                        <div class='stat-number' style='color: #10b981;'>{$total_completed}</div>
+                        <div class='stat-label'>Completed</div>
                     </div>
-                    <div class='col-sm-6 col-lg-3'>
-                        <div class='stat-tile'>
-                            <h6>Not Started</h6>
-                            <div class='value text-muted'>{$total_not_started}</div>
-                            <div class='subtext'>Awaiting kickoff</div>
-                        </div>
+                    <div class='stat-card'>
+                        <div class='stat-number' style='color: #6b7280;'>{$total_not_started}</div>
+                        <div class='stat-label'>Not Started</div>
                     </div>
                 </div>
             ";
