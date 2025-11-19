@@ -118,6 +118,13 @@ function auto_manage_user_roles($pdo, $user_id = null) {
             return ['status' => 'skipped_privileged', 'changes' => []];
         }
 
+        // --- PHASE 3: CHECK FOR RETEST ELIGIBILITY ---
+        // This runs on every page load to auto-enable retests when period expires
+        $retest_result = check_and_enable_retests($pdo, $user_id);
+        if ($retest_result['status'] === 'success' && $retest_result['retests_enabled'] > 0) {
+            $changes[] = "User {$user['name']} → {$retest_result['retests_enabled']} retest(s) now eligible";
+        }
+
         // --- PHASE 5: ONLY MANAGE FLAG, NOT ROLE ---
         // Count active training assignments
         $assignment_stmt = $pdo->prepare("
@@ -131,10 +138,14 @@ function auto_manage_user_roles($pdo, $user_id = null) {
         $assignment_stmt->execute([$user_id]);
         $active_assignments = (int) $assignment_stmt->fetchColumn();
 
-        $changes = [];
-        $new_flag_value = ($active_assignments > 0) ? 1 : 0;
+        // Also count retestable quizzes to determine training flag
+        $retestable_quizzes = get_retestable_quizzes($pdo, $user_id);
+        $has_retests = count($retestable_quizzes) > 0;
 
-        // Update the flag based on active assignments
+        $changes = [];
+        $new_flag_value = ($active_assignments > 0 || $has_retests) ? 1 : 0;
+
+        // Update the flag based on active assignments AND retests
         $flag_stmt = $pdo->prepare("
             UPDATE users
             SET is_in_training = ?, updated_at = NOW()
@@ -150,11 +161,13 @@ function auto_manage_user_roles($pdo, $user_id = null) {
         $flag_name = $new_flag_value ? 'in training' : 'not in training';
         if ($active_assignments > 0) {
             $changes[] = "User {$user['name']} → $flag_name ({$active_assignments} active assignment(s))";
-        } elseif ($active_assignments === 0) {
-            $changes[] = "User {$user['name']} → $flag_name (no active assignments)";
+        } elseif ($has_retests) {
+            $changes[] = "User {$user['name']} → $flag_name ({count($retestable_quizzes)} retest(s) available)";
+        } elseif ($active_assignments === 0 && !$has_retests) {
+            $changes[] = "User {$user['name']} → $flag_name (no active assignments or retests)";
         }
 
-        log_debug("Auto-manage user {$user_id}: is_in_training=$new_flag_value, active_assignments=$active_assignments", 'INFO');
+        log_debug("Auto-manage user {$user_id}: is_in_training=$new_flag_value, active_assignments=$active_assignments, has_retests=$has_retests", 'INFO');
 
         return [
             'status' => 'success',
