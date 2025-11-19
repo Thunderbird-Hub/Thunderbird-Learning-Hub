@@ -677,25 +677,15 @@ include __DIR__ . '/../includes/header.php';
 
                     <div class="form-group">
                         <label for="content">Training Content:</label>
-                        <select name="content_type" id="content_type" class="quiz-content-select" required onchange="updateContentOptions()">
-                            <option value="">Select Content Type</option>
-                            <?php
-                            $grouped_content = [];
-                            foreach ($training_content as $content) {
-                                $grouped_content[$content['content_type']][] = $content;
-                            }
-
-                            foreach ($grouped_content as $type => $items):
-                                $type_label = ucfirst($type);
-                                echo "<optgroup label='$type_label'>";
-                                foreach ($items as $item):
-                                    echo "<option value='{$item['content_type']}|{$item['content_id']}'>{$item['display_name']}</option>";
-                                endforeach;
-                                echo "</optgroup>";
-                            endforeach;
-                            ?>
+                        <select name="content_id" id="content_id" class="quiz-content-select" required>
+                            <option value="">Select training content...</option>
+                            <?php foreach ($training_content as $content): ?>
+                                <option value="<?php echo $content['content_id']; ?>">
+                                    <?php echo htmlspecialchars($content['display_name']); ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
-                        <input type="hidden" name="content_id" id="content_id" required>
+                        <input type="hidden" name="content_type" value="post">
                     </div>
 
                     <div class="form-group">
