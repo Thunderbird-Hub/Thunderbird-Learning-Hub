@@ -507,7 +507,6 @@ include __DIR__ . '/../includes/header.php';
                 <label style="display: block; margin-bottom: 4px; font-weight: 500;">Role</label>
                 <select id="edit_role" name="role" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                     <option value="user">User</option>
-                    <option value="training">Training</option>
                     <option value="admin">Admin</option>
                     <?php if (is_current_user_super_admin($pdo)): ?>
                     <option value="super admin">Super Admin</option>
@@ -518,6 +517,16 @@ include __DIR__ . '/../includes/header.php';
                     Note: Only super admins can assign super admin roles
                 </div>
                 <?php endif; ?>
+            </div>
+
+            <div style="margin-bottom: 16px; padding: 12px; background: #f0f7ff; border: 1px solid #b3d9ff; border-radius: 4px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0;">
+                    <input type="checkbox" id="edit_is_in_training" name="is_in_training" value="1" style="width: 18px; height: 18px;">
+                    <span style="font-weight: 500;">🎓 Set as Training User</span>
+                </label>
+                <div style="margin-top: 8px; font-size: 12px; color: #6c757d;">
+                    Check this to assign training to this user. They will have limited access and must complete assigned training materials before viewing other content.
+                </div>
             </div>
 
             <div style="margin-bottom: 16px; padding: 12px; background: #f8f9fa; border-radius: 4px; font-size: 12px; color: #6c757d;">
