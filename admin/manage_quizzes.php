@@ -440,6 +440,32 @@ $training_content = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }
 
+// Handle AJAX request for quiz data
+if (isset($_GET['get_quiz_data'])) {
+    header('Content-Type: application/json');
+
+    $quiz_id = intval($_GET['get_quiz_data']);
+    try {
+        $stmt = $pdo->prepare("
+            SELECT id, quiz_title, quiz_description, passing_score,
+                   time_limit_minutes, retest_period_months, is_active
+            FROM training_quizzes
+            WHERE id = ?
+        ");
+        $stmt->execute([$quiz_id]);
+        $quiz = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($quiz) {
+            echo json_encode(['success' => true, 'quiz' => $quiz]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Quiz not found']);
+        }
+    } catch (PDOException $e) {
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
 include __DIR__ . '/../includes/header.php';
 ?>
 
