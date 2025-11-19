@@ -167,6 +167,35 @@ try {
     echo "<div class='error'>Error calculating progress: " . $e->getMessage() . "</div>";
 }
 
+// --- PHASE 4: DISPLAY RETESTS AVAILABLE SECTION ---
+try {
+    $retestable_quizzes = get_retestable_quizzes($pdo, $_SESSION['user_id']);
+
+    if (!empty($retestable_quizzes)) {
+        echo "<div style='margin-top: 30px; padding: 16px; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; border-left: 4px solid #f59e0b;'>";
+        echo "<h2 style='margin-top: 0; color: #92400e;'>🔄 Retests Available</h2>";
+        echo "<p style='color: #92400e; margin-bottom: 12px;'>You have " . count($retestable_quizzes) . " quiz(zes) available for retest. Your progress will reset when you retake these quizzes.</p>";
+
+        echo "<div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px;'>";
+        foreach ($retestable_quizzes as $quiz) {
+            $quiz_title = htmlspecialchars($quiz['title'] ?? 'Quiz');
+            $retest_date = isset($quiz['next_retest_date']) ? date('M j, Y', strtotime($quiz['next_retest_date'])) : 'Available now';
+            $last_attempt = isset($quiz['last_attempt_date']) ? date('M j, Y', strtotime($quiz['last_attempt_date'])) : 'Unknown';
+
+            echo "<div style='background: white; padding: 12px; border-radius: 6px; border-left: 3px solid #f59e0b;'>";
+            echo "<h4 style='margin: 0 0 8px 0; color: #333;'>{$quiz_title}</h4>";
+            echo "<p style='margin: 4px 0; font-size: 12px; color: #666;'><strong>Last completed:</strong> {$last_attempt}</p>";
+            echo "<p style='margin: 4px 0; font-size: 12px; color: #666;'><strong>Retest period:</strong> " . (int)$quiz['retest_period_months'] . " month(s)</p>";
+            echo "<p style='margin: 8px 0 0 0; font-size: 11px; color: #92400e; font-weight: 600;'>✅ Ready to retake</p>";
+            echo "</div>";
+        }
+        echo "</div>";
+        echo "</div>";
+    }
+} catch (Exception $e) {
+    error_log("Error displaying retests: " . $e->getMessage());
+}
+
 // Get assigned courses
 try {
     $stmt = $pdo->prepare("
@@ -263,8 +292,23 @@ try {
             $has_quiz  = !empty($it['quiz_id']);
             $quiz_done = (int)$it['quiz_done'] === 1;
 
-            // Card color + footer message
+            // Check if quiz has retest available (PHASE 4)
+            $retest_available = false;
+            $retest_info = null;
             if ($has_quiz && $quiz_done) {
+                $retest_check = check_quiz_retest_eligibility($pdo, $_SESSION['user_id'], $it['quiz_id']);
+                if ($retest_check['status'] === 'success' && $retest_check['retest_eligible']) {
+                    $retest_available = true;
+                    $retest_info = $retest_check;
+                }
+            }
+
+            // Card color + footer message
+            if ($has_quiz && $retest_available) {
+                $card_class  = 'yellow';
+                $quiz_text   = '🔄 Retest Available';
+                $quiz_class  = 'pending';
+            } elseif ($has_quiz && $quiz_done) {
                 $card_class  = 'green';
                 $quiz_text   = 'Quiz completed';
                 $quiz_class  = 'done';
