@@ -84,19 +84,60 @@ include __DIR__ . '/../includes/header.php';
 .status-pill.in-progress { background: #fff3cd; color: #856404; }
 .status-pill.not-started { background: #e9ecef; color: #495057; }
 
+/* Enhanced quiz display styling */
+.quiz-section {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 12px;
+    margin-top: 8px;
+    border: 1px solid #e5e7eb;
+}
+
 .quiz-latest {
     font-size: 13px;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
     color: #4b5563;
+    padding: 8px 12px;
+    background: #e3f2fd;
+    border-radius: 4px;
+    border-left: 3px solid #667eea;
+}
+
+.quiz-attempts-container {
+    margin-top: 8px;
 }
 
 .quiz-attempts-table {
     font-size: 12px;
-    background: #f8f9fa;
+    background: white;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
-.quiz-attempts-table th,
+
+.quiz-attempts-table th {
+    background: #667eea;
+    color: white;
+    font-weight: 600;
+    border: none;
+    padding: 8px 12px;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+}
+
 .quiz-attempts-table td {
-    padding: 4px 6px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: middle;
+}
+
+.quiz-attempts-table tr:last-child td {
+    border-bottom: none;
+}
+
+.quiz-attempts-table tr:nth-child(even) {
+    background: #f9fafb;
 }
 
 /* Enhanced stat tiles with modern styling */
@@ -636,12 +677,11 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
                         ? date('Y-m-d H:i', strtotime($latest['completed_at']))
                         : '—';
 
-                    // Latest attempt summary (text above the table)
-                    $quiz_info = "Latest: {$latest_score}% ({$latest_status}) on {$latest_date}";
-
-                    // Build mini attempts table
-                                        $attempts_html .= "<div style='margin-top: 6px;'>";
-                    $attempts_html .= "<table class='table table-sm table-bordered mb-0 quiz-attempts-table'>";
+                    // Build mini attempts table with header
+                    $attempts_html .= "<div class='quiz-section'>";
+                    $attempts_html .= "<div class='quiz-latest'>Latest: {$latest_score}% ({$latest_status}) on {$latest_date}</div>";
+                    $attempts_html .= "<div class='quiz-attempts-container'>";
+                    $attempts_html .= "<table class='quiz-attempts-table'>";
 
                     $attempts_html .= "<thead><tr>"
                                     . "<th>#</th>"
@@ -680,14 +720,10 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
 
                     }
 
-                    $attempts_html .= "</tbody></table></div>";
+                    $attempts_html .= "</tbody></table></div></div>";
                 } else {
-                    $quiz_info = 'No completed attempts yet';
+                    $quiz_info = "<div class='quiz-section'><div class='quiz-latest'>No completed attempts yet</div></div>";
                 }
-            }
-            
-            if ($quiz_info !== '') {
-                $quiz_info = "<div class='quiz-latest'>{$quiz_info}</div>";
             }
 
                         echo "
