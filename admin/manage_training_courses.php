@@ -14,6 +14,7 @@ require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../includes/db_connect.php';
 require_once __DIR__ . '/../includes/user_helpers.php';
 require_once __DIR__ . '/../includes/training_helpers.php';
+require_once __DIR__ . '/../includes/department_helpers.php';
 
 // Only allow admin users
 if (!is_admin()) {
@@ -375,9 +376,13 @@ try {
 // Fetch data
 $courses = [];
 $all_users = [];
+$all_departments = [];
 
 if ($training_tables_exist) {
     try {
+        // Fetch all departments for the dropdown
+        $all_departments = get_all_departments($pdo);
+
         // --- BEGIN REPLACEMENT ---
     /**
      * Accurate stats per project rules using ONLY correlated subqueries (no outer refs in FROM):
@@ -540,9 +545,15 @@ include __DIR__ . '/../includes/header.php';
                                 <label style="display: block; margin-bottom: 4px; font-weight: 500; color: #495057;">
                                     Department
                                 </label>
-                                <input type="text" name="department" maxlength="100"
-                                       style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
-                                       placeholder="e.g., Human Resources">
+                                <select name="department"
+                                       style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
+                                    <option value="">-- Select Department --</option>
+                                    <?php foreach ($all_departments as $dept): ?>
+                                        <option value="<?php echo htmlspecialchars($dept['id']); ?>">
+                                            <?php echo htmlspecialchars($dept['name']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
                             </div>
                         </div>
 
