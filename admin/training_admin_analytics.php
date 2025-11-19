@@ -84,19 +84,60 @@ include __DIR__ . '/../includes/header.php';
 .status-pill.in-progress { background: #fff3cd; color: #856404; }
 .status-pill.not-started { background: #e9ecef; color: #495057; }
 
+/* Enhanced quiz display styling */
+.quiz-section {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 12px;
+    margin-top: 8px;
+    border: 1px solid #e5e7eb;
+}
+
 .quiz-latest {
     font-size: 13px;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
     color: #4b5563;
+    padding: 8px 12px;
+    background: #e3f2fd;
+    border-radius: 4px;
+    border-left: 3px solid #667eea;
+}
+
+.quiz-attempts-container {
+    margin-top: 8px;
 }
 
 .quiz-attempts-table {
     font-size: 12px;
-    background: #f8f9fa;
+    background: white;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
-.quiz-attempts-table th,
+
+.quiz-attempts-table th {
+    background: #667eea;
+    color: white;
+    font-weight: 600;
+    border: none;
+    padding: 8px 12px;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+}
+
 .quiz-attempts-table td {
-    padding: 4px 6px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: middle;
+}
+
+.quiz-attempts-table tr:last-child td {
+    border-bottom: none;
+}
+
+.quiz-attempts-table tr:nth-child(even) {
+    background: #f9fafb;
 }
 
 /* Enhanced stat tiles with modern styling */
