@@ -871,13 +871,32 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
                 }
             }
 
-                        echo "
-                <tr>
-                    <td>" . htmlspecialchars($title) . "</td>
-                    <td>{$status_html}</td>
-                    <td>{$quiz_info}{$attempts_html}</td>
-                </tr>
-            ";
+                        // Create the quiz display with new layout structure
+$quiz_display = '';
+if (!empty($quiz_info) || !empty($attempts_html)) {
+    // Extract content title and status for the main display
+    $content_display = htmlspecialchars($title);
+    $status_display = $status_html;
+
+    // The quiz section will contain the filters and table
+    $quiz_section = $quiz_info . $attempts_html;
+
+    echo "
+        <tr>
+            <td>{$content_display}</td>
+            <td>{$status_display}</td>
+            <td>{$quiz_section}</td>
+        </tr>
+    ";
+} else {
+    echo "
+        <tr>
+            <td>" . htmlspecialchars($title) . "</td>
+            <td>{$status_html}</td>
+            <td></td>
+        </tr>
+    ";
+}
 
         }
 
