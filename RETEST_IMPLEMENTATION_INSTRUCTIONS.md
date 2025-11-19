@@ -79,13 +79,23 @@ The retest period functionality has been integrated directly into the quiz creat
 - Reports on retest compliance rates
 
 ## Files Modified
-- `admin/training_admin_analytics.php` - Added retest management interface
+- `admin/manage_quizzes.php` - ✅ **MAIN IMPLEMENTATION** - Added retest period fields to quiz creation and editing
 - `migrations/add_retest_periods.sql` - Database schema changes
 - `migrations/add_retest_periods.php` - PHP migration script (requires PHP CLI)
+- `admin/training_admin_analytics.php` - ✅ **CLEANED UP** - Removed retest section (moved to manage_quizzes)
+
+## Key Improvements Made
+- **Better UX:** Retest periods are now set where quizzes are created/edited (natural workflow)
+- **Fixed Dropdown:** Resolved the content selection dropdown issue in quiz creation
+- **Modern Styling:** Enhanced form styling with better visual consistency
+- **AJAX Editing:** Smooth modal-based quiz editing with current data loading
+- **Clear Display:** Each quiz card shows its retest period status prominently
 
 ## Technical Notes
-- The feature uses AJAX for responsive UI interactions
-- Bootstrap modal for setting retest periods
-- Modern styling consistent with the existing dashboard design
+- The feature uses AJAX for responsive quiz editing
+- Modal-based editing interface that's consistent with existing UI patterns
+- Database integration with proper nullable field handling
+- Clean separation of concerns: quiz management stays in manage_quizzes.php
+- Security: Admin-only access to quiz management features
+- Modern JavaScript fetch API for data loading
 - Proper error handling and user feedback
-- Security: Admin-only access to retest management
