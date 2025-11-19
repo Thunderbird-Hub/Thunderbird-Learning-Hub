@@ -438,7 +438,7 @@ try {
             <p>No active training courses found.</p>
         <?php else: ?>
 
-        <div class="table-responsive">
+        <div class="table-responsive analytics-table-wrapper">
             <table class="table table-bordered table-striped table-hover align-middle analytics-table mb-0">
                 <thead>
                     <tr>
