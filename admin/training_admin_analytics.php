@@ -23,84 +23,109 @@ include __DIR__ . '/../includes/header.php';
 ?>
 
 <style>
-    .analytics-intro {
-        color: #6c757d;
-        max-width: 820px;
-    }
+.main-container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+.dash-hero { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 24px; border-radius: 8px; margin-bottom: 20px; }
+.dash-hero h1 { margin: 0 0 8px 0; font-size: 24px; }
+.dash-hero p { margin: 0; opacity: 0.9; }
 
-    .card.analytics-card {
-        border: 1px solid #dee2e6;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
-        border-radius: 8px;
-    }
+/* Modern card and styling from training_dashboard.php */
+.course-card { border: 1px solid #ddd; padding: 16px; margin: 10px 0; border-radius: 8px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.course-card h3 { margin: 0 0 8px 0; color: #333; }
+.course-card p { margin: 4px 0; color: #666; }
+.btn { background: #667eea; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; margin: 5px; }
+.btn:hover { background: #5a6fd8; }
+.btn-secondary { background: #6c757d; }
+.btn-secondary:hover { background: #5a6268; }
 
-    .card-header.analytics-header {
-        background: #f8f9fa;
-        color: #1f2a44;
-        border-bottom: 1px solid #dee2e6;
-        border-radius: 8px 8px 0 0;
-    }
+/* Stats grid and card styling */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 20px 0; }
+.stat-card { background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #667eea; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.stat-number { font-size: 24px; font-weight: bold; color: #667eea; }
+.stat-label { color: #666; font-size: 14px; margin-top: 4px; }
 
-    .analytics-table th {
-        background: #f8f9fa;
-        font-size: 13px;
-        color: #4b5563;
-    }
+/* Content cards for detailed views */
+.content-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 12px; }
+.content-card { position: relative; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; padding-bottom: 32px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+.content-card h4 { margin: 0 0 6px 0; font-size: 16px; color: #333; }
 
-    .course-progress-table th:nth-child(1) { width: 40%; }
-    .course-progress-table th:nth-child(2) { width: 15%; }
-    .course-progress-table th:nth-child(3) { width: 45%; }
+/* Analytics-specific styling (preserved and enhanced) */
+.card.analytics-card {
+    border: 1px solid #dee2e6;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    border-radius: 8px;
+    background: white;
+}
 
-    .status-pill {
-        display: inline-block;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-    .status-pill.completed { background: #d1e7dd; color: #0f5132; }
-    .status-pill.in-progress { background: #fff3cd; color: #856404; }
-    .status-pill.not-started { background: #e9ecef; color: #495057; }
+.card-header.analytics-header {
+    background: #f8f9fa;
+    color: #1f2a44;
+    border-bottom: 1px solid #dee2e6;
+    border-radius: 8px 8px 0 0;
+}
 
-    .quiz-latest {
-        font-size: 13px;
-        margin-bottom: 4px;
-        color: #4b5563;
-    }
+.analytics-table th {
+    background: #f8f9fa;
+    font-size: 13px;
+    color: #4b5563;
+}
 
-    .quiz-attempts-table {
-        font-size: 12px;
-        background: #f8f9fa;
-    }
-    .quiz-attempts-table th,
-    .quiz-attempts-table td {
-        padding: 4px 6px;
-    }
+.course-progress-table th:nth-child(1) { width: 40%; }
+.course-progress-table th:nth-child(2) { width: 15%; }
+.course-progress-table th:nth-child(3) { width: 45%; }
 
-    .stat-tile {
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 12px 14px;
-        height: 100%;
-    }
-    .stat-tile h6 {
-        font-size: 12px;
-        color: #6c757d;
-        letter-spacing: 0.02em;
-        margin-bottom: 6px;
-    }
-    .stat-tile .value {
-        font-size: 21px;
-        font-weight: 700;
-        color: #212529;
-    }
-    .stat-tile .subtext {
-        font-size: 12px;
-        color: #6c757d;
-    }
+.status-pill {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.status-pill.completed { background: #d1e7dd; color: #0f5132; }
+.status-pill.in-progress { background: #fff3cd; color: #856404; }
+.status-pill.not-started { background: #e9ecef; color: #495057; }
 
-    .table > :not(caption) > * > * { vertical-align: middle; }
+.quiz-latest {
+    font-size: 13px;
+    margin-bottom: 4px;
+    color: #4b5563;
+}
+
+.quiz-attempts-table {
+    font-size: 12px;
+    background: #f8f9fa;
+}
+.quiz-attempts-table th,
+.quiz-attempts-table td {
+    padding: 4px 6px;
+}
+
+/* Enhanced stat tiles with modern styling */
+.stat-tile {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 16px;
+    height: 100%;
+    border-left: 4px solid #667eea;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.stat-tile h6 {
+    font-size: 12px;
+    color: #6c757d;
+    letter-spacing: 0.02em;
+    margin-bottom: 6px;
+}
+.stat-tile .value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #667eea;
+}
+.stat-tile .subtext {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.table > :not(caption) > * > * { vertical-align: middle; }
 </style>
 
 <div class="main-container">
