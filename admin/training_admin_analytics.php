@@ -119,14 +119,43 @@ include __DIR__ . '/../includes/header.php';
 }
 
 .analytics-table th {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: #f8f9fa;
+    color: #4b5563;
     font-size: 13px;
     font-weight: 600;
-    border: none;
+    border-bottom: 1px solid #e5e7eb;
     padding: 12px 16px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+/* Add a full-width gradient header wrapper */
+.analytics-table-wrapper {
+    position: relative;
+}
+
+.analytics-table-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px 8px 0 0;
+    z-index: 1;
+}
+
+.analytics-table {
+    position: relative;
+    z-index: 2;
+    margin-top: 0;
+}
+
+.analytics-table th {
+    background: transparent;
+    color: white;
+    border: none;
 }
 
 .analytics-table td {
