@@ -886,8 +886,8 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
 
                         echo "
                 <tr>
-                    <td>" . htmlspecialchars($title) . "</td>
-                    <td>{$status_html}</td>
+                    <td></td>
+                    <td></td>
                     <td>{$quiz_info}{$attempts_html}</td>
                 </tr>
             ";
