@@ -172,6 +172,21 @@ include __DIR__ . '/../includes/header.php';
     font-size: 12px;
     font-weight: 600;
 }
+
+/* Center status pills and content in their columns */
+.course-progress-table td:nth-child(1) {
+    text-align: left;
+    padding-left: 16px;
+}
+.course-progress-table td:nth-child(2) {
+    text-align: center;
+}
+.analytics-table td:nth-child(3),
+.analytics-table td:nth-child(4),
+.analytics-table td:nth-child(5) {
+    text-align: center;
+}
+
 .status-pill.completed { background: #d1e7dd; color: #0f5132; }
 .status-pill.in-progress { background: #fff3cd; color: #856404; }
 .status-pill.not-started { background: #e9ecef; color: #495057; }
