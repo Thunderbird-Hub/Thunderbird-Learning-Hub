@@ -92,6 +92,7 @@ if (!in_array($content_type, ['post','posts','article','post_item'], true)) {
             $quiz_description = isset($_POST['quiz_description']) ? trim($_POST['quiz_description']) : '';
             $passing_score = isset($_POST['passing_score']) ? intval($_POST['passing_score']) : 100;
             $time_limit = isset($_POST['time_limit']) && !empty($_POST['time_limit']) ? intval($_POST['time_limit']) : null;
+            $retest_period = isset($_POST['retest_period_months']) && !empty($_POST['retest_period_months']) ? intval($_POST['retest_period_months']) : null;
             $is_active = isset($_POST['is_active']) ? 1 : 0;
 
             if ($quiz_id <= 0) {
