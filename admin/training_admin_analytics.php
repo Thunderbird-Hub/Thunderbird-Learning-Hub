@@ -78,10 +78,40 @@ include __DIR__ . '/../includes/header.php';
     margin: 0;
 }
 
+.analytics-table {
+    width: 100%;
+    margin: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
 .analytics-table th {
-    background: #f8f9fa;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
     font-size: 13px;
-    color: #4b5563;
+    font-weight: 600;
+    border: none;
+    padding: 12px 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.analytics-table td {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 12px 16px;
+    vertical-align: middle;
+}
+
+.analytics-table tbody tr:hover {
+    background-color: #f8f9ff;
+}
+
+.analytics-table tbody tr:nth-child(even) {
+    background-color: #fafbfc;
+}
+
+.analytics-table tbody tr:nth-child(even):hover {
+    background-color: #f8f9ff;
 }
 
 .course-progress-table th:nth-child(1),
