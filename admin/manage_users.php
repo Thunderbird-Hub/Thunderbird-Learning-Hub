@@ -576,11 +576,13 @@ function hideAddUserModal() {
     document.getElementById('addUserModal').style.display = 'none';
 }
 
-function showEditUserModal(userId, name, pin, color, role, isActive) {
+function showEditUserModal(userId, name, pin, color, role, isActive, isInTraining) {
     document.getElementById('edit_user_id').value = userId;
     document.getElementById('edit_name').value = name;
     document.getElementById('edit_color').value = color;
     document.getElementById('edit_role').value = role;
+    // PHASE 4: Set the is_in_training checkbox based on the user's current flag
+    document.getElementById('edit_is_in_training').checked = (isInTraining === 1 || isInTraining === true);
     document.getElementById('editUserModal').style.display = 'block';
 }
 
