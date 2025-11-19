@@ -782,10 +782,37 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
                         ? date('Y-m-d H:i', strtotime($latest['completed_at']))
                         : '—';
 
-                    // Build filterable quiz attempts section
+                    // Build filterable quiz attempts section with new layout
                     $quiz_unique_id = 'quiz_' . $quiz_id_for_item . '_' . $user_id;
 
                     $attempts_html .= "<div class='quiz-section' data-quiz-id='{$quiz_unique_id}'>";
+
+                    // Main content layout: left half for content/status, right half for stats
+                    $attempts_html .= "<div class='quiz-main-content'>";
+
+                    // Left section: content and status info
+                    $attempts_html .= "<div class='quiz-left-section'>";
+                    $attempts_html .= "<div class='quiz-content-info'>" . htmlspecialchars($title) . "</div>";
+                    $attempts_html .= "<div class='quiz-status-info'>{$status_html}</div>";
+                    $attempts_html .= "</div>";
+
+                    // Right section: summary statistics
+                    $passed_count = 0;
+                    $failed_count = 0;
+                    foreach ($attempts as $att) {
+                        if (strtolower($att['status'] ?? '') === 'passed') $passed_count++;
+                        if (strtolower($att['status'] ?? '') === 'failed') $failed_count++;
+                    }
+
+                    $attempts_html .= "<div class='quiz-right-section'>";
+                    $attempts_html .= "<div class='quiz-summary-stats'>";
+                    $attempts_html .= "<div class='quiz-stat passed'><span class='quiz-stat-number' id='passed-count-{$quiz_unique_id}'>{$passed_count}</span> Passed</div>";
+                    $attempts_html .= "<div class='quiz-stat failed'><span class='quiz-stat-number' id='failed-count-{$quiz_unique_id}'>{$failed_count}</span> Failed</div>";
+                    $attempts_html .= "<div class='quiz-stat total'><span class='quiz-stat-number'>" . count($attempts) . "</span> Total</div>";
+                    $attempts_html .= "</div>";
+                    $attempts_html .= "</div>";
+
+                    $attempts_html .= "</div>";
 
                     // Summary stats
                     $passed_count = 0;
