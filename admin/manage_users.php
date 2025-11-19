@@ -59,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $users_table_exists) {
             $pin = isset($_POST['pin']) ? trim($_POST['pin']) : '';
             $color = isset($_POST['color']) ? trim($_POST['color']) : '#4A90E2';
             $role = isset($_POST['role']) ? $_POST['role'] : 'user';
+            $is_in_training = isset($_POST['is_in_training']) ? 1 : 0;  // PHASE 4: Check flag
 
             // Validation
             if (empty($name)) {
@@ -76,8 +77,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $users_table_exists) {
                     // Hash the PIN using bcrypt (no salt needed - bcrypt handles it internally)
                     $hashed_pin = password_hash($pin, PASSWORD_BCRYPT, ['cost' => 10]);
 
-                    $stmt = $pdo->prepare("INSERT INTO users (name, pin, color, role, created_by) VALUES (?, ?, ?, ?, ?)");
-                    $stmt->execute([$name, $hashed_pin, $color, $role, $_SESSION['user_id']]);
+                    // PHASE 4: Set role and is_in_training flag separately
+                    $stmt = $pdo->prepare("INSERT INTO users (name, pin, color, role, is_in_training, created_by) VALUES (?, ?, ?, ?, ?, ?)");
+                    $stmt->execute([$name, $hashed_pin, $color, $role, $is_in_training, $_SESSION['user_id']]);
                     $success_message = 'User created successfully!';
                 } catch (PDOException $e) {
                     if ($e->getCode() == 23000) {
