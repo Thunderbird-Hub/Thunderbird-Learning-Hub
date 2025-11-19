@@ -1,39 +1,42 @@
--- Database Migration: Training System Overhaul Phase 1 - Foundation
--- This script adds the is_in_training flag to support the new training system architecture
+-- Database Migration: Add is_in_training Flag
+-- Phase 1 of Training System Overhaul
+-- This script adds the is_in_training flag to support the new training system
 -- where training is a state (flag) rather than a role
--- Run this SQL script manually in your MySQL database
---
--- Purpose: Separate training as a permission/role from training as a state
--- Before: Users with role='training' were restricted in permissions
--- After: Users have role ('user', 'admin', 'super_admin') and an is_in_training flag for state
 
 -- 1. Add is_in_training column to users table
 ALTER TABLE users
-ADD COLUMN is_in_training TINYINT(1) DEFAULT 0 COMMENT 'Training state flag: 1 = user is in training, 0 = user is not in training';
+ADD COLUMN is_in_training TINYINT(1) DEFAULT 0
+COMMENT 'Boolean flag: whether user is currently in training (state, not role)';
 
--- 2. Migrate existing training role users to the new system
--- Set is_in_training=1 for all users currently with role='training'
+-- 2. Migrate existing training role users to have the flag set
+-- Users with role='training' get is_in_training=1, others get 0
 UPDATE users
 SET is_in_training = 1
-WHERE LOWER(role) = 'training';
+WHERE LOWER(TRIM(role)) = 'training';
 
--- 3. Create index for performance on the new flag
+-- 3. Create index on is_in_training for faster queries
 CREATE INDEX idx_is_in_training ON users(is_in_training);
 
--- 4. Create index for combined lookups (common query pattern)
-CREATE INDEX idx_role_is_in_training ON users(role, is_in_training);
+-- 4. Create a migration log table to track when this was run
+CREATE TABLE IF NOT EXISTS migration_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    migration_name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('success', 'failed', 'pending') DEFAULT 'pending',
+    notes TEXT
+);
 
--- 5. Log the migration completion
--- Note: This is for audit trail purposes
-ALTER TABLE users
-ADD COLUMN training_flag_migrated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT 'When the training flag migration was applied' AFTER is_in_training;
-
--- Summary of changes:
--- - Added is_in_training TINYINT(1) column (default 0)
--- - Migrated all existing 'training' role users to is_in_training=1
--- - Created indexes for query performance
--- - Added migration audit timestamp
+-- 5. Log this migration
+INSERT INTO migration_log (migration_name, description, status)
+VALUES (
+    'add_is_in_training_flag',
+    'Added is_in_training boolean flag to users table. Migrated existing training role users to use flag instead.',
+    'success'
+);
 
 -- Migration completed successfully!
--- Note: If columns already exist, MySQL will ignore the ALTER TABLE commands with no error.
--- Next: Phase 2 will implement dual-write logic to support both old and new systems during transition.
+-- Next steps:
+-- 1. Verify the column was added: SELECT id, name, role, is_in_training FROM users LIMIT 5;
+-- 2. Check migration ran: SELECT * FROM migration_log ORDER BY executed_at DESC LIMIT 1;
+-- 3. Proceed to Phase 2: Dual-write implementation in application code
