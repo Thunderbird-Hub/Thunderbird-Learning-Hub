@@ -218,15 +218,14 @@ include __DIR__ . '/../includes/header.php';
 
 .quiz-summary-stats {
     display: flex;
-    gap: 16px;
-    margin-bottom: 8px;
+    gap: 12px;
     font-size: 12px;
 }
 
 .quiz-stat {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
 }
 
 .quiz-stat.passed {
@@ -243,7 +242,7 @@ include __DIR__ . '/../includes/header.php';
 
 .quiz-stat-number {
     font-weight: 700;
-    font-size: 14px;
+    font-size: 16px;
 }
 
 /* Enhanced stat tiles with modern styling */
