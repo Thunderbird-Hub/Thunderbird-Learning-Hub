@@ -669,6 +669,62 @@ include __DIR__ . '/../includes/header.php';
 .content-badge.post { background: #e8f5e8; color: #388e3c; }
 .content-badge.quiz { background: #fff3cd; color: #856404; } /* NEW */
 
+/* Collapsible section styles */
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 15px 20px;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border-radius: 8px;
+    margin-bottom: 0;
+    transition: all 0.3s ease;
+}
+
+.collapsible-header:hover {
+    background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
+}
+
+.collapsible-header h2 {
+    margin: 0;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.expand-arrow {
+    font-size: 16px;
+    transition: transform 0.3s ease;
+    font-weight: bold;
+}
+
+.expand-arrow.expanded {
+    transform: rotate(90deg);
+}
+
+.collapsible-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+    border: none;
+}
+
+.collapsible-content.expanded {
+    max-height: 2000px;
+    transition: max-height 0.5s ease-in;
+}
+
+.quiz-card .collapsible-content {
+    padding: 20px;
+    background: white;
+    border-radius: 0 0 8px 8px;
+    border: 1px solid #ddd;
+    border-top: none;
+}
+
 </style>
 
 <div class="quiz-management">
