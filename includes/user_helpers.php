@@ -70,11 +70,43 @@ function is_super_admin() {
     return false;
 }
 
+/**
+ * Check if current user is in training (NEW - uses is_in_training flag)
+ * Phase 1 of training system overhaul: Check the boolean flag instead of role
+ * @return bool True if user has is_in_training flag set
+ */
+function is_in_training() {
+    // Check session cache first
+    if (isset($_SESSION['user_is_in_training'])) {
+        return (bool)$_SESSION['user_is_in_training'];
+    }
+
+    // Fall back to database check
+    if (isset($_SESSION['user_id'])) {
+        try {
+            require_once 'db_connect.php';
+            $stmt = $pdo->prepare("SELECT is_in_training FROM users WHERE id = ? AND is_active = 1");
+            $stmt->execute([$_SESSION['user_id']]);
+            $user = $stmt->fetch();
+            if ($user) {
+                $_SESSION['user_is_in_training'] = (bool)$user['is_in_training'];
+                return (bool)$user['is_in_training'];
+            }
+        } catch (PDOException $e) {
+            // If column doesn't exist yet, fall back to old role check
+            // This handles the transition period before migration
+            return is_training_user_legacy();
+        }
+    }
+    return false;
+}
+
 // Avoid re-declaration if training_helpers.php already defines this.
 if (!function_exists('is_training_user')) {
     /**
-     * Check if current user is a training user
-     * @return bool True if user is training
+     * Check if current user is a training user (LEGACY - uses role)
+     * This function will be deprecated after Phase 4 of the overhaul
+     * @return bool True if user role is training
      */
     function is_training_user() {
         if (isset($_SESSION['user_role'])) {
@@ -96,6 +128,31 @@ if (!function_exists('is_training_user')) {
         }
         return false;
     }
+}
+
+/**
+ * Legacy check for is_training_user - kept for fallback during transition
+ * @return bool True if user role is training (or is_in_training flag if available)
+ */
+function is_training_user_legacy() {
+    if (isset($_SESSION['user_role'])) {
+        return _normalize_role($_SESSION['user_role']) === 'training';
+    }
+
+    if (isset($_SESSION['user_id'])) {
+        try {
+            require_once 'db_connect.php';
+            $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ? AND is_active = 1");
+            $stmt->execute([$_SESSION['user_id']]);
+            $user = $stmt->fetch();
+            if ($user) {
+                return _normalize_role($user['role']) === 'training';
+            }
+        } catch (PDOException $e) {
+            // fall through
+        }
+    }
+    return false;
 }
 
 /**
