@@ -744,7 +744,7 @@ include __DIR__ . '/../includes/header.php';
                             <option value="12">Every 12 months</option>
                             <option value="24">Every 24 months</option>
                         </select>
-                        <small class="form-text">Select how often users must retake this quiz after passing. This is similar to the McDonald's training system where quizzes need to be retaken periodically.</small>
+                        
                     </div>
 
                     <button type="submit" class="btn btn-primary">Create Quiz</button>
