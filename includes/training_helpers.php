@@ -1280,13 +1280,9 @@ function get_user_assigned_content_ids($pdo, $user_id) {
 function filter_content_for_training_user($pdo, $content_items, $content_type, $user_id = null) {
     $user_id = $user_id ?? $_SESSION['user_id'];
 
-    // --- PHASE 3: DUAL-CHECK ---
-    // Accept either old system (role-based) or new system (flag-based)
-    $is_training_old = is_training_user();  // Legacy role check
-    $is_training_new = function_exists('is_in_training') ? is_in_training() : false; // New flag check
-
-    // If not a training user (accept either system), return all content
-    if (!($is_training_old || $is_training_new)) {
+    // --- PHASE 5: CLEANUP ---
+    // Use only the new flag-based system
+    if (!is_in_training()) {
         return $content_items;
     }
 
