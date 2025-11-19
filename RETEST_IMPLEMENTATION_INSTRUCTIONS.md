@@ -12,12 +12,25 @@ The database migration script (`migrations/add_retest_periods.sql`) adds:
 - `quiz_retest_log` table for tracking retest history
 - `retest_exempt` column to `user_training_assignments` table
 
-### 2. Admin Interface
-Added a new "Quiz Retest Period Management" section to the admin analytics dashboard (`admin/training_admin_analytics.php`) with:
-- Table showing all quizzes and their current retest periods
-- Count of users who need to retake each quiz
-- Modal dialog for setting retest periods (1, 3, 6, 12, 24 months)
-- "Process Retest Periods" button to automatically mark users needing retest
+### 2. Quiz Management Integration
+**🎯 FEATURE NOW MOVED TO MANAGE_QUIZZES.PAGE**
+
+The retest period functionality has been integrated directly into the quiz creation and editing workflow in `admin/manage_quizzes.php`:
+
+**Quiz Creation Form:**
+- Added "Retest Period" dropdown with options: No retest, 1, 3, 6, 12, 24 months
+- Clear description explaining it's like McDonald's training system
+- Clean, modern styling that matches existing form elements
+
+**Quiz Editing:**
+- Edit modal now includes retest period field
+- AJAX-powered editing that populates current retest period values
+- Same dropdown options as creation form
+
+**Quiz Display:**
+- Each quiz card now shows its retest period setting
+- Clear "Retest: Every X months" or "Retest: Not required" display
+- Integrated with existing quiz metadata display
 
 ## How to Complete Implementation
 
