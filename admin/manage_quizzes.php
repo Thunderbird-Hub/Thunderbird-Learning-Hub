@@ -75,10 +75,10 @@ if (!in_array($content_type, ['post','posts','article','post_item'], true)) {
                 try {
                     $stmt = $pdo->prepare("
                         INSERT INTO training_quizzes
-                        (content_id, content_type, quiz_title, quiz_description, passing_score, time_limit_minutes, created_by)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        (content_id, content_type, quiz_title, quiz_description, passing_score, time_limit_minutes, retest_period_months, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     ");
-                    $stmt->execute([$content_id, $content_type, $quiz_title, $quiz_description, $passing_score, $time_limit, $_SESSION['user_id']]);
+                    $stmt->execute([$content_id, $content_type, $quiz_title, $quiz_description, $passing_score, $time_limit, $retest_period, $_SESSION['user_id']]);
                     $success_message = 'Quiz created successfully!';
                 } catch (PDOException $e) {
                     $error_message = 'Error creating quiz: ' . $e->getMessage();
