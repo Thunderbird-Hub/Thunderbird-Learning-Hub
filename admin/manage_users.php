@@ -398,7 +398,7 @@ include __DIR__ . '/../includes/header.php';
                                                 if ($target_is_super_admin && !$current_user_is_super_admin): ?>
                                                     <span style="color: #dc3545; font-size: 11px; font-weight: 500;">🔒 Super Admin</span>
                                                 <?php else: ?>
-                                                    <button type="button" class="btn btn-sm" style="background: #007bff; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px;" onclick="showEditUserModal(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars($user['name']); ?>', '<?php echo htmlspecialchars($user['pin']); ?>', '<?php echo htmlspecialchars($user['color']); ?>', '<?php echo $user['role']; ?>', <?php echo $user['is_active']; ?>)">Edit</button>
+                                                    <button type="button" class="btn btn-sm" style="background: #007bff; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px;" onclick="showEditUserModal(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars($user['name']); ?>', '<?php echo htmlspecialchars($user['pin']); ?>', '<?php echo htmlspecialchars($user['color']); ?>', '<?php echo $user['role']; ?>', <?php echo $user['is_active']; ?>, <?php echo $user['is_in_training'] ?? 0; ?>)">Edit</button>
 
                                                     <button type="button" class="btn btn-sm" style="background: #ffc107; color: black; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px;" onclick="showResetPinModal(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars($user['name']); ?>')">Reset PIN</button>
 
