@@ -981,6 +981,24 @@ include __DIR__ . '/../includes/header.php';
 </div>
 
 <script>
+// Function to toggle collapsible sections
+function toggleCollapsible(sectionId) {
+    const content = document.getElementById(sectionId);
+    const arrow = document.getElementById(sectionId + '-arrow');
+
+    if (content.classList.contains('expanded')) {
+        content.classList.remove('expanded');
+        arrow.classList.remove('expanded');
+        // Store collapsed state in localStorage
+        localStorage.setItem(sectionId + '_collapsed', 'true');
+    } else {
+        content.classList.add('expanded');
+        arrow.classList.add('expanded');
+        // Store expanded state in localStorage
+        localStorage.setItem(sectionId + '_collapsed', 'false');
+    }
+}
+
 // Function to open edit modal with current quiz data
 function editQuiz(quizId) {
     // Fetch quiz data via AJAX and populate edit modal
