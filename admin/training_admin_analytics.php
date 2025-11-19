@@ -723,12 +723,8 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
 
                     $attempts_html .= "</tbody></table></div></div>";
                 } else {
-                    $quiz_info = 'No completed attempts yet';
+                    $quiz_info = "<div class='quiz-section'><div class='quiz-latest'>No completed attempts yet</div></div>";
                 }
-            }
-            
-            if ($quiz_info !== '') {
-                $quiz_info = "<div class='quiz-section'><div class='quiz-latest'>{$quiz_info}</div>";
             }
 
                         echo "
