@@ -669,6 +669,62 @@ include __DIR__ . '/../includes/header.php';
 .content-badge.post { background: #e8f5e8; color: #388e3c; }
 .content-badge.quiz { background: #fff3cd; color: #856404; } /* NEW */
 
+/* Collapsible section styles */
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 15px 20px;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border-radius: 8px;
+    margin-bottom: 0;
+    transition: all 0.3s ease;
+}
+
+.collapsible-header:hover {
+    background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
+}
+
+.collapsible-header h2 {
+    margin: 0;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.expand-arrow {
+    font-size: 16px;
+    transition: transform 0.3s ease;
+    font-weight: bold;
+}
+
+.expand-arrow.expanded {
+    transform: rotate(90deg);
+}
+
+.collapsible-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+    border: none;
+}
+
+.collapsible-content.expanded {
+    max-height: 2000px;
+    transition: max-height 0.5s ease-in;
+}
+
+.quiz-card .collapsible-content {
+    padding: 20px;
+    background: white;
+    border-radius: 0 0 8px 8px;
+    border: 1px solid #ddd;
+    border-top: none;
+}
+
 </style>
 
 <div class="quiz-management">
@@ -746,11 +802,61 @@ include __DIR__ . '/../includes/header.php';
                         </select>
                         
                     </div>
+                <?php else: ?>
+                    <form method="POST">
+                        <input type="hidden" name="action" value="create_quiz">
 
-                    <button type="submit" class="btn btn-primary">Create Quiz</button>
-                    <a href="manage_training_courses.php" class="btn btn-secondary">← Back</a>
-                </form>
-            <?php endif; ?>
+                        <div class="form-group">
+                            <label for="content">Training Content:</label>
+                            <select name="content_id" id="content_id" class="quiz-content-select" required>
+                                <option value="">Select training content...</option>
+                                <?php foreach ($training_content as $content): ?>
+                                    <option value="<?php echo $content['content_id']; ?>">
+                                        <?php echo htmlspecialchars($content['display_name']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <input type="hidden" name="content_type" value="post">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="quiz_title">Quiz Title:</label>
+                            <input type="text" name="quiz_title" id="quiz_title" class="form-control" required maxlength="255">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="quiz_description">Quiz Description (Optional):</label>
+                            <textarea name="quiz_description" id="quiz_description" class="form-control" rows="3"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="passing_score">Passing Score (%):</label>
+                            <input type="number" name="passing_score" id="passing_score" class="form-control" min="0" max="100" value="80" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="time_limit">Time Limit (minutes, optional):</label>
+                            <input type="number" name="time_limit" id="time_limit" class="form-control" min="1" placeholder="No time limit">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="retest_period_months">Retest Period:</label>
+                            <select name="retest_period_months" id="retest_period_months" class="quiz-content-select">
+                                <option value="">No retest required</option>
+                                <option value="1">Every 1 month</option>
+                                <option value="3">Every 3 months</option>
+                                <option value="6">Every 6 months</option>
+                                <option value="12">Every 12 months</option>
+                                <option value="24">Every 24 months</option>
+                            </select>
+                            <small class="form-text">Select how often users must retake this quiz after passing. This is similar to the McDonald's training system where quizzes need to be retaken periodically.</small>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">Create Quiz</button>
+                        <a href="manage_training_courses.php" class="btn btn-secondary">← Back</a>
+                    </form>
+                <?php endif; ?>
+            </div>
         </div>
 
         <!-- Existing Quizzes Section -->
@@ -918,6 +1024,24 @@ include __DIR__ . '/../includes/header.php';
 </div>
 
 <script>
+// Function to toggle collapsible sections
+function toggleCollapsible(sectionId) {
+    const content = document.getElementById(sectionId);
+    const arrow = document.getElementById(sectionId + '-arrow');
+
+    if (content.classList.contains('expanded')) {
+        content.classList.remove('expanded');
+        arrow.classList.remove('expanded');
+        // Store collapsed state in localStorage
+        localStorage.setItem(sectionId + '_collapsed', 'true');
+    } else {
+        content.classList.add('expanded');
+        arrow.classList.add('expanded');
+        // Store expanded state in localStorage
+        localStorage.setItem(sectionId + '_collapsed', 'false');
+    }
+}
+
 // Function to open edit modal with current quiz data
 function editQuiz(quizId) {
     // Fetch quiz data via AJAX and populate edit modal
@@ -984,6 +1108,20 @@ window.onclick = function(event) {
         modal.style.display = 'none';
     }
 }
+
+// Initialize collapsible sections state on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Restore saved collapse state
+    const createQuizCollapsed = localStorage.getItem('createQuizSection_collapsed');
+    if (createQuizCollapsed === 'true') {
+        const content = document.getElementById('createQuizSection');
+        const arrow = document.getElementById('createQuizSection-arrow');
+        if (content && arrow) {
+            content.classList.remove('expanded');
+            arrow.classList.remove('expanded');
+        }
+    }
+});
 </script>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
