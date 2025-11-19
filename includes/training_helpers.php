@@ -1270,4 +1270,217 @@ function has_completed_all_training($pdo, $user_id) {
     }
 }
 
+// ============================================================
+// PHASE 3: RETEST ELIGIBILITY CHECK
+// ============================================================
+
+/**
+ * Check if a quiz is eligible for retest based on retest period
+ * @param PDO $pdo Database connection
+ * @param int $user_id User ID
+ * @param int $quiz_id Quiz ID
+ * @return array Status with retest_eligible flag and days until next retest
+ */
+function check_quiz_retest_eligibility($pdo, $user_id, $quiz_id) {
+    try {
+        // Get quiz retest period
+        $quiz_stmt = $pdo->prepare("SELECT retest_period_months FROM training_quizzes WHERE id = ?");
+        $quiz_stmt->execute([$quiz_id]);
+        $quiz = $quiz_stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$quiz) {
+            return ['status' => 'error', 'message' => 'Quiz not found'];
+        }
+
+        $retest_months = (int)($quiz['retest_period_months'] ?? 0);
+
+        // If no retest period, user can always retake
+        if ($retest_months === 0) {
+            return [
+                'status' => 'success',
+                'retest_eligible' => false,
+                'reason' => 'no_retest_period',
+                'next_retest_date' => null
+            ];
+        }
+
+        // Get last completed attempt
+        $attempt_stmt = $pdo->prepare("
+            SELECT id, completed_at, status
+            FROM user_quiz_attempts
+            WHERE user_id = ? AND quiz_id = ? AND status = 'passed'
+            ORDER BY completed_at DESC
+            LIMIT 1
+        ");
+        $attempt_stmt->execute([$user_id, $quiz_id]);
+        $last_attempt = $attempt_stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$last_attempt) {
+            return [
+                'status' => 'success',
+                'retest_eligible' => false,
+                'reason' => 'no_previous_attempt',
+                'next_retest_date' => null
+            ];
+        }
+
+        // Calculate retest date
+        $completed_date = new DateTime($last_attempt['completed_at']);
+        $completed_date->modify("+{$retest_months} months");
+        $retest_date = $completed_date->format('Y-m-d H:i:s');
+        $retest_timestamp = $completed_date->getTimestamp();
+
+        $now_timestamp = time();
+        $retest_eligible = $now_timestamp >= $retest_timestamp;
+
+        $days_until = ceil(($retest_timestamp - $now_timestamp) / 86400);
+
+        return [
+            'status' => 'success',
+            'retest_eligible' => $retest_eligible,
+            'reason' => $retest_eligible ? 'retest_available' : 'retest_not_yet_available',
+            'next_retest_date' => $retest_date,
+            'days_until_retest' => max(0, $days_until),
+            'last_attempt_date' => $last_attempt['completed_at'],
+            'retest_period_months' => $retest_months
+        ];
+    } catch (PDOException $e) {
+        error_log("Error checking quiz retest eligibility: " . $e->getMessage());
+        return ['status' => 'error', 'message' => $e->getMessage()];
+    }
+}
+
+/**
+ * Enable retests for user when retest period expires
+ * Auto-sets is_in_training flag for users with eligible retests
+ * @param PDO $pdo Database connection
+ * @param int $user_id User ID
+ * @return array Status with retests enabled and is_in_training flag status
+ */
+function check_and_enable_retests($pdo, $user_id) {
+    try {
+        $pdo->beginTransaction();
+
+        $retests_enabled = [];
+        $flag_updated = false;
+
+        // Get all quizzes user has passed
+        $quiz_stmt = $pdo->prepare("
+            SELECT DISTINCT tq.id, tq.retest_period_months, uqa.completed_at, uqa.id as attempt_id
+            FROM training_quizzes tq
+            JOIN user_quiz_attempts uqa ON tq.id = uqa.quiz_id
+            WHERE uqa.user_id = ?
+            AND uqa.status = 'passed'
+            ORDER BY uqa.completed_at DESC
+        ");
+        $quiz_stmt->execute([$user_id]);
+        $quizzes = $quiz_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($quizzes as $quiz) {
+            $retest_months = (int)($quiz['retest_period_months'] ?? 0);
+
+            // Skip if no retest period
+            if ($retest_months === 0) {
+                continue;
+            }
+
+            // Calculate retest date
+            $completed_date = new DateTime($quiz['completed_at']);
+            $completed_date->modify("+{$retest_months} months");
+            $retest_timestamp = $completed_date->getTimestamp();
+            $now_timestamp = time();
+
+            // If retest period has passed, enable retesting
+            if ($now_timestamp >= $retest_timestamp) {
+                $retests_enabled[] = [
+                    'quiz_id' => $quiz['id'],
+                    'retest_date' => $completed_date->format('Y-m-d H:i:s')
+                ];
+
+                // Create new "pending" attempt to allow retaking
+                $new_attempt_stmt = $pdo->prepare("
+                    INSERT INTO user_quiz_attempts
+                    (user_id, quiz_id, status, started_at, created_at)
+                    VALUES (?, ?, 'pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    ON DUPLICATE KEY UPDATE
+                    status = 'pending',
+                    started_at = CURRENT_TIMESTAMP
+                ");
+                $new_attempt_stmt->execute([$user_id, $quiz['id']]);
+
+                log_debug("Retest enabled for user $user_id on quiz {$quiz['id']}", 'INFO');
+            }
+        }
+
+        // If any retests were enabled, set is_in_training flag
+        if (!empty($retests_enabled)) {
+            $flag_stmt = $pdo->prepare("
+                UPDATE users
+                SET is_in_training = 1, updated_at = NOW()
+                WHERE id = ?
+            ");
+            $flag_stmt->execute([$user_id]);
+            $flag_updated = true;
+
+            // Update session
+            if (!empty($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
+                $_SESSION['user_is_in_training'] = 1;
+            }
+
+            log_debug("Set is_in_training = 1 for user $user_id ({count($retests_enabled)} retests available)", 'INFO');
+        }
+
+        $pdo->commit();
+
+        return [
+            'status' => 'success',
+            'retests_enabled' => count($retests_enabled),
+            'flag_updated' => $flag_updated,
+            'retests' => $retests_enabled
+        ];
+    } catch (PDOException $e) {
+        $pdo->rollBack();
+        error_log("Error checking and enabling retests: " . $e->getMessage());
+        return ['status' => 'error', 'message' => $e->getMessage()];
+    }
+}
+
+/**
+ * Get all quizzes available for retest for a user
+ * @param PDO $pdo Database connection
+ * @param int $user_id User ID
+ * @return array List of quizzes available for retest
+ */
+function get_retestable_quizzes($pdo, $user_id) {
+    try {
+        $retestable = [];
+
+        // Get all passed quizzes with retest periods
+        $stmt = $pdo->prepare("
+            SELECT DISTINCT tq.id, tq.title, tq.retest_period_months, uqa.completed_at
+            FROM training_quizzes tq
+            JOIN user_quiz_attempts uqa ON tq.id = uqa.quiz_id
+            WHERE uqa.user_id = ?
+            AND uqa.status = 'passed'
+            AND tq.retest_period_months > 0
+            ORDER BY tq.title
+        ");
+        $stmt->execute([$user_id]);
+        $quizzes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($quizzes as $quiz) {
+            $eligibility = check_quiz_retest_eligibility($pdo, $user_id, $quiz['id']);
+
+            if ($eligibility['status'] === 'success') {
+                $retestable[] = array_merge($quiz, $eligibility);
+            }
+        }
+
+        return $retestable;
+    } catch (PDOException $e) {
+        error_log("Error getting retestable quizzes: " . $e->getMessage());
+        return [];
+    }
+}
+
 ?>
