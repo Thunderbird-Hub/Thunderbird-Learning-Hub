@@ -389,8 +389,13 @@ function can_access_content($pdo, $content_id, $content_type, $user_id = null) {
         return true;
     }
 
-    // Training users have restricted access
-    if (is_training_user()) {
+    // --- PHASE 3: DUAL-CHECK ---
+    // Accept either old system (role-based) or new system (flag-based)
+    $is_training_old = is_training_user();  // Legacy role check
+    $is_training_new = function_exists('is_in_training') ? is_in_training() : false; // New flag check
+
+    // Training users have restricted access (accept either system)
+    if ($is_training_old || $is_training_new) {
         return is_assigned_training_content($pdo, $user_id, $content_id, $content_type);
     }
 
