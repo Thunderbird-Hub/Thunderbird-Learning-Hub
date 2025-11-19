@@ -93,6 +93,36 @@ include __DIR__ . '/../includes/header.php';
     border: 1px solid #e5e7eb;
 }
 
+.quiz-main-content {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.quiz-left-section {
+    flex: 0 0 50%;
+    display: flex;
+    gap: 8px;
+}
+
+.quiz-content-info {
+    flex: 1;
+    font-size: 13px;
+    color: #374151;
+    font-weight: 500;
+}
+
+.quiz-status-info {
+    flex: 1;
+}
+
+.quiz-right-section {
+    flex: 0 0 50%;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
 .quiz-latest {
     font-size: 13px;
     margin-bottom: 8px;
