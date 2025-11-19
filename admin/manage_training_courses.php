@@ -376,9 +376,13 @@ try {
 // Fetch data
 $courses = [];
 $all_users = [];
+$all_departments = [];
 
 if ($training_tables_exist) {
     try {
+        // Fetch all departments for the dropdown
+        $all_departments = get_all_departments($pdo);
+
         // --- BEGIN REPLACEMENT ---
     /**
      * Accurate stats per project rules using ONLY correlated subqueries (no outer refs in FROM):
