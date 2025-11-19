@@ -503,16 +503,28 @@ function assign_course_to_users($pdo, $course_id, $user_ids, $assigned_by) {
 
             if ($user_data && $user_data['role'] === 'user') {
                 error_log("DEBUG: Converting user_id=$user_id from 'user' to 'training' role");
-                // Convert user to training role
+                // --- PHASE 2: DUAL-WRITE ---
+                // Set BOTH role (for backwards compat) AND is_in_training flag (new system)
                 $role_stmt = $pdo->prepare("
                     UPDATE users
-                    SET role = 'training', previous_role = 'user'
+                    SET role = 'training', previous_role = 'user', is_in_training = 1
                     WHERE id = ?
                 ");
                 $role_rows = $role_stmt->execute([$user_id]);
                 error_log("DEBUG: Role conversion rows affected for user_id=$user_id: $role_rows");
             } else {
                 error_log("DEBUG: User_id=$user_id already has role: " . ($user_data['role'] ?? 'NULL'));
+                // --- PHASE 2: DUAL-WRITE ---
+                // Even if they're not a 'user', if they're being assigned training, set the flag
+                if ($user_data) {
+                    $flag_stmt = $pdo->prepare("
+                        UPDATE users
+                        SET is_in_training = 1
+                        WHERE id = ?
+                    ");
+                    $flag_stmt->execute([$user_id]);
+                    error_log("DEBUG: Set is_in_training flag for user_id=$user_id");
+                }
             }
         }
 
