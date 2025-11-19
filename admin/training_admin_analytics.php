@@ -118,18 +118,7 @@ include __DIR__ . '/../includes/header.php';
     border-spacing: 0;
 }
 
-.analytics-table th {
-    background: #f8f9fa;
-    color: #4b5563;
-    font-size: 13px;
-    font-weight: 600;
-    border-bottom: 1px solid #e5e7eb;
-    padding: 12px 16px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-/* Add a full-width gradient header wrapper */
+/* Full-width gradient header wrapper */
 .analytics-table-wrapper {
     position: relative;
 }
@@ -156,6 +145,11 @@ include __DIR__ . '/../includes/header.php';
     background: transparent;
     color: white;
     border: none;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 12px 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .analytics-table td {
