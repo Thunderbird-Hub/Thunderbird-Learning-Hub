@@ -864,6 +864,110 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
 
 </div>
 
+<script>
+// Quiz filtering and pagination functionality
+function initializeQuizFilters(quizId) {
+    const statusFilter = document.getElementById(`status-filter-${quizId}`);
+    const pageSizeFilter = document.getElementById(`page-size-${quizId}`);
+    const tableBody = document.getElementById(`quiz-table-${quizId}`);
+    const paginationInfo = document.getElementById(`pagination-info-${quizId}`);
+    const passedStat = document.getElementById(`passed-count-${quizId}`);
+    const failedStat = document.getElementById(`failed-count-${quizId}`);
+
+    if (!statusFilter || !tableBody) return;
+
+    // Get all attempt data from table rows
+    const allAttempts = Array.from(tableBody.children).map(row => {
+        const cells = row.children;
+        return {
+            row: row,
+            attempt: parseInt(cells[0].textContent),
+            score: parseInt(cells[1].textContent),
+            status: cells[2].textContent.trim().toLowerCase(),
+            date: cells[3].textContent,
+            resultLink: cells[4].innerHTML
+        };
+    });
+
+    function updateDisplay() {
+        const statusFilterValue = statusFilter.value;
+        const pageSize = parseInt(pageSizeFilter ? pageSizeFilter.value : '10');
+
+        // Filter attempts
+        let filteredAttempts = allAttempts.filter(attempt => {
+            if (statusFilterValue === 'all') return true;
+            return attempt.status === statusFilterValue;
+        });
+
+        // Update summary stats
+        const passedCount = allAttempts.filter(a => a.status === 'passed').length;
+        const failedCount = allAttempts.filter(a => a.status === 'failed').length;
+
+        if (passedStat) passedStat.textContent = passedCount;
+        if (failedStat) failedStat.textContent = failedCount;
+
+        // Pagination
+        const startIndex = 0;
+        const endIndex = Math.min(startIndex + pageSize, filteredAttempts.length);
+
+        // Clear table
+        tableBody.innerHTML = '';
+
+        // Show paginated results
+        const paginatedAttempts = filteredAttempts.slice(startIndex, endIndex);
+
+        if (paginatedAttempts.length === 0) {
+            const emptyRow = document.createElement('tr');
+            emptyRow.innerHTML = '<td colspan="5" style="text-align: center; color: #6b7280; padding: 20px;">No attempts found for this filter</td>';
+            tableBody.appendChild(emptyRow);
+
+            if (paginationInfo) {
+                paginationInfo.textContent = '0 results';
+            }
+        } else {
+            paginatedAttempts.forEach(attempt => {
+                const newRow = document.createElement('tr');
+                newRow.innerHTML = `
+                    <td>${attempt.attempt}</td>
+                    <td>${attempt.score}%</td>
+                    <td>${attempt.status.charAt(0).toUpperCase() + attempt.status.slice(1)}</td>
+                    <td>${attempt.date}</td>
+                    <td>${attempt.resultLink}</td>
+                `;
+                tableBody.appendChild(newRow);
+            });
+
+            if (paginationInfo) {
+                if (filteredAttempts.length <= pageSize) {
+                    paginationInfo.textContent = `${filteredAttempts.length} results`;
+                } else {
+                    paginationInfo.textContent = `${endIndex} of ${filteredAttempts.length} results`;
+                }
+            }
+        }
+    }
+
+    // Add event listeners
+    statusFilter.addEventListener('change', updateDisplay);
+    if (pageSizeFilter) {
+        pageSizeFilter.addEventListener('change', updateDisplay);
+    }
+
+    // Initial display
+    updateDisplay();
+}
+
+// Initialize all quiz filters when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Find all quiz sections and initialize them
+    const quizSections = document.querySelectorAll('[data-quiz-id]');
+    quizSections.forEach(section => {
+        const quizId = section.getAttribute('data-quiz-id');
+        initializeQuizFilters(quizId);
+    });
+});
+</script>
+
 <?php
 // Standard footer (includes your latest updates widget, bug report button, etc.)
 include __DIR__ . '/../includes/footer.php';
