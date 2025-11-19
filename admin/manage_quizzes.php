@@ -918,22 +918,30 @@ include __DIR__ . '/../includes/header.php';
 </div>
 
 <script>
-function updateContentOptions() {
-    const select = document.getElementById('content_type');
-    const contentIdInput = document.getElementById('content_id');
-
-    if (select.value) {
-        const [contentType, contentId] = select.value.split('|');
-        contentIdInput.value = contentId;
-    } else {
-        contentIdInput.value = '';
-    }
-}
-
-// No longer needed because “Edit Quiz” is now a direct link.
-// Keeping a stub in case something else calls it.
+// Function to open edit modal with current quiz data
 function editQuiz(quizId) {
-    window.location.href = 'manage_quiz_questions.php?quiz_id=' + encodeURIComponent(quizId) + '&edit=true';
+    // Fetch quiz data via AJAX and populate edit modal
+    fetch('manage_quizzes.php?get_quiz_data=' + encodeURIComponent(quizId))
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('edit_quiz_id').value = data.quiz.id;
+                document.getElementById('edit_quiz_title').value = data.quiz.quiz_title;
+                document.getElementById('edit_quiz_description').value = data.quiz.quiz_description || '';
+                document.getElementById('edit_passing_score').value = data.quiz.passing_score;
+                document.getElementById('edit_time_limit').value = data.quiz.time_limit_minutes || '';
+                document.getElementById('edit_retest_period_months').value = data.quiz.retest_period_months || '';
+                document.getElementById('edit_is_active').checked = data.quiz.is_active == 1;
+
+                document.getElementById('editQuizModal').style.display = 'block';
+            } else {
+                alert('Error loading quiz data: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading quiz data');
+        });
 }
 
 function toggleQuizStatus(quizId, newStatus) {
