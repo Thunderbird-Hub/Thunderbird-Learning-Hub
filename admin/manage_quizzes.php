@@ -1065,6 +1065,20 @@ window.onclick = function(event) {
         modal.style.display = 'none';
     }
 }
+
+// Initialize collapsible sections state on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Restore saved collapse state
+    const createQuizCollapsed = localStorage.getItem('createQuizSection_collapsed');
+    if (createQuizCollapsed === 'true') {
+        const content = document.getElementById('createQuizSection');
+        const arrow = document.getElementById('createQuizSection-arrow');
+        if (content && arrow) {
+            content.classList.remove('expanded');
+            arrow.classList.remove('expanded');
+        }
+    }
+});
 </script>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
