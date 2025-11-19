@@ -188,6 +188,40 @@ include __DIR__ . '/../includes/header.php';
     width: 100%; /* Fill container */
 }
 
+/* Apply same gradient header styling to course progress table */
+.course-progress-table-wrapper {
+    position: relative;
+}
+
+.course-progress-table-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px 8px 0 0;
+    z-index: 1;
+}
+
+.course-progress-table {
+    position: relative;
+    z-index: 2;
+    margin-top: 0;
+}
+
+.course-progress-table th {
+    background: transparent;
+    color: white;
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 12px 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 .status-pill {
     display: inline-block;
     padding: 4px 10px;
@@ -772,7 +806,7 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
                         <div class='stat-label'>Overall Completion</div>
                     </div>
                 </div>
-                <div class='table-responsive'>
+                <div class='table-responsive course-progress-table-wrapper'>
                     <table class='table table-bordered table-striped table-hover align-middle course-progress-table analytics-table mb-0'>
                         <thead>
                             <tr>
