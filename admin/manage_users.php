@@ -59,6 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $users_table_exists) {
             $pin = isset($_POST['pin']) ? trim($_POST['pin']) : '';
             $color = isset($_POST['color']) ? trim($_POST['color']) : '#4A90E2';
             $role = isset($_POST['role']) ? $_POST['role'] : 'user';
+            $is_in_training = isset($_POST['is_in_training']) ? 1 : 0;  // PHASE 4: Check flag
 
             // Validation
             if (empty($name)) {
@@ -76,8 +77,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $users_table_exists) {
                     // Hash the PIN using bcrypt (no salt needed - bcrypt handles it internally)
                     $hashed_pin = password_hash($pin, PASSWORD_BCRYPT, ['cost' => 10]);
 
-                    $stmt = $pdo->prepare("INSERT INTO users (name, pin, color, role, created_by) VALUES (?, ?, ?, ?, ?)");
-                    $stmt->execute([$name, $hashed_pin, $color, $role, $_SESSION['user_id']]);
+                    // PHASE 4: Set role and is_in_training flag separately
+                    $stmt = $pdo->prepare("INSERT INTO users (name, pin, color, role, is_in_training, created_by) VALUES (?, ?, ?, ?, ?, ?)");
+                    $stmt->execute([$name, $hashed_pin, $color, $role, $is_in_training, $_SESSION['user_id']]);
                     $success_message = 'User created successfully!';
                 } catch (PDOException $e) {
                     if ($e->getCode() == 23000) {
@@ -94,6 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $users_table_exists) {
             $name = isset($_POST['name']) ? trim($_POST['name']) : '';
             $color = isset($_POST['color']) ? trim($_POST['color']) : '#4A90E2';
             $role = isset($_POST['role']) ? $_POST['role'] : 'user';
+            $is_in_training = isset($_POST['is_in_training']) ? 1 : 0;  // PHASE 4: Check flag
 
             // Get the user being edited to check their current role and is_active status
             $stmt = $pdo->prepare("SELECT role, is_active FROM users WHERE id = ?");
@@ -120,8 +123,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $users_table_exists) {
                 try {
                     // Preserve the current is_active status - use separate toggle_status action to change it
                     $is_active = $target_user['is_active'];
-                    $stmt = $pdo->prepare("UPDATE users SET name = ?, color = ?, role = ? WHERE id = ?");
-                    $stmt->execute([$name, $color, $role, $user_id]);
+                    // PHASE 4: Set role and is_in_training flag separately
+                    $stmt = $pdo->prepare("UPDATE users SET name = ?, color = ?, role = ?, is_in_training = ? WHERE id = ?");
+                    $stmt->execute([$name, $color, $role, $is_in_training, $user_id]);
                     $success_message = 'User updated successfully!';
 
                     // If editing current user, update session immediately
@@ -129,6 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $users_table_exists) {
                         $_SESSION['user_name'] = $name;
                         $_SESSION['user_color'] = $color;
                         $_SESSION['user_role'] = $role;
+                        $_SESSION['user_is_in_training'] = $is_in_training;
                     }
                 } catch (PDOException $e) {
                     $error_message = 'Error updating user: ' . $e->getMessage();
@@ -393,7 +398,7 @@ include __DIR__ . '/../includes/header.php';
                                                 if ($target_is_super_admin && !$current_user_is_super_admin): ?>
                                                     <span style="color: #dc3545; font-size: 11px; font-weight: 500;">🔒 Super Admin</span>
                                                 <?php else: ?>
-                                                    <button type="button" class="btn btn-sm" style="background: #007bff; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px;" onclick="showEditUserModal(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars($user['name']); ?>', '<?php echo htmlspecialchars($user['pin']); ?>', '<?php echo htmlspecialchars($user['color']); ?>', '<?php echo $user['role']; ?>', <?php echo $user['is_active']; ?>)">Edit</button>
+                                                    <button type="button" class="btn btn-sm" style="background: #007bff; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px;" onclick="showEditUserModal(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars($user['name']); ?>', '<?php echo htmlspecialchars($user['pin']); ?>', '<?php echo htmlspecialchars($user['color']); ?>', '<?php echo $user['role']; ?>', <?php echo $user['is_active']; ?>, <?php echo $user['is_in_training'] ?? 0; ?>)">Edit</button>
 
                                                     <button type="button" class="btn btn-sm" style="background: #ffc107; color: black; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px;" onclick="showResetPinModal(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars($user['name']); ?>')">Reset PIN</button>
 
@@ -448,25 +453,28 @@ include __DIR__ . '/../includes/header.php';
                 <label style="display: block; margin-bottom: 4px; font-weight: 500;">Role</label>
                 <select name="role" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                     <option value="user">User</option>
-                    <option value="training">Training</option>
                     <option value="admin">Admin</option>
                     <?php if (is_current_user_super_admin($pdo)): ?>
                     <option value="super admin">Super Admin</option>
                     <?php endif; ?>
                 </select>
                 <div style="margin-top: 4px; font-size: 12px; color: #6c757d; font-style: italic;">
-                    Training: Limited access, must complete assigned training materials<br>
                     User: Full access to all content, no post creation<br>
                     Admin: Can manage content and users<br>
                     <?php if (!is_current_user_super_admin($pdo)): ?>
                     Note: Only super admins can create super admin accounts
                     <?php endif; ?>
                 </div>
-                <?php if (!is_current_user_super_admin($pdo)): ?>
-                <div style="margin-top: 4px; font-size: 12px; color: #6c757d; font-style: italic;">
-                    Note: Only super admins can create super admin accounts
+            </div>
+
+            <div style="margin-bottom: 16px; padding: 12px; background: #f0f7ff; border: 1px solid #b3d9ff; border-radius: 4px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0;">
+                    <input type="checkbox" name="is_in_training" value="1" style="width: 18px; height: 18px;">
+                    <span style="font-weight: 500;">🎓 Set as Training User</span>
+                </label>
+                <div style="margin-top: 8px; font-size: 12px; color: #6c757d;">
+                    Check this to assign training to this user. They will have limited access and must complete assigned training materials before viewing other content.
                 </div>
-                <?php endif; ?>
             </div>
 
             <div style="display: flex; gap: 8px; justify-content: flex-end;">
@@ -499,7 +507,6 @@ include __DIR__ . '/../includes/header.php';
                 <label style="display: block; margin-bottom: 4px; font-weight: 500;">Role</label>
                 <select id="edit_role" name="role" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                     <option value="user">User</option>
-                    <option value="training">Training</option>
                     <option value="admin">Admin</option>
                     <?php if (is_current_user_super_admin($pdo)): ?>
                     <option value="super admin">Super Admin</option>
@@ -510,6 +517,16 @@ include __DIR__ . '/../includes/header.php';
                     Note: Only super admins can assign super admin roles
                 </div>
                 <?php endif; ?>
+            </div>
+
+            <div style="margin-bottom: 16px; padding: 12px; background: #f0f7ff; border: 1px solid #b3d9ff; border-radius: 4px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0;">
+                    <input type="checkbox" id="edit_is_in_training" name="is_in_training" value="1" style="width: 18px; height: 18px;">
+                    <span style="font-weight: 500;">🎓 Set as Training User</span>
+                </label>
+                <div style="margin-top: 8px; font-size: 12px; color: #6c757d;">
+                    Check this to assign training to this user. They will have limited access and must complete assigned training materials before viewing other content.
+                </div>
             </div>
 
             <div style="margin-bottom: 16px; padding: 12px; background: #f8f9fa; border-radius: 4px; font-size: 12px; color: #6c757d;">
@@ -559,11 +576,13 @@ function hideAddUserModal() {
     document.getElementById('addUserModal').style.display = 'none';
 }
 
-function showEditUserModal(userId, name, pin, color, role, isActive) {
+function showEditUserModal(userId, name, pin, color, role, isActive, isInTraining) {
     document.getElementById('edit_user_id').value = userId;
     document.getElementById('edit_name').value = name;
     document.getElementById('edit_color').value = color;
     document.getElementById('edit_role').value = role;
+    // PHASE 4: Set the is_in_training checkbox based on the user's current flag
+    document.getElementById('edit_is_in_training').checked = (isInTraining === 1 || isInTraining === true);
     document.getElementById('editUserModal').style.display = 'block';
 }
 
