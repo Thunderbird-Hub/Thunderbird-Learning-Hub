@@ -814,20 +814,6 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
 
                     $attempts_html .= "</div>";
 
-                    // Summary stats
-                    $passed_count = 0;
-                    $failed_count = 0;
-                    foreach ($attempts as $att) {
-                        if (strtolower($att['status'] ?? '') === 'passed') $passed_count++;
-                        if (strtolower($att['status'] ?? '') === 'failed') $failed_count++;
-                    }
-
-                    $attempts_html .= "<div class='quiz-summary-stats'>";
-                    $attempts_html .= "<div class='quiz-stat passed'><span class='quiz-stat-number' id='passed-count-{$quiz_unique_id}'>{$passed_count}</span> Passed</div>";
-                    $attempts_html .= "<div class='quiz-stat failed'><span class='quiz-stat-number' id='failed-count-{$quiz_unique_id}'>{$failed_count}</span> Failed</div>";
-                    $attempts_html .= "<div class='quiz-stat total'><span class='quiz-stat-number'>" . count($attempts) . "</span> Total</div>";
-                    $attempts_html .= "</div>";
-
                     // Filter controls
                     $attempts_html .= "<div class='quiz-controls'>";
                     $attempts_html .= "<div class='quiz-filter-group'>";
