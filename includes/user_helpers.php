@@ -84,7 +84,14 @@ function is_in_training() {
     // Fall back to database check
     if (isset($_SESSION['user_id'])) {
         try {
-            require_once 'db_connect.php';
+            global $pdo;
+            require_once __DIR__ . '/db_connect.php';
+
+            // If $pdo is still null/false after require, return false
+            if (!$pdo) {
+                return is_training_user_legacy();
+            }
+
             $stmt = $pdo->prepare("SELECT is_in_training FROM users WHERE id = ? AND is_active = 1");
             $stmt->execute([$_SESSION['user_id']]);
             $user = $stmt->fetch();
@@ -95,6 +102,9 @@ function is_in_training() {
         } catch (PDOException $e) {
             // If column doesn't exist yet, fall back to old role check
             // This handles the transition period before migration
+            return is_training_user_legacy();
+        } catch (Throwable $e) {
+            // Catch any other errors and fall back to legacy check
             return is_training_user_legacy();
         }
     }

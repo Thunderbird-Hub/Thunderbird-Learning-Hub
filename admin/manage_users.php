@@ -326,6 +326,7 @@ include __DIR__ . '/../includes/header.php';
                                     <th style="padding: 12px; text-align: left; font-weight: 600; color: #495057;">PIN</th>
                                     <th style="padding: 12px; text-align: left; font-weight: 600; color: #495057;">Color</th>
                                     <th style="padding: 12px; text-align: left; font-weight: 600; color: #495057;">Role</th>
+                                    <th style="padding: 12px; text-align: left; font-weight: 600; color: #495057;">Training</th>
                                     <th style="padding: 12px; text-align: left; font-weight: 600; color: #495057;">Status</th>
                                     <th style="padding: 12px; text-align: left; font-weight: 600; color: #495057;">Posts</th>
                                     <th style="padding: 12px; text-align: left; font-weight: 600; color: #495057;">Last Login</th>
@@ -362,6 +363,13 @@ include __DIR__ . '/../includes/header.php';
                                             <span style="background: <?php echo $role_color; ?>; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;">
                                                 <?php echo ucfirst($user['role']); ?>
                                             </span>
+                                        </td>
+                                        <td style="padding: 12px;">
+                                            <?php if ($user['is_in_training']): ?>
+                                                <span style="background: #17a2b8; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;">🎓 Training</span>
+                                            <?php else: ?>
+                                                <span style="background: #6c757d; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;">—</span>
+                                            <?php endif; ?>
                                         </td>
                                         <td style="padding: 12px;">
                                             <span style="background: <?php echo $user['is_active'] ? '#28a745' : '#dc3545'; ?>; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;">
