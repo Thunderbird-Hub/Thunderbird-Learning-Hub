@@ -545,9 +545,15 @@ include __DIR__ . '/../includes/header.php';
                                 <label style="display: block; margin-bottom: 4px; font-weight: 500; color: #495057;">
                                     Department
                                 </label>
-                                <input type="text" name="department" maxlength="100"
-                                       style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
-                                       placeholder="e.g., Human Resources">
+                                <select name="department"
+                                       style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
+                                    <option value="">-- Select Department --</option>
+                                    <?php foreach ($all_departments as $dept): ?>
+                                        <option value="<?php echo htmlspecialchars($dept['id']); ?>">
+                                            <?php echo htmlspecialchars($dept['name']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
                             </div>
                         </div>
 
