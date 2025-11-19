@@ -143,8 +143,9 @@ if (!$can_attempt) {
 // --- END REPLACEMENT ---
 
 
-    // Get existing attempt if any
+    // Check for retest eligibility and existing attempts
     if ($can_attempt) {
+        // First check for existing in-progress attempt
         $stmt = $pdo->prepare("
             SELECT * FROM user_quiz_attempts
             WHERE user_id = ? AND quiz_id = ? AND status = 'in_progress'
@@ -154,26 +155,77 @@ if (!$can_attempt) {
         $stmt->execute([$_SESSION['user_id'], $quiz_id]);
         $quiz_attempt = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // If no active attempt, create a new one
+        // If no in-progress attempt, check if user can start a new attempt (retest logic)
         if (!$quiz_attempt) {
-            $stmt = $pdo->prepare("
-                INSERT INTO user_quiz_attempts
-                (user_id, quiz_id, attempt_number, status, started_at)
-                VALUES (?, ?, (
-                    SELECT COALESCE(MAX(attempt_number), 0) + 1
-                    FROM user_quiz_attempts
-                    WHERE user_id = ? AND quiz_id = ?
-                ), 'in_progress', CURRENT_TIMESTAMP)
-            ");
-            $stmt->execute([$_SESSION['user_id'], $quiz_id, $_SESSION['user_id'], $quiz_id]);
+            $can_create_new_attempt = false;
 
-            $attempt_id = $pdo->lastInsertId();
-
+            // Get the most recent completed attempt
             $stmt = $pdo->prepare("
-                SELECT * FROM user_quiz_attempts WHERE id = ?
+                SELECT * FROM user_quiz_attempts
+                WHERE user_id = ? AND quiz_id = ? AND status IN ('passed', 'failed')
+                ORDER BY completed_at DESC
+                LIMIT 1
             ");
-            $stmt->execute([$attempt_id]);
-            $quiz_attempt = $stmt->fetch(PDO::FETCH_ASSOC);
+            $stmt->execute([$_SESSION['user_id'], $quiz_id]);
+            $last_completed_attempt = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$last_completed_attempt) {
+                // No previous attempts - first time taking quiz
+                $can_create_new_attempt = true;
+            } else {
+                // Check retest eligibility based on quiz settings
+                $retest_months = intval($quiz['retest_period_months'] ?? 0);
+
+                if ($retest_months <= 0) {
+                    // No retest restriction - can retake anytime
+                    $can_create_new_attempt = true;
+                } else {
+                    // Calculate when retest becomes available
+                    $completed_at = new DateTime($last_completed_attempt['completed_at']);
+                    $retest_available_at = clone $completed_at;
+                    $retest_available_at->add(new DateInterval("P{$retest_months}M"));
+                    $now = new DateTime();
+
+                    if ($now >= $retest_available_at) {
+                        // Retest period has passed
+                        $can_create_new_attempt = true;
+                    } else {
+                        // Retest period not yet passed - show error
+                        $days_until_retest = $now->diff($retest_available_at)->days;
+                        $error_message = "This quiz requires a waiting period of {$retest_months} month(s) before retaking. You can retake this quiz in {$days_until_retest} day(s).";
+
+                        if (function_exists('log_debug')) {
+                            log_debug("Retest blocked - User {$_SESSION['user_id']}, Quiz {$quiz_id}, Completed at: {$last_completed_attempt['completed_at']}, Retest available: {$retest_available_at->format('Y-m-d H:i:s')}");
+                        }
+                    }
+                }
+            }
+
+            // Create new attempt if allowed
+            if ($can_create_new_attempt) {
+                $stmt = $pdo->prepare("
+                    INSERT INTO user_quiz_attempts
+                    (user_id, quiz_id, attempt_number, status, started_at)
+                    VALUES (?, ?, (
+                        SELECT COALESCE(MAX(attempt_number), 0) + 1
+                        FROM user_quiz_attempts
+                        WHERE user_id = ? AND quiz_id = ?
+                    ), 'in_progress', CURRENT_TIMESTAMP)
+                ");
+                $stmt->execute([$_SESSION['user_id'], $quiz_id, $_SESSION['user_id'], $quiz_id]);
+
+                $attempt_id = $pdo->lastInsertId();
+
+                $stmt = $pdo->prepare("
+                    SELECT * FROM user_quiz_attempts WHERE id = ?
+                ");
+                $stmt->execute([$attempt_id]);
+                $quiz_attempt = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if (function_exists('log_debug')) {
+                    log_debug("Created new quiz attempt - User {$_SESSION['user_id']}, Quiz {$quiz_id}, Attempt ID: {$attempt_id}");
+                }
+            }
         }
     }
 
