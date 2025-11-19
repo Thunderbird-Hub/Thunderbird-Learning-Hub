@@ -649,9 +649,8 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
 
         echo "
         <div class='card analytics-card mb-4'>
-            <div class='card-header analytics-header d-flex align-items-center justify-content-between'>
+            <div class='card-header analytics-header'>
                 <h5 class='mb-0'>Course Progress</h5>
-                <span class='badge bg-secondary'>User snapshot</span>
             </div>
             <div class='card-body'>
                 <div class='stats-grid mb-3'>
