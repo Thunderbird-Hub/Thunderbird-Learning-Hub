@@ -50,17 +50,32 @@ include __DIR__ . '/../includes/header.php';
 
 /* Analytics-specific styling (preserved and enhanced) */
 .card.analytics-card {
-    border: 1px solid #dee2e6;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
     border-radius: 8px;
     background: white;
+    width: 100%;
+    max-width: 100%;
+    margin-right: 0;
+    margin-left: 0;
+    overflow: hidden;
 }
 
 .card-header.analytics-header {
-    background: #f8f9fa;
-    color: #1f2a44;
-    border-bottom: 1px solid #dee2e6;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-bottom: none;
     border-radius: 8px 8px 0 0;
+    padding: 16px 20px;
+    font-weight: 600;
+}
+
+.card.analytics-card .card-body {
+    padding: 0;
+}
+
+.card.analytics-card .table-responsive {
+    margin: 0;
 }
 
 .analytics-table th {
