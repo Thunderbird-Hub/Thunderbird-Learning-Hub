@@ -367,6 +367,10 @@ elseif ($is_prod): ?>
             <span class="dev-file-icon">👥</span>
             <span class="dev-file-name">User Management</span>
           </a>
+          <a href="/admin/manage_departments.php" class="dev-file-item">
+            <span class="dev-file-icon">🏢</span>
+            <span class="dev-file-name">Department Management</span>
+          </a>
           <a href="/admin/manage_training_courses.php" class="dev-file-item">
             <span class="dev-file-icon">🎓</span>
             <span class="dev-file-name">Training Courses</span>
