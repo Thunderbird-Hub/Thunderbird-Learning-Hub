@@ -681,8 +681,8 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
                     $quiz_info = "Latest: {$latest_score}% ({$latest_status}) on {$latest_date}";
 
                     // Build mini attempts table
-                                        $attempts_html .= "<div style='margin-top: 6px;'>";
-                    $attempts_html .= "<table class='table table-sm table-bordered mb-0 quiz-attempts-table'>";
+                    $attempts_html .= "<div class='quiz-attempts-container'>";
+                    $attempts_html .= "<table class='quiz-attempts-table'>";
 
                     $attempts_html .= "<thead><tr>"
                                     . "<th>#</th>"
