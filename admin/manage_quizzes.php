@@ -471,7 +471,7 @@ include __DIR__ . '/../includes/header.php';
 
 <style>
 .quiz-management {
-    max-width: 800px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
 }
