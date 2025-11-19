@@ -326,6 +326,7 @@ include __DIR__ . '/../includes/header.php';
                                     <th style="padding: 12px; text-align: left; font-weight: 600; color: #495057;">PIN</th>
                                     <th style="padding: 12px; text-align: left; font-weight: 600; color: #495057;">Color</th>
                                     <th style="padding: 12px; text-align: left; font-weight: 600; color: #495057;">Role</th>
+                                    <th style="padding: 12px; text-align: left; font-weight: 600; color: #495057;">Training</th>
                                     <th style="padding: 12px; text-align: left; font-weight: 600; color: #495057;">Status</th>
                                     <th style="padding: 12px; text-align: left; font-weight: 600; color: #495057;">Posts</th>
                                     <th style="padding: 12px; text-align: left; font-weight: 600; color: #495057;">Last Login</th>
