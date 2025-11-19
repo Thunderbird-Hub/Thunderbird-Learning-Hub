@@ -497,34 +497,22 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
                 <span class='badge bg-secondary'>User snapshot</span>
             </div>
             <div class='card-body'>
-                <div class='row g-3 mb-3 text-center'>
-                    <div class='col-sm-6 col-lg-3'>
-                        <div class='stat-tile'>
-                            <h6>Required Items</h6>
-                            <div class='value'>{$sum_total}</div>
-                            <div class='subtext'>Assignments in course</div>
-                        </div>
+                <div class='stats-grid mb-3'>
+                    <div class='stat-card'>
+                        <div class='stat-number'>{$sum_total}</div>
+                        <div class='stat-label'>Required Items</div>
                     </div>
-                    <div class='col-sm-6 col-lg-3'>
-                        <div class='stat-tile'>
-                            <h6>In Progress</h6>
-                            <div class='value text-warning'>{$sum_in_progress}</div>
-                            <div class='subtext'>Being worked on</div>
-                        </div>
+                    <div class='stat-card'>
+                        <div class='stat-number' style='color: #f59e0b;'>{$sum_in_progress}</div>
+                        <div class='stat-label'>In Progress</div>
                     </div>
-                    <div class='col-sm-6 col-lg-3'>
-                        <div class='stat-tile'>
-                            <h6>Completed</h6>
-                            <div class='value text-success'>{$sum_completed}</div>
-                            <div class='subtext'>Finished items</div>
-                        </div>
+                    <div class='stat-card'>
+                        <div class='stat-number' style='color: #10b981;'>{$sum_completed}</div>
+                        <div class='stat-label'>Completed</div>
                     </div>
-                    <div class='col-sm-6 col-lg-3'>
-                        <div class='stat-tile'>
-                            <h6>Overall Completion</h6>
-                            <div class='value'>{$sum_percent}%</div>
-                            <div class='subtext'>Based on required items</div>
-                        </div>
+                    <div class='stat-card'>
+                        <div class='stat-number'>{$sum_percent}%</div>
+                        <div class='stat-label'>Overall Completion</div>
                     </div>
                 </div>
                 <div class='table-responsive'>
