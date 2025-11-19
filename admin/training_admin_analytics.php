@@ -116,11 +116,9 @@ if (!is_admin() && !is_super_admin()) {
 }
 ?>
 
-<div class="d-flex align-items-center justify-content-between flex-wrap mt-4 mb-3">
-    <div>
-        <h2 class="mb-1">📊 Training Analytics Dashboard</h2>
-        <p class="analytics-intro mb-0">A consolidated view of course assignments, completion rates, and user-level training performance.</p>
-    </div>
+<div class="dash-hero">
+    <h1>📊 Training Analytics Dashboard</h1>
+    <p>Admin analytics view for course assignments, completion rates, and user training performance.</p>
 </div>
 
 <?php
