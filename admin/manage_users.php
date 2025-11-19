@@ -96,6 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $users_table_exists) {
             $name = isset($_POST['name']) ? trim($_POST['name']) : '';
             $color = isset($_POST['color']) ? trim($_POST['color']) : '#4A90E2';
             $role = isset($_POST['role']) ? $_POST['role'] : 'user';
+            $is_in_training = isset($_POST['is_in_training']) ? 1 : 0;  // PHASE 4: Check flag
 
             // Get the user being edited to check their current role and is_active status
             $stmt = $pdo->prepare("SELECT role, is_active FROM users WHERE id = ?");
@@ -122,8 +123,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $users_table_exists) {
                 try {
                     // Preserve the current is_active status - use separate toggle_status action to change it
                     $is_active = $target_user['is_active'];
-                    $stmt = $pdo->prepare("UPDATE users SET name = ?, color = ?, role = ? WHERE id = ?");
-                    $stmt->execute([$name, $color, $role, $user_id]);
+                    // PHASE 4: Set role and is_in_training flag separately
+                    $stmt = $pdo->prepare("UPDATE users SET name = ?, color = ?, role = ?, is_in_training = ? WHERE id = ?");
+                    $stmt->execute([$name, $color, $role, $is_in_training, $user_id]);
                     $success_message = 'User updated successfully!';
 
                     // If editing current user, update session immediately
@@ -131,6 +133,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $users_table_exists) {
                         $_SESSION['user_name'] = $name;
                         $_SESSION['user_color'] = $color;
                         $_SESSION['user_role'] = $role;
+                        $_SESSION['user_is_in_training'] = $is_in_training;
                     }
                 } catch (PDOException $e) {
                     $error_message = 'Error updating user: ' . $e->getMessage();
