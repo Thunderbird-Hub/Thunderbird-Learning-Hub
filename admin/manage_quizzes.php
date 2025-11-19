@@ -800,57 +800,6 @@ include __DIR__ . '/../includes/header.php';
                             <option value="12">Every 12 months</option>
                             <option value="24">Every 24 months</option>
                         </select>
-                        
-                    </div>
-                <?php else: ?>
-                    <form method="POST">
-                        <input type="hidden" name="action" value="create_quiz">
-
-                        <div class="form-group">
-                            <label for="content">Training Content:</label>
-                            <select name="content_id" id="content_id" class="quiz-content-select" required>
-                                <option value="">Select training content...</option>
-                                <?php foreach ($training_content as $content): ?>
-                                    <option value="<?php echo $content['content_id']; ?>">
-                                        <?php echo htmlspecialchars($content['display_name']); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <input type="hidden" name="content_type" value="post">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="quiz_title">Quiz Title:</label>
-                            <input type="text" name="quiz_title" id="quiz_title" class="form-control" required maxlength="255">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="quiz_description">Quiz Description (Optional):</label>
-                            <textarea name="quiz_description" id="quiz_description" class="form-control" rows="3"></textarea>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="passing_score">Passing Score (%):</label>
-                            <input type="number" name="passing_score" id="passing_score" class="form-control" min="0" max="100" value="80" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="time_limit">Time Limit (minutes, optional):</label>
-                            <input type="number" name="time_limit" id="time_limit" class="form-control" min="1" placeholder="No time limit">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="retest_period_months">Retest Period:</label>
-                            <select name="retest_period_months" id="retest_period_months" class="quiz-content-select">
-                                <option value="">No retest required</option>
-                                <option value="1">Every 1 month</option>
-                                <option value="3">Every 3 months</option>
-                                <option value="6">Every 6 months</option>
-                                <option value="12">Every 12 months</option>
-                                <option value="24">Every 24 months</option>
-                            </select>
-                            <small class="form-text">Select how often users must retake this quiz after passing. This is similar to the McDonald's training system where quizzes need to be retaken periodically.</small>
-                        </div>
 
                         <button type="submit" class="btn btn-primary">Create Quiz</button>
                         <a href="manage_training_courses.php" class="btn btn-secondary">← Back</a>
