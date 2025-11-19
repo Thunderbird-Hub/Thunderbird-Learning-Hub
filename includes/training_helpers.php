@@ -96,7 +96,7 @@ function log_debug($message, $level = 'DEBUG') {
  * @param int $user_id User ID (optional, defaults to current user)
  * @return array Status of role changes
  */
-// --- BEGIN REPLACEMENT (auto_manage_user_roles with admin/super-admin exception) ---
+// --- BEGIN REPLACEMENT (PHASE 5: auto_manage_user_roles - flag only, no role mutations) ---
 function auto_manage_user_roles($pdo, $user_id = null) {
     $user_id = $user_id ?? ($_SESSION['user_id'] ?? null);
     if (!$user_id) {
@@ -111,111 +111,57 @@ function auto_manage_user_roles($pdo, $user_id = null) {
             return ['status' => 'user_not_found', 'changes' => []];
         }
 
-        // Never auto-change Admins or Super Admins (use helpers to avoid string drift)
-$role_lc = strtolower(trim((string)$user['role']));
-if ($role_lc === 'admin' || $role_lc === 'super_admin' || $role_lc === 'super admin') {
-    log_debug("Auto-manage skipped for privileged user {$user['id']} (role={$user['role']})", 'INFO');
-    return ['status' => 'skipped_privileged', 'changes' => []];
-}
-
-
-// Robust healer: mark a course 'completed' iff there are NO remaining assigned POSTs
-// without a matching 'completed' training_progress row (tolerates blank/NULL content_type).
-$heal = $pdo->prepare("
-    UPDATE user_training_assignments AS uta
-    JOIN training_courses AS tc
-      ON tc.id = uta.course_id
-     AND tc.is_active = 1
-   SET uta.status = 'completed',
-       uta.completion_date = NOW()
- WHERE uta.user_id = ?
-   AND uta.status <> 'completed'
-   AND NOT EXISTS (
-        SELECT 1
-          FROM training_course_content AS tcc
-         WHERE tcc.course_id = uta.course_id
-           AND tcc.content_type = 'post'
-           AND NOT EXISTS (
-                SELECT 1
-                  FROM training_progress AS tp
-                 WHERE tp.user_id = uta.user_id
-                   AND tp.content_id = tcc.content_id
-                   AND (
-                         tp.content_type = tcc.content_type
-                      OR tp.content_type = ''
-                      OR tp.content_type IS NULL
-                   )
-                   AND tp.status = 'completed'
-           )
-   )
-");
-$heal->execute([$user_id]);
-
-// Optional: log what happened
-try {
-    $dbg = $pdo->prepare("
-        SELECT course_id, status, completion_date
-          FROM user_training_assignments
-         WHERE user_id = ?
-    ");
-    $dbg->execute([$user_id]);
-    $rows = $dbg->fetchAll(PDO::FETCH_ASSOC);
-    log_debug('Healer post-check for user '.$user_id.': '.json_encode($rows), 'INFO');
-} catch (Throwable $e) {
-    // best-effort logging only
-}
-
-// How many active assignments?
-$assignment_stmt = $pdo->prepare("
-    SELECT COUNT(*) AS active_assignments
-      FROM user_training_assignments uta
-      JOIN training_courses tc ON uta.course_id = tc.id
-     WHERE uta.user_id = ?
-       AND tc.is_active = 1
-       AND uta.status != 'completed'
-");
-$assignment_stmt->execute([$user_id]);
-$active_assignments = (int) $assignment_stmt->fetchColumn();
-$all_done = has_completed_all_training($pdo, $user_id);
-
-        
-        $new_role = null;
-$changes  = [];
-
-// If everything is completed, ensure they become a normal user
-if ($all_done && strtolower($user['role']) === 'training') {
-    $new_role = 'user';
-    $changes[] = "User {$user['name']} → user (all training complete)";
-} elseif ($active_assignments > 0 && strtolower($user['role']) === 'user') {
-    // New training assigned → move back to training
-    $new_role = 'training';
-    $changes[] = "User {$user['name']} → training ({$active_assignments} active assignment(s))";
-} elseif ($active_assignments === 0 && strtolower($user['role']) === 'training') {
-    // Safety valve: no active assignments → user
-    $new_role = 'user';
-    $changes[] = "User {$user['name']} → user (no active assignments)";
-}
-
-
-        if ($new_role) {
-            $update = $pdo->prepare("
-    UPDATE users
-       SET role = ?, previous_role = ?, updated_at = NOW()
-     WHERE id = ?
-");
-$update->execute([$new_role, $user['role'], $user_id]);
-
-            if (!empty($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
-                $_SESSION['user_role'] = $new_role;
-            }
+        // Never auto-manage Admins or Super Admins
+        $role_lc = strtolower(trim((string)$user['role']));
+        if ($role_lc === 'admin' || $role_lc === 'super_admin' || $role_lc === 'super admin') {
+            log_debug("Auto-manage skipped for privileged user {$user['id']} (role={$user['role']})", 'INFO');
+            return ['status' => 'skipped_privileged', 'changes' => []];
         }
+
+        // --- PHASE 5: ONLY MANAGE FLAG, NOT ROLE ---
+        // Count active training assignments
+        $assignment_stmt = $pdo->prepare("
+            SELECT COUNT(*) AS active_assignments
+            FROM user_training_assignments uta
+            JOIN training_courses tc ON uta.course_id = tc.id
+            WHERE uta.user_id = ?
+            AND tc.is_active = 1
+            AND uta.status != 'completed'
+        ");
+        $assignment_stmt->execute([$user_id]);
+        $active_assignments = (int) $assignment_stmt->fetchColumn();
+
+        $changes = [];
+        $new_flag_value = ($active_assignments > 0) ? 1 : 0;
+
+        // Update the flag based on active assignments
+        $flag_stmt = $pdo->prepare("
+            UPDATE users
+            SET is_in_training = ?, updated_at = NOW()
+            WHERE id = ?
+        ");
+        $flag_stmt->execute([$new_flag_value, $user_id]);
+
+        // Update session cache if current user
+        if (!empty($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
+            $_SESSION['user_is_in_training'] = $new_flag_value;
+        }
+
+        $flag_name = $new_flag_value ? 'in training' : 'not in training';
+        if ($active_assignments > 0) {
+            $changes[] = "User {$user['name']} → $flag_name ({$active_assignments} active assignment(s))";
+        } elseif ($active_assignments === 0) {
+            $changes[] = "User {$user['name']} → $flag_name (no active assignments)";
+        }
+
+        log_debug("Auto-manage user {$user_id}: is_in_training=$new_flag_value, active_assignments=$active_assignments", 'INFO');
 
         return [
             'status' => 'success',
             'changes' => $changes,
             'user_id' => $user_id,
-            'previous_role' => $user['role'],
-            'new_role' => $new_role,
+            'role' => $user['role'],  // Role never changes
+            'is_in_training' => $new_flag_value,
             'active_assignments' => $active_assignments,
         ];
     } catch (PDOException $e) {
