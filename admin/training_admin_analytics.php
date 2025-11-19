@@ -806,7 +806,7 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
                         <div class='stat-label'>Overall Completion</div>
                     </div>
                 </div>
-                <div class='table-responsive'>
+                <div class='table-responsive course-progress-table-wrapper'>
                     <table class='table table-bordered table-striped table-hover align-middle course-progress-table analytics-table mb-0'>
                         <thead>
                             <tr>
