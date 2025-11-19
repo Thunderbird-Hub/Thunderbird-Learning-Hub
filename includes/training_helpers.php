@@ -1184,8 +1184,13 @@ function should_show_training_progress($pdo, $user_id = null) {
         log_debug("should_show_training_progress called - User ID: $user_id, User role: " . ($_SESSION['user_role'] ?? 'none'));
     }
 
-    // Always show for training users
-    if (is_training_user()) {
+    // --- PHASE 3: DUAL-CHECK ---
+    // Accept either old system (role-based) or new system (flag-based)
+    $is_training_old = is_training_user();  // Legacy role check
+    $is_training_new = function_exists('is_in_training') ? is_in_training() : false; // New flag check
+
+    // Always show for training users (accept either system)
+    if ($is_training_old || $is_training_new) {
         if (function_exists('log_debug')) {
             log_debug("User is training user - showing progress bar");
         }
