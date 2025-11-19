@@ -778,7 +778,7 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
                     $attempts_html .= "<label>Status</label>";
                     $attempts_html .= "<select class='quiz-filter-select' id='status-filter-{$quiz_unique_id}'>";
                     $attempts_html .= "<option value='all'>All Attempts</option>";
-                    $attempts_html .= "<option value='passed'>Passed Only</option>";
+                    $attempts_html .= "<option value='passed' selected>Passed Only</option>";
                     $attempts_html .= "<option value='failed'>Failed Only</option>";
                     $attempts_html .= "</select>";
                     $attempts_html .= "</div>";
