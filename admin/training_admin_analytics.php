@@ -70,11 +70,29 @@ include __DIR__ . '/../includes/header.php';
 }
 
 .course-progress-table th:nth-child(1),
-.course-progress-table td:nth-child(1) { width: 241.875px; } /* Content - 25% of 967.5px */
+.course-progress-table td:nth-child(1) {
+    width: 241.875px; /* Content - 25% of 967.5px */
+    max-width: 241.875px;
+    min-width: 241.875px;
+}
 .course-progress-table th:nth-child(2),
-.course-progress-table td:nth-child(2) { width: 241.875px; } /* Status - 25% of 967.5px */
+.course-progress-table td:nth-child(2) {
+    width: 241.875px; /* Status - 25% of 967.5px */
+    max-width: 241.875px;
+    min-width: 241.875px;
+}
 .course-progress-table th:nth-child(3),
-.course-progress-table td:nth-child(3) { width: 483.75px; }  /* Quiz - 50% of 967.5px */
+.course-progress-table td:nth-child(3) {
+    width: 483.75px;  /* Quiz - 50% of 967.5px */
+    max-width: 483.75px;
+    min-width: 483.75px;
+}
+
+.course-progress-table {
+    table-layout: fixed;
+    width: 967.5px; /* Exact container width */
+    max-width: 967.5px;
+}
 
 .status-pill {
     display: inline-block;
