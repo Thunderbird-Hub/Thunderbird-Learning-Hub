@@ -140,6 +140,82 @@ include __DIR__ . '/../includes/header.php';
     background: #f9fafb;
 }
 
+/* Quiz filter controls styling */
+.quiz-controls {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.quiz-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.quiz-filter-group label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.quiz-filter-select {
+    padding: 6px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 12px;
+    background: white;
+    color: #374151;
+    min-width: 120px;
+}
+
+.quiz-filter-select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.quiz-pagination-info {
+    font-size: 12px;
+    color: #6b7280;
+    margin-left: auto;
+    align-self: center;
+}
+
+.quiz-summary-stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+    font-size: 12px;
+}
+
+.quiz-stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.quiz-stat.passed {
+    color: #059669;
+}
+
+.quiz-stat.failed {
+    color: #dc2626;
+}
+
+.quiz-stat.total {
+    color: #6b7280;
+}
+
+.quiz-stat-number {
+    font-weight: 700;
+    font-size: 14px;
+}
+
 /* Enhanced stat tiles with modern styling */
 .stat-tile {
     background: white;
@@ -677,19 +753,61 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
                         ? date('Y-m-d H:i', strtotime($latest['completed_at']))
                         : '—';
 
-                    // Build mini attempts table with header
-                    $attempts_html .= "<div class='quiz-section'>";
-                    $attempts_html .= "<div class='quiz-latest'>Latest: {$latest_score}% ({$latest_status}) on {$latest_date}</div>";
+                    // Build filterable quiz attempts section
+                    $quiz_unique_id = 'quiz_' . $quiz_id_for_item . '_' . $user_id;
+
+                    $attempts_html .= "<div class='quiz-section' data-quiz-id='{$quiz_unique_id}'>";
+
+                    // Summary stats
+                    $passed_count = 0;
+                    $failed_count = 0;
+                    foreach ($attempts as $att) {
+                        if (strtolower($att['status'] ?? '') === 'passed') $passed_count++;
+                        if (strtolower($att['status'] ?? '') === 'failed') $failed_count++;
+                    }
+
+                    $attempts_html .= "<div class='quiz-summary-stats'>";
+                    $attempts_html .= "<div class='quiz-stat passed'><span class='quiz-stat-number' id='passed-count-{$quiz_unique_id}'>{$passed_count}</span> Passed</div>";
+                    $attempts_html .= "<div class='quiz-stat failed'><span class='quiz-stat-number' id='failed-count-{$quiz_unique_id}'>{$failed_count}</span> Failed</div>";
+                    $attempts_html .= "<div class='quiz-stat total'><span class='quiz-stat-number'>" . count($attempts) . "</span> Total</div>";
+                    $attempts_html .= "</div>";
+
+                    // Filter controls
+                    $attempts_html .= "<div class='quiz-controls'>";
+                    $attempts_html .= "<div class='quiz-filter-group'>";
+                    $attempts_html .= "<label>Status</label>";
+                    $attempts_html .= "<select class='quiz-filter-select' id='status-filter-{$quiz_unique_id}'>";
+                    $attempts_html .= "<option value='all'>All Attempts</option>";
+                    $attempts_html .= "<option value='passed'>Passed Only</option>";
+                    $attempts_html .= "<option value='failed'>Failed Only</option>";
+                    $attempts_html .= "</select>";
+                    $attempts_html .= "</div>";
+
+                    $attempts_html .= "<div class='quiz-filter-group'>";
+                    $attempts_html .= "<label>Show</label>";
+                    $attempts_html .= "<select class='quiz-filter-select' id='page-size-{$quiz_unique_id}'>";
+                    $attempts_html .= "<option value='5'>5 results</option>";
+                    $attempts_html .= "<option value='10' selected>10 results</option>";
+                    $attempts_html .= "<option value='25'>25 results</option>";
+                    $attempts_html .= "<option value='50'>50 results</option>";
+                    $attempts_html .= "<option value='999'>All results</option>";
+                    $attempts_html .= "</select>";
+                    $attempts_html .= "</div>";
+
+                    $attempts_html .= "<div class='quiz-pagination-info' id='pagination-info-{$quiz_unique_id}'>10 results</div>";
+                    $attempts_html .= "</div>";
+
+                    // Table
                     $attempts_html .= "<div class='quiz-attempts-container'>";
                     $attempts_html .= "<table class='quiz-attempts-table'>";
-
                     $attempts_html .= "<thead><tr>"
                                     . "<th>#</th>"
                                     . "<th>Score</th>"
                                     . "<th>Status</th>"
                                     . "<th>Date</th>"
                                     . "<th>Result</th>"
-                                    . "</tr></thead><tbody>";
+                                    . "</tr></thead>";
+                    $attempts_html .= "<tbody id='quiz-table-{$quiz_unique_id}'>";
 
                     foreach ($attempts as $att) {
                         $att_id      = (int)$att['id'];
@@ -701,23 +819,21 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
                             ? date('Y-m-d H:i', strtotime($att['completed_at']))
                             : '—';
 
-                        $attempts_html .= "<tr>"
-    . "<td>{$att_num}</td>"
-    . "<td>{$att_score}%</td>"
-    . "<td>{$att_status}</td>"
-    . "<td>{$att_date}</td>";
-
-                        // Only expose the results link for completed attempts
+                        $result_link = '';
                         $status_for_button = strtolower(trim($att_status_raw));
                         if (in_array($status_for_button, ['passed', 'failed'], true)) {
-                            // admin_view=1 flags that this was opened from the admin analytics page
-                            $attempts_html .= "<td><a href='/training/quiz_results.php?attempt_id=" . intval($att_id) . "&admin_view=1' class='btn btn-xs btn-primary'>View</a></td>";
+                            $result_link = "<a href='/training/quiz_results.php?attempt_id=" . intval($att_id) . "&admin_view=1' class='btn btn-xs btn-primary'>View</a>";
                         } else {
-                            $attempts_html .= "<td>—</td>";
+                            $result_link = "—";
                         }
 
-                        $attempts_html .= "</tr>";
-
+                        $attempts_html .= "<tr>"
+                            . "<td>{$att_num}</td>"
+                            . "<td>{$att_score}%</td>"
+                            . "<td>{$att_status}</td>"
+                            . "<td>{$att_date}</td>"
+                            . "<td>{$result_link}</td>"
+                            . "</tr>";
                     }
 
                     $attempts_html .= "</tbody></table></div></div>";
