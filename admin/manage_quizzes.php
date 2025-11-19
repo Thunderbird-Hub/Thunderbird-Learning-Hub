@@ -839,9 +839,9 @@ include __DIR__ . '/../includes/header.php';
                     <?php echo (!empty($quiz['total_questions']) && (int)$quiz['total_questions'] > 0) ? '📝 Edit Questions' : '➕ Add Questions'; ?>
                 </a>
 
-                <a href="manage_quiz_questions.php?quiz_id=<?php echo (int)$quiz['id']; ?>&edit=true" class="btn btn-warning">
+                <button onclick="editQuiz(<?php echo (int)$quiz['id']; ?>)" class="btn btn-warning">
                     ✏️ Edit Quiz
-                </a>
+                </button>
 
                 <button onclick="toggleQuizStatus(<?php echo (int)$quiz['id']; ?>, <?php echo $quiz['is_active'] ? 0 : 1; ?>)" class="btn btn-secondary">
                     <?php echo $quiz['is_active'] ? '🔒 Deactivate' : '🔓 Activate'; ?>
