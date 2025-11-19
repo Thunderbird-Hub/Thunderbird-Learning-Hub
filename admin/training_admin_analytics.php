@@ -677,10 +677,9 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
                         ? date('Y-m-d H:i', strtotime($latest['completed_at']))
                         : '—';
 
-                    // Latest attempt summary (text above the table)
-                    $quiz_info = "Latest: {$latest_score}% ({$latest_status}) on {$latest_date}";
-
-                    // Build mini attempts table
+                    // Build mini attempts table with header
+                    $attempts_html .= "<div class='quiz-section'>";
+                    $attempts_html .= "<div class='quiz-latest'>Latest: {$latest_score}% ({$latest_status}) on {$latest_date}</div>";
                     $attempts_html .= "<div class='quiz-attempts-container'>";
                     $attempts_html .= "<table class='quiz-attempts-table'>";
 
