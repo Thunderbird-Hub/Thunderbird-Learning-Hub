@@ -60,6 +60,7 @@ if (!in_array($content_type, ['post','posts','article','post_item'], true)) {
             $quiz_description = isset($_POST['quiz_description']) ? trim($_POST['quiz_description']) : '';
             $passing_score = isset($_POST['passing_score']) ? intval($_POST['passing_score']) : 100;
             $time_limit = isset($_POST['time_limit']) && !empty($_POST['time_limit']) ? intval($_POST['time_limit']) : null;
+            $retest_period = isset($_POST['retest_period_months']) && !empty($_POST['retest_period_months']) ? intval($_POST['retest_period_months']) : null;
 
             // Validation
             if (empty($content_type) || $content_id <= 0) {
@@ -74,10 +75,10 @@ if (!in_array($content_type, ['post','posts','article','post_item'], true)) {
                 try {
                     $stmt = $pdo->prepare("
                         INSERT INTO training_quizzes
-                        (content_id, content_type, quiz_title, quiz_description, passing_score, time_limit_minutes, created_by)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        (content_id, content_type, quiz_title, quiz_description, passing_score, time_limit_minutes, retest_period_months, created_by)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     ");
-                    $stmt->execute([$content_id, $content_type, $quiz_title, $quiz_description, $passing_score, $time_limit, $_SESSION['user_id']]);
+                    $stmt->execute([$content_id, $content_type, $quiz_title, $quiz_description, $passing_score, $time_limit, $retest_period, $_SESSION['user_id']]);
                     $success_message = 'Quiz created successfully!';
                 } catch (PDOException $e) {
                     $error_message = 'Error creating quiz: ' . $e->getMessage();
@@ -91,6 +92,7 @@ if (!in_array($content_type, ['post','posts','article','post_item'], true)) {
             $quiz_description = isset($_POST['quiz_description']) ? trim($_POST['quiz_description']) : '';
             $passing_score = isset($_POST['passing_score']) ? intval($_POST['passing_score']) : 100;
             $time_limit = isset($_POST['time_limit']) && !empty($_POST['time_limit']) ? intval($_POST['time_limit']) : null;
+            $retest_period = isset($_POST['retest_period_months']) && !empty($_POST['retest_period_months']) ? intval($_POST['retest_period_months']) : null;
             $is_active = isset($_POST['is_active']) ? 1 : 0;
 
             if ($quiz_id <= 0) {
@@ -106,6 +108,7 @@ if (!in_array($content_type, ['post','posts','article','post_item'], true)) {
         quiz_description  = :descr,
         passing_score     = :passing,
         time_limit_minutes= :tlimit,
+        retest_period_months = :retest_period,
         is_active         = :active,
         updated_at        = CURRENT_TIMESTAMP
     WHERE id = :id
@@ -118,11 +121,17 @@ $stmt->bindValue(':passing', $passing_score, PDO::PARAM_INT);
 $stmt->bindValue(':active',  $is_active, PDO::PARAM_INT);
 $stmt->bindValue(':id',      $quiz_id, PDO::PARAM_INT);
 
-/* Bind nullable time limit explicitly */
+/* Bind nullable values explicitly */
 if ($time_limit === null) {
     $stmt->bindValue(':tlimit', null, PDO::PARAM_NULL);
 } else {
     $stmt->bindValue(':tlimit', $time_limit, PDO::PARAM_INT);
+}
+
+if ($retest_period === null) {
+    $stmt->bindValue(':retest_period', null, PDO::PARAM_NULL);
+} else {
+    $stmt->bindValue(':retest_period', $retest_period, PDO::PARAM_INT);
 }
 
 $stmt->execute();
@@ -431,6 +440,32 @@ $training_content = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }
 
+// Handle AJAX request for quiz data
+if (isset($_GET['get_quiz_data'])) {
+    header('Content-Type: application/json');
+
+    $quiz_id = intval($_GET['get_quiz_data']);
+    try {
+        $stmt = $pdo->prepare("
+            SELECT id, quiz_title, quiz_description, passing_score,
+                   time_limit_minutes, retest_period_months, is_active
+            FROM training_quizzes
+            WHERE id = ?
+        ");
+        $stmt->execute([$quiz_id]);
+        $quiz = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($quiz) {
+            echo json_encode(['success' => true, 'quiz' => $quiz]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Quiz not found']);
+        }
+    } catch (PDOException $e) {
+        echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
 include __DIR__ . '/../includes/header.php';
 ?>
 
@@ -668,25 +703,15 @@ include __DIR__ . '/../includes/header.php';
 
                     <div class="form-group">
                         <label for="content">Training Content:</label>
-                        <select name="content_type" id="content_type" class="quiz-content-select" required onchange="updateContentOptions()">
-                            <option value="">Select Content Type</option>
-                            <?php
-                            $grouped_content = [];
-                            foreach ($training_content as $content) {
-                                $grouped_content[$content['content_type']][] = $content;
-                            }
-
-                            foreach ($grouped_content as $type => $items):
-                                $type_label = ucfirst($type);
-                                echo "<optgroup label='$type_label'>";
-                                foreach ($items as $item):
-                                    echo "<option value='{$item['content_type']}|{$item['content_id']}'>{$item['display_name']}</option>";
-                                endforeach;
-                                echo "</optgroup>";
-                            endforeach;
-                            ?>
+                        <select name="content_id" id="content_id" class="quiz-content-select" required>
+                            <option value="">Select training content...</option>
+                            <?php foreach ($training_content as $content): ?>
+                                <option value="<?php echo $content['content_id']; ?>">
+                                    <?php echo htmlspecialchars($content['display_name']); ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
-                        <input type="hidden" name="content_id" id="content_id" required>
+                        <input type="hidden" name="content_type" value="post">
                     </div>
 
                     <div class="form-group">
@@ -707,6 +732,19 @@ include __DIR__ . '/../includes/header.php';
                     <div class="form-group">
                         <label for="time_limit">Time Limit (minutes, optional):</label>
                         <input type="number" name="time_limit" id="time_limit" class="form-control" min="1" placeholder="No time limit">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="retest_period_months">Retest Period:</label>
+                        <select name="retest_period_months" id="retest_period_months" class="quiz-content-select">
+                            <option value="">No retest required</option>
+                            <option value="1">Every 1 month</option>
+                            <option value="3">Every 3 months</option>
+                            <option value="6">Every 6 months</option>
+                            <option value="12">Every 12 months</option>
+                            <option value="24">Every 24 months</option>
+                        </select>
+                        <small class="form-text">Select how often users must retake this quiz after passing. This is similar to the McDonald's training system where quizzes need to be retaken periodically.</small>
                     </div>
 
                     <button type="submit" class="btn btn-primary">Create Quiz</button>
@@ -763,6 +801,11 @@ include __DIR__ . '/../includes/header.php';
                         <?php if (!empty($quiz['time_limit_minutes'])): ?>
                             • Time Limit: <?php echo (int)$quiz['time_limit_minutes']; ?> minutes
                         <?php endif; ?>
+                        <?php if (!empty($quiz['retest_period_months'])): ?>
+                            • Retest: Every <?php echo (int)$quiz['retest_period_months']; ?> month<?php echo ((int)$quiz['retest_period_months'] != 1) ? 's' : ''; ?>
+                        <?php else: ?>
+                            • Retest: Not required
+                        <?php endif; ?>
                         • Created by <?php echo htmlspecialchars($quiz['creator_name'] ?? 'Unknown'); ?>
                     </div>
                 </div>
@@ -796,9 +839,9 @@ include __DIR__ . '/../includes/header.php';
                     <?php echo (!empty($quiz['total_questions']) && (int)$quiz['total_questions'] > 0) ? '📝 Edit Questions' : '➕ Add Questions'; ?>
                 </a>
 
-                <a href="manage_quiz_questions.php?quiz_id=<?php echo (int)$quiz['id']; ?>&edit=true" class="btn btn-warning">
+                <button onclick="editQuiz(<?php echo (int)$quiz['id']; ?>)" class="btn btn-warning">
                     ✏️ Edit Quiz
-                </a>
+                </button>
 
                 <button onclick="toggleQuizStatus(<?php echo (int)$quiz['id']; ?>, <?php echo $quiz['is_active'] ? 0 : 1; ?>)" class="btn btn-secondary">
                     <?php echo $quiz['is_active'] ? '🔒 Deactivate' : '🔓 Activate'; ?>
@@ -849,6 +892,19 @@ include __DIR__ . '/../includes/header.php';
             </div>
 
             <div class="form-group">
+                <label for="edit_retest_period_months">Retest Period:</label>
+                <select name="retest_period_months" id="edit_retest_period_months" class="quiz-content-select">
+                    <option value="">No retest required</option>
+                    <option value="1">Every 1 month</option>
+                    <option value="3">Every 3 months</option>
+                    <option value="6">Every 6 months</option>
+                    <option value="12">Every 12 months</option>
+                    <option value="24">Every 24 months</option>
+                </select>
+                <small class="form-text">Select how often users must retake this quiz after passing. This is similar to the McDonald's training system where quizzes need to be retaken periodically.</small>
+            </div>
+
+            <div class="form-group">
                 <label>
                     <input type="checkbox" name="is_active" id="edit_is_active" value="1">
                     Quiz is active
@@ -862,22 +918,30 @@ include __DIR__ . '/../includes/header.php';
 </div>
 
 <script>
-function updateContentOptions() {
-    const select = document.getElementById('content_type');
-    const contentIdInput = document.getElementById('content_id');
-
-    if (select.value) {
-        const [contentType, contentId] = select.value.split('|');
-        contentIdInput.value = contentId;
-    } else {
-        contentIdInput.value = '';
-    }
-}
-
-// No longer needed because “Edit Quiz” is now a direct link.
-// Keeping a stub in case something else calls it.
+// Function to open edit modal with current quiz data
 function editQuiz(quizId) {
-    window.location.href = 'manage_quiz_questions.php?quiz_id=' + encodeURIComponent(quizId) + '&edit=true';
+    // Fetch quiz data via AJAX and populate edit modal
+    fetch('manage_quizzes.php?get_quiz_data=' + encodeURIComponent(quizId))
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('edit_quiz_id').value = data.quiz.id;
+                document.getElementById('edit_quiz_title').value = data.quiz.quiz_title;
+                document.getElementById('edit_quiz_description').value = data.quiz.quiz_description || '';
+                document.getElementById('edit_passing_score').value = data.quiz.passing_score;
+                document.getElementById('edit_time_limit').value = data.quiz.time_limit_minutes || '';
+                document.getElementById('edit_retest_period_months').value = data.quiz.retest_period_months || '';
+                document.getElementById('edit_is_active').checked = data.quiz.is_active == 1;
+
+                document.getElementById('editQuizModal').style.display = 'block';
+            } else {
+                alert('Error loading quiz data: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading quiz data');
+        });
 }
 
 function toggleQuizStatus(quizId, newStatus) {

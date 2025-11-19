@@ -12,12 +12,25 @@ The database migration script (`migrations/add_retest_periods.sql`) adds:
 - `quiz_retest_log` table for tracking retest history
 - `retest_exempt` column to `user_training_assignments` table
 
-### 2. Admin Interface
-Added a new "Quiz Retest Period Management" section to the admin analytics dashboard (`admin/training_admin_analytics.php`) with:
-- Table showing all quizzes and their current retest periods
-- Count of users who need to retake each quiz
-- Modal dialog for setting retest periods (1, 3, 6, 12, 24 months)
-- "Process Retest Periods" button to automatically mark users needing retest
+### 2. Quiz Management Integration
+**🎯 FEATURE NOW MOVED TO MANAGE_QUIZZES.PAGE**
+
+The retest period functionality has been integrated directly into the quiz creation and editing workflow in `admin/manage_quizzes.php`:
+
+**Quiz Creation Form:**
+- Added "Retest Period" dropdown with options: No retest, 1, 3, 6, 12, 24 months
+- Clear description explaining it's like McDonald's training system
+- Clean, modern styling that matches existing form elements
+
+**Quiz Editing:**
+- Edit modal now includes retest period field
+- AJAX-powered editing that populates current retest period values
+- Same dropdown options as creation form
+
+**Quiz Display:**
+- Each quiz card now shows its retest period setting
+- Clear "Retest: Every X months" or "Retest: Not required" display
+- Integrated with existing quiz metadata display
 
 ## How to Complete Implementation
 
@@ -27,35 +40,37 @@ Added a new "Quiz Retest Period Management" section to the admin analytics dashb
 3. Verify the new columns and tables were created successfully
 
 ### Step 2: Test the Feature
-1. Navigate to `/admin/training_admin_analytics.php` as an admin
-2. You should see the new "Quiz Retest Period Management" section
-3. Click "Set Period" on any quiz to configure a retest period
-4. Use the "Process Retest Periods" button to mark users for retest
+1. Navigate to `/admin/manage_quizzes.php` as an admin
+2. **Create New Quiz:** Scroll to the "Create New Quiz" section and you'll see the new "Retest Period" dropdown
+3. **Edit Existing Quiz:** Click the "✏️ Edit Quiz" button on any quiz to see the retest period in the edit modal
+4. **Check Display:** Each quiz card shows its current retest period setting
 
 ### Step 3: Configure Retest Periods
-- Go to the admin analytics dashboard
-- Find the "Quiz Retest Period Management" section
-- Click "Set Period" for each quiz you want to require retesting
-- Choose from: 1 month, 3 months, 6 months, 12 months, or 24 months
-- Select "No retest required" for quizzes that don't need periodic retaking
+- Go to the quiz management page (`/admin/manage_quizzes.php`)
+- **For new quizzes:** Set the retest period when creating the quiz
+- **For existing quizzes:** Click "✏️ Edit Quiz" to modify the retest period
+- Choose from: No retest, 1 month, 3 months, 6 months, 12 months, or 24 months
+- The setting is saved automatically when you create or update the quiz
 
 ## How It Works
 
 ### Setting Retest Periods
-- Administrators can set retest periods per quiz
+- Administrators set retest periods during quiz creation or editing
 - Periods are measured in months from the date of quiz completion
 - Users who passed a quiz will need to retake it after the specified period
+- Database stores the `retest_period_months` value in the `training_quizzes` table
 
-### Processing Retest Periods
-- The "Process Retest Periods" button checks all completed quizzes
-- Users whose quiz completion date + retest period ≤ today are marked for retest
-- The `retest_required` flag is set to TRUE for affected users
-- A log entry is created in `quiz_retest_log` tracking why the retest was required
+### Future Retest Processing
+- When the retest processing logic is implemented, the system will check all completed quizzes
+- Users whose quiz completion date + retest period ≤ today will be marked for retest
+- The `retest_required` flag will be set to TRUE for affected users
+- A log entry will be created in `quiz_retest_log` tracking why the retest was required
 
-### User Experience
+### User Experience (Future Implementation)
 - When users access their training dashboard, they'll see visual indicators for quizzes that need retaking
 - The quiz will become available again for them to retake
 - Their previous attempts are preserved for record-keeping
+- Similar to McDonald's training system where periodic recertification is required
 
 ## Future Enhancements
 - Automatic email notifications when retests are required
@@ -64,13 +79,23 @@ Added a new "Quiz Retest Period Management" section to the admin analytics dashb
 - Reports on retest compliance rates
 
 ## Files Modified
-- `admin/training_admin_analytics.php` - Added retest management interface
+- `admin/manage_quizzes.php` - ✅ **MAIN IMPLEMENTATION** - Added retest period fields to quiz creation and editing
 - `migrations/add_retest_periods.sql` - Database schema changes
 - `migrations/add_retest_periods.php` - PHP migration script (requires PHP CLI)
+- `admin/training_admin_analytics.php` - ✅ **CLEANED UP** - Removed retest section (moved to manage_quizzes)
+
+## Key Improvements Made
+- **Better UX:** Retest periods are now set where quizzes are created/edited (natural workflow)
+- **Fixed Dropdown:** Resolved the content selection dropdown issue in quiz creation
+- **Modern Styling:** Enhanced form styling with better visual consistency
+- **AJAX Editing:** Smooth modal-based quiz editing with current data loading
+- **Clear Display:** Each quiz card shows its retest period status prominently
 
 ## Technical Notes
-- The feature uses AJAX for responsive UI interactions
-- Bootstrap modal for setting retest periods
-- Modern styling consistent with the existing dashboard design
+- The feature uses AJAX for responsive quiz editing
+- Modal-based editing interface that's consistent with existing UI patterns
+- Database integration with proper nullable field handling
+- Clean separation of concerns: quiz management stays in manage_quizzes.php
+- Security: Admin-only access to quiz management features
+- Modern JavaScript fetch API for data loading
 - Proper error handling and user feedback
-- Security: Admin-only access to retest management
