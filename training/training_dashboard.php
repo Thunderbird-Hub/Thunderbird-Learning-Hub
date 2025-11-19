@@ -263,8 +263,23 @@ try {
             $has_quiz  = !empty($it['quiz_id']);
             $quiz_done = (int)$it['quiz_done'] === 1;
 
-            // Card color + footer message
+            // Check if quiz has retest available (PHASE 4)
+            $retest_available = false;
+            $retest_info = null;
             if ($has_quiz && $quiz_done) {
+                $retest_check = check_quiz_retest_eligibility($pdo, $_SESSION['user_id'], $it['quiz_id']);
+                if ($retest_check['status'] === 'success' && $retest_check['retest_eligible']) {
+                    $retest_available = true;
+                    $retest_info = $retest_check;
+                }
+            }
+
+            // Card color + footer message
+            if ($has_quiz && $retest_available) {
+                $card_class  = 'yellow';
+                $quiz_text   = '🔄 Retest Available';
+                $quiz_class  = 'pending';
+            } elseif ($has_quiz && $quiz_done) {
                 $card_class  = 'green';
                 $quiz_text   = 'Quiz completed';
                 $quiz_class  = 'done';
