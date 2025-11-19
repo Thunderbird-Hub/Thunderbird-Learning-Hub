@@ -95,32 +95,41 @@ include __DIR__ . '/../includes/header.php';
 
 .quiz-main-content {
     display: flex;
-    gap: 16px;
+    gap: 0;
     margin-bottom: 12px;
+    width: 100%;
 }
 
 .quiz-left-section {
     flex: 0 0 50%;
     display: flex;
-    gap: 8px;
+    gap: 0;
 }
 
 .quiz-content-info {
-    flex: 1;
+    flex: 0 0 50%;
     font-size: 13px;
     color: #374151;
     font-weight: 500;
+    padding: 8px;
+    display: flex;
+    align-items: center;
 }
 
 .quiz-status-info {
-    flex: 1;
+    flex: 0 0 50%;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .quiz-right-section {
     flex: 0 0 50%;
     display: flex;
-    justify-content: flex-end;
+    justify-content: center;
     align-items: center;
+    padding: 8px;
 }
 
 .quiz-latest {
