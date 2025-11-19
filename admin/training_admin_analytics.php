@@ -126,7 +126,21 @@ include __DIR__ . '/../includes/header.php';
     border-radius: 4px;
     overflow: hidden;
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    table-layout: fixed;
+    width: 100%;
 }
+
+/* Quiz attempts table column widths */
+.quiz-attempts-table th:nth-child(1),
+.quiz-attempts-table td:nth-child(1) { width: 50px; } /* Attempt # */
+.quiz-attempts-table th:nth-child(2),
+.quiz-attempts-table td:nth-child(2) { width: 80px; } /* Score */
+.quiz-attempts-table th:nth-child(3),
+.quiz-attempts-table td:nth-child(3) { width: 70px; } /* Status - thinner */
+.quiz-attempts-table th:nth-child(4),
+.quiz-attempts-table td:nth-child(4) { width: 150px; } /* Date - wider */
+.quiz-attempts-table th:nth-child(5),
+.quiz-attempts-table td:nth-child(5) { width: 80px; } /* Result */
 
 .quiz-attempts-table th {
     background: #667eea;
