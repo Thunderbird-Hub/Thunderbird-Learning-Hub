@@ -32,8 +32,41 @@ include __DIR__ . '/../includes/header.php';
 .course-card { border: 1px solid #ddd; padding: 16px; margin: 10px 0; border-radius: 8px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 .course-card h3 { margin: 0 0 8px 0; color: #333; }
 .course-card p { margin: 4px 0; color: #666; }
-.btn { background: #667eea; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; margin: 5px; }
-.btn:hover { background: #5a6fd8; }
+.btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    margin: 2px;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+}
+.btn:hover {
+    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+.btn-xs {
+    padding: 6px 12px;
+    font-size: 11px;
+}
+.btn-outline-primary {
+    background: transparent;
+    border: 1px solid #667eea;
+    color: #667eea;
+    box-shadow: none;
+}
+.btn-outline-primary:hover {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: transparent;
+    color: white;
+}
 .btn-secondary { background: #6c757d; }
 .btn-secondary:hover { background: #5a6268; }
 
