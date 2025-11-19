@@ -40,17 +40,17 @@ The retest period functionality has been integrated directly into the quiz creat
 3. Verify the new columns and tables were created successfully
 
 ### Step 2: Test the Feature
-1. Navigate to `/admin/training_admin_analytics.php` as an admin
-2. You should see the new "Quiz Retest Period Management" section
-3. Click "Set Period" on any quiz to configure a retest period
-4. Use the "Process Retest Periods" button to mark users for retest
+1. Navigate to `/admin/manage_quizzes.php` as an admin
+2. **Create New Quiz:** Scroll to the "Create New Quiz" section and you'll see the new "Retest Period" dropdown
+3. **Edit Existing Quiz:** Click the "✏️ Edit Quiz" button on any quiz to see the retest period in the edit modal
+4. **Check Display:** Each quiz card shows its current retest period setting
 
 ### Step 3: Configure Retest Periods
-- Go to the admin analytics dashboard
-- Find the "Quiz Retest Period Management" section
-- Click "Set Period" for each quiz you want to require retesting
-- Choose from: 1 month, 3 months, 6 months, 12 months, or 24 months
-- Select "No retest required" for quizzes that don't need periodic retaking
+- Go to the quiz management page (`/admin/manage_quizzes.php`)
+- **For new quizzes:** Set the retest period when creating the quiz
+- **For existing quizzes:** Click "✏️ Edit Quiz" to modify the retest period
+- Choose from: No retest, 1 month, 3 months, 6 months, 12 months, or 24 months
+- The setting is saved automatically when you create or update the quiz
 
 ## How It Works
 
