@@ -55,20 +55,22 @@ The retest period functionality has been integrated directly into the quiz creat
 ## How It Works
 
 ### Setting Retest Periods
-- Administrators can set retest periods per quiz
+- Administrators set retest periods during quiz creation or editing
 - Periods are measured in months from the date of quiz completion
 - Users who passed a quiz will need to retake it after the specified period
+- Database stores the `retest_period_months` value in the `training_quizzes` table
 
-### Processing Retest Periods
-- The "Process Retest Periods" button checks all completed quizzes
-- Users whose quiz completion date + retest period ≤ today are marked for retest
-- The `retest_required` flag is set to TRUE for affected users
-- A log entry is created in `quiz_retest_log` tracking why the retest was required
+### Future Retest Processing
+- When the retest processing logic is implemented, the system will check all completed quizzes
+- Users whose quiz completion date + retest period ≤ today will be marked for retest
+- The `retest_required` flag will be set to TRUE for affected users
+- A log entry will be created in `quiz_retest_log` tracking why the retest was required
 
-### User Experience
+### User Experience (Future Implementation)
 - When users access their training dashboard, they'll see visual indicators for quizzes that need retaking
 - The quiz will become available again for them to retake
 - Their previous attempts are preserved for record-keeping
+- Similar to McDonald's training system where periodic recertification is required
 
 ## Future Enhancements
 - Automatic email notifications when retests are required
