@@ -721,7 +721,7 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
 
                     }
 
-                    $attempts_html .= "</tbody></table></div>";
+                    $attempts_html .= "</tbody></table></div></div>";
                 } else {
                     $quiz_info = 'No completed attempts yet';
                 }
