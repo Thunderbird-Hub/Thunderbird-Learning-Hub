@@ -861,6 +861,19 @@ include __DIR__ . '/../includes/header.php';
             </div>
 
             <div class="form-group">
+                <label for="edit_retest_period_months">Retest Period:</label>
+                <select name="retest_period_months" id="edit_retest_period_months" class="quiz-content-select">
+                    <option value="">No retest required</option>
+                    <option value="1">Every 1 month</option>
+                    <option value="3">Every 3 months</option>
+                    <option value="6">Every 6 months</option>
+                    <option value="12">Every 12 months</option>
+                    <option value="24">Every 24 months</option>
+                </select>
+                <small class="form-text">Select how often users must retake this quiz after passing. This is similar to the McDonald's training system where quizzes need to be retaken periodically.</small>
+            </div>
+
+            <div class="form-group">
                 <label>
                     <input type="checkbox" name="is_active" id="edit_is_active" value="1">
                     Quiz is active
