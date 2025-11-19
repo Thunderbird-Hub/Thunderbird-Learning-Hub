@@ -114,6 +114,8 @@ include __DIR__ . '/../includes/header.php';
     padding: 8px;
     display: flex;
     align-items: center;
+    border-right: 1px solid #e5e7eb;
+    background: #f9fafb;
 }
 
 .quiz-status-info {
@@ -122,6 +124,8 @@ include __DIR__ . '/../includes/header.php';
     display: flex;
     align-items: center;
     justify-content: center;
+    border-right: 1px solid #e5e7eb;
+    background: #f9fafb;
 }
 
 .quiz-right-section {
@@ -130,6 +134,7 @@ include __DIR__ . '/../includes/header.php';
     justify-content: center;
     align-items: center;
     padding: 8px;
+    background: #ffffff;
 }
 
 .quiz-latest {
