@@ -93,6 +93,50 @@ include __DIR__ . '/../includes/header.php';
     border: 1px solid #e5e7eb;
 }
 
+.quiz-main-content {
+    display: flex;
+    gap: 0;
+    margin-bottom: 12px;
+    width: 100%;
+}
+
+.quiz-left-section {
+    flex: 0 0 50%;
+    display: flex;
+    gap: 0;
+}
+
+.quiz-content-info {
+    flex: 0 0 50%;
+    font-size: 13px;
+    color: #374151;
+    font-weight: 500;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.quiz-status-info {
+    flex: 0 0 50%;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.quiz-right-section {
+    flex: 0 0 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 8px;
+    background: #ffffff;
+}
+
 .quiz-latest {
     font-size: 13px;
     margin-bottom: 8px;
@@ -188,15 +232,14 @@ include __DIR__ . '/../includes/header.php';
 
 .quiz-summary-stats {
     display: flex;
-    gap: 16px;
-    margin-bottom: 8px;
+    gap: 12px;
     font-size: 12px;
 }
 
 .quiz-stat {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
 }
 
 .quiz-stat.passed {
@@ -213,7 +256,7 @@ include __DIR__ . '/../includes/header.php';
 
 .quiz-stat-number {
     font-weight: 700;
-    font-size: 14px;
+    font-size: 16px;
 }
 
 /* Enhanced stat tiles with modern styling */
@@ -753,12 +796,21 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
                         ? date('Y-m-d H:i', strtotime($latest['completed_at']))
                         : '—';
 
-                    // Build filterable quiz attempts section
+                    // Build filterable quiz attempts section with new layout
                     $quiz_unique_id = 'quiz_' . $quiz_id_for_item . '_' . $user_id;
 
                     $attempts_html .= "<div class='quiz-section' data-quiz-id='{$quiz_unique_id}'>";
 
-                    // Summary stats
+                    // Main content layout: left half for content/status, right half for stats
+                    $attempts_html .= "<div class='quiz-main-content'>";
+
+                    // Left section: content and status info
+                    $attempts_html .= "<div class='quiz-left-section'>";
+                    $attempts_html .= "<div class='quiz-content-info'>" . htmlspecialchars($title) . "</div>";
+                    $attempts_html .= "<div class='quiz-status-info'>{$status_html}</div>";
+                    $attempts_html .= "</div>";
+
+                    // Right section: summary statistics
                     $passed_count = 0;
                     $failed_count = 0;
                     foreach ($attempts as $att) {
@@ -766,10 +818,14 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
                         if (strtolower($att['status'] ?? '') === 'failed') $failed_count++;
                     }
 
+                    $attempts_html .= "<div class='quiz-right-section'>";
                     $attempts_html .= "<div class='quiz-summary-stats'>";
                     $attempts_html .= "<div class='quiz-stat passed'><span class='quiz-stat-number' id='passed-count-{$quiz_unique_id}'>{$passed_count}</span> Passed</div>";
                     $attempts_html .= "<div class='quiz-stat failed'><span class='quiz-stat-number' id='failed-count-{$quiz_unique_id}'>{$failed_count}</span> Failed</div>";
                     $attempts_html .= "<div class='quiz-stat total'><span class='quiz-stat-number'>" . count($attempts) . "</span> Total</div>";
+                    $attempts_html .= "</div>";
+                    $attempts_html .= "</div>";
+
                     $attempts_html .= "</div>";
 
                     // Filter controls
@@ -842,13 +898,24 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
                 }
             }
 
-                        echo "
-                <tr>
-                    <td>" . htmlspecialchars($title) . "</td>
-                    <td>{$status_html}</td>
-                    <td>{$quiz_info}{$attempts_html}</td>
-                </tr>
-            ";
+                        // Only show quiz content if there's actually quiz data
+if (!empty($quiz_info) || !empty($attempts_html)) {
+    echo "
+        <tr>
+            <td></td>
+            <td></td>
+            <td>{$quiz_info}{$attempts_html}</td>
+        </tr>
+    ";
+} else {
+    echo "
+        <tr>
+            <td>" . htmlspecialchars($title) . "</td>
+            <td>{$status_html}</td>
+            <td></td>
+        </tr>
+    ";
+}
 
         }
 
