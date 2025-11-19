@@ -708,6 +708,19 @@ include __DIR__ . '/../includes/header.php';
                         <input type="number" name="time_limit" id="time_limit" class="form-control" min="1" placeholder="No time limit">
                     </div>
 
+                    <div class="form-group">
+                        <label for="retest_period_months">Retest Period:</label>
+                        <select name="retest_period_months" id="retest_period_months" class="quiz-content-select">
+                            <option value="">No retest required</option>
+                            <option value="1">Every 1 month</option>
+                            <option value="3">Every 3 months</option>
+                            <option value="6">Every 6 months</option>
+                            <option value="12">Every 12 months</option>
+                            <option value="24">Every 24 months</option>
+                        </select>
+                        <small class="form-text">Select how often users must retake this quiz after passing. This is similar to the McDonald's training system where quizzes need to be retaken periodically.</small>
+                    </div>
+
                     <button type="submit" class="btn btn-primary">Create Quiz</button>
                     <a href="manage_training_courses.php" class="btn btn-secondary">← Back</a>
                 </form>
