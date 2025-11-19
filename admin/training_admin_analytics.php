@@ -89,52 +89,7 @@ include __DIR__ . '/../includes/header.php';
     background: #f8f9fa;
     border-radius: 6px;
     padding: 12px;
-    margin-top: 8px;
     border: 1px solid #e5e7eb;
-}
-
-.quiz-main-content {
-    display: flex;
-    gap: 0;
-    margin-bottom: 12px;
-    width: 100%;
-}
-
-.quiz-left-section {
-    flex: 0 0 50%;
-    display: flex;
-    gap: 0;
-}
-
-.quiz-content-info {
-    flex: 0 0 50%;
-    font-size: 13px;
-    color: #374151;
-    font-weight: 500;
-    padding: 8px;
-    display: flex;
-    align-items: center;
-    border-right: 1px solid #e5e7eb;
-    background: #f9fafb;
-}
-
-.quiz-status-info {
-    flex: 0 0 50%;
-    padding: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-right: 1px solid #e5e7eb;
-    background: #f9fafb;
-}
-
-.quiz-right-section {
-    flex: 0 0 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 8px;
-    background: #ffffff;
 }
 
 .quiz-latest {
