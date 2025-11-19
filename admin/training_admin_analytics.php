@@ -69,9 +69,12 @@ include __DIR__ . '/../includes/header.php';
     color: #4b5563;
 }
 
-.course-progress-table th:nth-child(1) { width: 241.875px; } /* Content - 25% of 967.5px */
-.course-progress-table th:nth-child(2) { width: 241.875px; } /* Status - 25% of 967.5px */
-.course-progress-table th:nth-child(3) { width: 483.75px; }  /* Quiz - 50% of 967.5px */
+.course-progress-table th:nth-child(1),
+.course-progress-table td:nth-child(1) { width: 241.875px; } /* Content - 25% of 967.5px */
+.course-progress-table th:nth-child(2),
+.course-progress-table td:nth-child(2) { width: 241.875px; } /* Status - 25% of 967.5px */
+.course-progress-table th:nth-child(3),
+.course-progress-table td:nth-child(3) { width: 483.75px; }  /* Quiz - 50% of 967.5px */
 
 .status-pill {
     display: inline-block;
