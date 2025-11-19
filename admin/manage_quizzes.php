@@ -60,6 +60,7 @@ if (!in_array($content_type, ['post','posts','article','post_item'], true)) {
             $quiz_description = isset($_POST['quiz_description']) ? trim($_POST['quiz_description']) : '';
             $passing_score = isset($_POST['passing_score']) ? intval($_POST['passing_score']) : 100;
             $time_limit = isset($_POST['time_limit']) && !empty($_POST['time_limit']) ? intval($_POST['time_limit']) : null;
+            $retest_period = isset($_POST['retest_period_months']) && !empty($_POST['retest_period_months']) ? intval($_POST['retest_period_months']) : null;
 
             // Validation
             if (empty($content_type) || $content_id <= 0) {
