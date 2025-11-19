@@ -453,25 +453,28 @@ include __DIR__ . '/../includes/header.php';
                 <label style="display: block; margin-bottom: 4px; font-weight: 500;">Role</label>
                 <select name="role" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                     <option value="user">User</option>
-                    <option value="training">Training</option>
                     <option value="admin">Admin</option>
                     <?php if (is_current_user_super_admin($pdo)): ?>
                     <option value="super admin">Super Admin</option>
                     <?php endif; ?>
                 </select>
                 <div style="margin-top: 4px; font-size: 12px; color: #6c757d; font-style: italic;">
-                    Training: Limited access, must complete assigned training materials<br>
                     User: Full access to all content, no post creation<br>
                     Admin: Can manage content and users<br>
                     <?php if (!is_current_user_super_admin($pdo)): ?>
                     Note: Only super admins can create super admin accounts
                     <?php endif; ?>
                 </div>
-                <?php if (!is_current_user_super_admin($pdo)): ?>
-                <div style="margin-top: 4px; font-size: 12px; color: #6c757d; font-style: italic;">
-                    Note: Only super admins can create super admin accounts
+            </div>
+
+            <div style="margin-bottom: 16px; padding: 12px; background: #f0f7ff; border: 1px solid #b3d9ff; border-radius: 4px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0;">
+                    <input type="checkbox" name="is_in_training" value="1" style="width: 18px; height: 18px;">
+                    <span style="font-weight: 500;">🎓 Set as Training User</span>
+                </label>
+                <div style="margin-top: 8px; font-size: 12px; color: #6c757d;">
+                    Check this to assign training to this user. They will have limited access and must complete assigned training materials before viewing other content.
                 </div>
-                <?php endif; ?>
             </div>
 
             <div style="display: flex; gap: 8px; justify-content: flex-end;">
