@@ -118,12 +118,35 @@ include __DIR__ . '/../includes/header.php';
     border-spacing: 0;
 }
 
-.analytics-table th {
+/* Full-width gradient header wrapper */
+.analytics-table-wrapper {
+    position: relative;
+}
+
+.analytics-table-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px 8px 0 0;
+    z-index: 1;
+}
+
+.analytics-table {
+    position: relative;
+    z-index: 2;
+    margin-top: 0;
+}
+
+.analytics-table th {
+    background: transparent;
     color: white;
+    border: none;
     font-size: 13px;
     font-weight: 600;
-    border: none;
     padding: 12px 16px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -172,6 +195,21 @@ include __DIR__ . '/../includes/header.php';
     font-size: 12px;
     font-weight: 600;
 }
+
+/* Center status pills and content in their columns */
+.course-progress-table td:nth-child(1) {
+    text-align: left;
+    padding-left: 16px;
+}
+.course-progress-table td:nth-child(2) {
+    text-align: center;
+}
+.analytics-table td:nth-child(3),
+.analytics-table td:nth-child(4),
+.analytics-table td:nth-child(5) {
+    text-align: center;
+}
+
 .status-pill.completed { background: #d1e7dd; color: #0f5132; }
 .status-pill.in-progress { background: #fff3cd; color: #856404; }
 .status-pill.not-started { background: #e9ecef; color: #495057; }
@@ -400,7 +438,7 @@ try {
             <p>No active training courses found.</p>
         <?php else: ?>
 
-        <div class="table-responsive">
+        <div class="table-responsive analytics-table-wrapper">
             <table class="table table-bordered table-striped table-hover align-middle analytics-table mb-0">
                 <thead>
                     <tr>
