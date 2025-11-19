@@ -108,6 +108,7 @@ if (!in_array($content_type, ['post','posts','article','post_item'], true)) {
         quiz_description  = :descr,
         passing_score     = :passing,
         time_limit_minutes= :tlimit,
+        retest_period_months = :retest_period,
         is_active         = :active,
         updated_at        = CURRENT_TIMESTAMP
     WHERE id = :id
