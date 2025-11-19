@@ -500,15 +500,24 @@ try {
                 $assigned_stmt->execute([$course_id]);
                 $assigned = $assigned_stmt->fetch(PDO::FETCH_ASSOC)['total_assigned'] ?? 0;
 
-                // Count completed users
+                // Count completed users using the same logic as individual progress calculation
                 $completed_stmt = $pdo->prepare("
-                    SELECT COUNT(DISTINCT user_id) AS total_completed
-                    FROM training_history
-                    WHERE course_id = ?
-                      AND course_completed_date IS NOT NULL
+                    SELECT COUNT(DISTINCT uta.user_id) AS total_completed
+                    FROM user_training_assignments uta
+                    JOIN training_courses tc ON tc.id = uta.course_id
+                    JOIN training_course_content tcc ON uta.course_id = tcc.course_id
+                    LEFT JOIN training_progress tp ON tcc.content_id = tp.content_id
+                        AND tp.user_id = uta.user_id
+                        AND (tcc.content_type = tp.content_type OR tp.content_type = '' OR tp.content_type IS NULL)
+                    WHERE uta.course_id = ?
+                      AND tc.is_active = 1
+                      AND tcc.content_type = 'post'
+                      AND (tcc.is_required = 1 OR tcc.is_required IS NULL)
+                    GROUP BY uta.user_id
+                    HAVING COUNT(DISTINCT CASE WHEN tp.status = 'completed' THEN tcc.id END) >= COUNT(DISTINCT tcc.id)
                 ");
                 $completed_stmt->execute([$course_id]);
-                $completed = $completed_stmt->fetch(PDO::FETCH_ASSOC)['total_completed'] ?? 0;
+                $completed = $completed_stmt->fetchColumn() ?? 0;
 
                 // Compute completion %
                 $rate = ($assigned > 0)
