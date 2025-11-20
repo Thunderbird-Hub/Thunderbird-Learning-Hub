@@ -429,7 +429,7 @@ include __DIR__ . '/../includes/header.php';
 </div>
 
 <!-- TinyMCE Rich Text Editor -->
-<script src="vendor/tinymce/tinymce.min.js" referrerpolicy="origin"></script>
+<script src="/vendor/tinymce/tinymce.min.js" referrerpolicy="origin"></script>
 <script>
     function toggleSharedUsers() {
         const privacy = document.getElementById('privacy').value;

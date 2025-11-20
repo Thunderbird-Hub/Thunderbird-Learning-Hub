@@ -493,7 +493,13 @@ mark {
     color: #2d3748;
     margin: 20px 0;
     word-wrap: break-word;
-    white-space: pre-line;
+    white-space: pre-wrap !important;
+    tab-size: 4;
+}
+
+/* Ensure nested elements keep whitespace formatting (spaces, tabs, newlines) */
+.post-content * {
+    white-space: inherit !important;
 }
 
 /* Post content typography matching TinyMCE */
@@ -750,6 +756,20 @@ mark {
     font-size: 13px;
     line-height: 1.4;
     white-space: pre;
+}
+
+.post-content .post-plain-text {
+    white-space: pre-wrap;
+    background-color: #f8fafc;
+    color: #2d3748;
+    padding: 15px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: auto;
+    tab-size: 4;
 }
 
 .post-content code {
