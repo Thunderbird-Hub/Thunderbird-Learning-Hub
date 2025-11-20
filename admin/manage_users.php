@@ -570,6 +570,29 @@ include __DIR__ . '/../includes/header.php';
                 </div>
             </div>
 
+            <div style="margin-bottom: 16px; padding: 12px; background: #f0f7ff; border: 1px solid #b3d9ff; border-radius: 4px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">🏢 Departments</label>
+                <div style="border: 1px solid #999; background: #fff; padding: 8px; max-height: 120px; overflow-y: auto;">
+                    <?php
+                    $departments = get_all_departments($pdo);
+                    foreach ($departments as $dept):
+                    ?>
+                    <div style="margin: 5px 0;">
+                        <input type="checkbox" name="departments[]" value="<?php echo $dept['id']; ?>" style="width: auto; margin-right: 8px;" id="dept_edit_<?php echo $dept['id']; ?>" <?php echo isset($user_dept_ids) && in_array($dept['id'], $user_dept_ids) ? 'checked' : ''; ?>>
+                        <label for="dept_edit_<?php echo $dept['id']; ?>" style="font-weight: normal;">
+                            <?php echo htmlspecialchars($dept['name']); ?>
+                            <?php if ($dept['member_count'] > 0): ?>
+                                (<?php echo $dept['member_count']; ?> members)
+                            <?php endif; ?>
+                        </label>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <div style="margin-top: 8px; font-size: 12px; color: #6c757d; font-style: italic;">
+                    Select one or more departments. User will automatically inherit all training courses assigned to selected departments.
+                </div>
+            </div>
+
             <div style="margin-bottom: 16px; padding: 12px; background: #f8f9fa; border-radius: 4px; font-size: 12px; color: #6c757d;">
                 <strong>Note:</strong> To change a user's active status, use the "Deactivate" or "Activate" button in the table.
             </div>
