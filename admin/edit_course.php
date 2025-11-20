@@ -11,6 +11,7 @@ require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../includes/db_connect.php';
 require_once __DIR__ . '/../includes/training_helpers.php';
 require_once __DIR__ . '/../includes/user_helpers.php';
+require_once __DIR__ . '/../includes/department_helpers.php';
 
 // Check if user is admin
 if (!is_admin()) {
@@ -60,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $training_tables_exist && $course) 
         case 'update_course':
             $name = isset($_POST['name']) ? trim($_POST['name']) : '';
             $description = isset($_POST['description']) ? trim($_POST['description']) : '';
-            $department = isset($_POST['department']) ? trim($_POST['department']) : '';
+            $department = isset($_POST['department']) ? intval($_POST['department']) : 0;
             $estimated_hours = isset($_POST['estimated_hours']) ? floatval($_POST['estimated_hours']) : 0;
             $is_active = isset($_POST['is_active']) ? 1 : 0;
 
@@ -73,12 +74,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $training_tables_exist && $course) 
                 $error_message = 'Estimated hours must be between 0 and 999.9.';
             } else {
                 try {
+                    // Get department name for storage
+                    $department_name = '';
+                    if ($department > 0) {
+                        $dept_info = get_department_by_id($pdo, $department);
+                        if ($dept_info) {
+                            $department_name = $dept_info['name'];
+                        }
+                    }
+
                     $update_stmt = $pdo->prepare("
                         UPDATE training_courses
                         SET name = ?, description = ?, department = ?, estimated_hours = ?, is_active = ?, updated_at = NOW()
                         WHERE id = ?
                     ");
-                    $result = $update_stmt->execute([$name, $description, $department, $estimated_hours, $is_active, $course_id]);
+                    $result = $update_stmt->execute([$name, $description, $department_name, $estimated_hours, $is_active, $course_id]);
 
                     if ($result) {
                         // Refresh course data
@@ -116,6 +126,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $training_tables_exist && $course) 
                 $error_message = 'Database error: ' . $e->getMessage();
             }
             break;
+    }
+}
+
+// Get all departments for dropdown
+$all_departments = [];
+if ($training_tables_exist) {
+    try {
+        $all_departments = get_all_departments($pdo);
+    } catch (PDOException $e) {
+        // Handle error gracefully
+        $all_departments = [];
+    }
+}
+
+// Find current department ID from course's department name
+$current_department_id = 0;
+if ($course && !empty($course['department'])) {
+    foreach ($all_departments as $dept) {
+        if ($dept['name'] === $course['department']) {
+            $current_department_id = $dept['id'];
+            break;
+        }
     }
 }
 
@@ -418,9 +450,17 @@ require_once __DIR__ . '/../includes/header.php';
 
                             <div class="form-group">
                                 <label for="department">Department</label>
-                                <input type="text" name="department" id="department" class="form-control"
-                                       value="<?php echo htmlspecialchars($course['department'] ?? ''); ?>"
-                                       maxlength="100" placeholder="e.g., Human Resources">
+                                <select name="department" id="department" class="form-control">
+                                    <option value="0">No Department</option>
+                                    <?php foreach ($all_departments as $dept): ?>
+                                        <option value="<?php echo $dept['id']; ?>" <?php echo $current_department_id == $dept['id'] ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($dept['name']); ?>
+                                            <?php if ($dept['member_count'] > 0): ?>
+                                                (<?php echo $dept['member_count']; ?> members)
+                                            <?php endif; ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
                             </div>
 
                             <div class="form-group">
