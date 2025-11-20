@@ -96,6 +96,27 @@ elseif ($is_prod): ?>
                 $pending_edit_requests = 0;
                 $unresolved_bugs = 0;
 
+                // Check if user has training active
+                $user_has_training = false;
+                try {
+                    $stmt = $pdo->prepare("
+                        SELECT COUNT(*) as count
+                        FROM user_training_assignments uta
+                        WHERE uta.user_id = ?
+                        AND uta.status IN ('not_started', 'in_progress')
+                        AND EXISTS (
+                            SELECT 1 FROM training_courses tc
+                            WHERE tc.id = uta.course_id AND tc.is_active = 1
+                        )
+                    ");
+                    $stmt->execute([$_SESSION['user_id']]);
+                    $active_assignments = $stmt->fetchColumn();
+                    $user_has_training = ($active_assignments > 0);
+                } catch (PDOException $e) {
+                    // Silently continue if check fails
+                    $user_has_training = false;
+                }
+
                 if (is_admin()) {
                     try {
                         // Get pending edit requests count
