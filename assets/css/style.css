@@ -493,6 +493,7 @@ mark {
     color: #2d3748;
     margin: 20px 0;
     word-wrap: break-word;
+    white-space: pre-line;
 }
 
 /* Post content typography matching TinyMCE */
@@ -748,6 +749,7 @@ mark {
     font-family: 'Courier New', monospace;
     font-size: 13px;
     line-height: 1.4;
+    white-space: pre;
 }
 
 .post-content code {
