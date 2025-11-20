@@ -1321,7 +1321,11 @@ mark {
 }
 
 .dev-dropdown-section {
-    margin-bottom: 20px;
+    margin-bottom: 24px;
+}
+
+.dev-dropdown-section:last-child {
+    margin-bottom: 0;
 }
 
 .dev-dropdown-section:last-child {
