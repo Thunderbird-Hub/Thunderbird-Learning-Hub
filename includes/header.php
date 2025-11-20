@@ -96,6 +96,27 @@ elseif ($is_prod): ?>
                 $pending_edit_requests = 0;
                 $unresolved_bugs = 0;
 
+                // Check if user has training active
+                $user_has_training = false;
+                try {
+                    $stmt = $pdo->prepare("
+                        SELECT COUNT(*) as count
+                        FROM user_training_assignments uta
+                        WHERE uta.user_id = ?
+                        AND uta.status IN ('not_started', 'in_progress')
+                        AND EXISTS (
+                            SELECT 1 FROM training_courses tc
+                            WHERE tc.id = uta.course_id AND tc.is_active = 1
+                        )
+                    ");
+                    $stmt->execute([$_SESSION['user_id']]);
+                    $active_assignments = $stmt->fetchColumn();
+                    $user_has_training = ($active_assignments > 0);
+                } catch (PDOException $e) {
+                    // Silently continue if check fails
+                    $user_has_training = false;
+                }
+
                 if (is_admin()) {
                     try {
                         // Get pending edit requests count
@@ -156,13 +177,15 @@ elseif ($is_prod): ?>
                         $role_colors = [
                             'Super Admin' => '#dc3545',
                             'Admin' => '#28a745',
-                            'User' => '#6c757d',
-                            'Training' => '#17a2b8'
+                            'User' => '#6c757d'
                         ];
                         $current_role = get_user_role_display();
                         $role_color = $role_colors[$current_role] ?? '#6c757d';
                         ?>
                         <span style="background: <?php echo $role_color; ?>; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 5px;"><?php echo htmlspecialchars($current_role); ?></span>
+                        <?php if ($user_has_training): ?>
+                        <a href="/training/training_dashboard.php" style="background: #17a2b8; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 3px; text-decoration: none; display: inline-block; transition: background 0.2s ease;" title="Training Active - Click to view training dashboard" onmouseover="this.style.background='#138496'" onmouseout="this.style.background='#17a2b8'">🎓</a>
+                        <?php endif; ?>
                     </span>
 
                     <!-- Training Progress Bar (Training Users and Admins with Active Training) -->
