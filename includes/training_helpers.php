@@ -301,11 +301,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'mark_complete') {
 // ============================================================
 
 /**
- * Check if current user is in training role
- * @return bool True if user is training role
+ * Check if current user is in training (based on is_in_training flag)
+ * @return bool True if user is in training
  */
 function is_training_user() {
-    return isset($_SESSION['user_role']) && strtolower($_SESSION['user_role']) === 'training';
+    return isset($_SESSION['user_is_in_training']) && $_SESSION['user_is_in_training'] == 1;
 }
 
 /**
