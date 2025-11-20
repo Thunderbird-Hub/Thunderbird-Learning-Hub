@@ -540,7 +540,7 @@ if (function_exists('auto_manage_user_roles')) {
                 header('Location: quiz_results.php?attempt_id=' . $quiz_attempt['id']);
                 exit;
 
-            } catch (PDOException $e) {
+                } catch (PDOException $e) {
                 // Proper error handling - rollback if transaction is still active
                 if ($pdo->inTransaction()) {
                     $pdo->rollBack();
