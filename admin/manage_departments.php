@@ -431,6 +431,16 @@ function showManageMembersModal(deptId, deptName) {
         .then(data => {
             let html = `<h4 style="margin-top: 0;">Department: <strong>${deptName}</strong></h4>`;
 
+            // Department courses block with toggle button
+            html += '<div style="margin-bottom: 12px;">';
+            html += '<button type="button" id="toggleCoursesBtn" style="background: #6c757d; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">View Department Courses</button>';
+            html += '</div>';
+            html += '<div id="departmentCourses" style="display: none; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 12px; margin-bottom: 16px;">';
+            html += '<h5 style="margin-top: 0;">Department Courses</h5>';
+            if (!data.courses || data.courses.length === 0) {
+                html += '<p style="color: #6c757d;">No courses are assigned to this department yet.</p>';
+            } else {
+                html += '<ul style="padding-left: 18px; color: #333; margin: 0;">';
             // Department courses
             html += '<h5>Department Courses:</h5>';
             if (!data.courses || data.courses.length === 0) {
@@ -442,30 +452,112 @@ function showManageMembersModal(deptId, deptName) {
                 });
                 html += '</ul>';
             }
+            html += '</div>';
+
+            // Bulk add users section with checkboxes
+            html += '<h5>Bulk Add Users to Department:</h5>';
+            const availableUsers = data.all_users.filter(user => !data.member_ids.includes(user.id));
+            if (availableUsers.length === 0) {
+                html += '<p style="color: #6c757d;">No available users to add.</p>';
+            } else {
+                html += '<form id="bulkAddForm" method="POST" action="manage_departments.php" style="margin-bottom: 16px;">';
+                html += '<input type="hidden" name="action" value="bulk_add_users_to_department">';
+                html += `<input type="hidden" name="dept_id" value="${deptId}">`;
+                html += '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">';
+                html += '<label style="display: flex; align-items: center; gap: 6px; font-weight: 600; color: #495057;">';
+                html += '<input type="checkbox" id="bulkAddSelectAll"> Select All';
+                html += '</label>';
+                html += '</div>';
+                html += '<div style="overflow-x: auto;">';
+                html += '<table style="width: 100%; border-collapse: collapse;">';
+                html += '<thead>';
+                html += '<tr style="background: #f8f9fa; border-bottom: 1px solid #dee2e6;">';
+                html += '<th style="padding: 8px; width: 50px;"></th>';
+                html += '<th style="padding: 8px; text-align: left;">Name</th>';
+                html += '<th style="padding: 8px; text-align: left;">Role</th>';
+                html += '</tr>';
+                html += '</thead>';
+                html += '<tbody>';
+                availableUsers.forEach(user => {
+                    html += `<tr style="border-bottom: 1px solid #f1f1f1;">
+                        <td style="padding: 8px; text-align: center;"><input type="checkbox" class="bulk-add-checkbox" name="user_ids[]" value="${user.id}"></td>
+                        <td style="padding: 8px;">${user.name}</td>
+                        <td style="padding: 8px; color: #6c757d;">${user.role}</td>
+                    </tr>`;
+                });
+                html += '</tbody>';
+                html += '</table>';
+                html += '</div>';
+                html += '<div style="margin-top: 8px; display: flex; justify-content: flex-end; gap: 8px; align-items: center;">';
+                html += '<button type="submit" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Add Selected Users</button>';
+                html += '</div>';
+                html += '</form>';
+            }
+
+            // Bulk remove users section with checkboxes
+            html += '<h5>Bulk Remove Users from Department:</h5>';
 
             // Current members
             html += '<h5>Current Members:</h5>';
             if (data.members.length === 0) {
-                html += '<p style="color: #6c757d;">No members in this department yet.</p>';
+                html += '<p style="color: #6c757d;">No members available to remove.</p>';
             } else {
-                html += '<div style="background: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 16px;">';
-                data.members.forEach(member => {
-                    html += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #dee2e6;">
-                        <div>
-                            <strong>${member.name}</strong> (${member.role})
-                            <br><small style="color: #6c757d;">Added: ${new Date(member.assigned_date).toLocaleDateString()}</small>
-                        </div>
-                        <form method="POST" action="manage_departments.php" style="margin: 0;">
-                            <input type="hidden" name="action" value="remove_user_from_department">
-                            <input type="hidden" name="dept_id" value="${deptId}">
-                            <input type="hidden" name="user_id" value="${member.id}">
-                            <button type="submit" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">Remove</button>
-                        </form>
-                    </div>`;
-                });
+                html += '<form id="bulkRemoveForm" method="POST" action="manage_departments.php">';
+                html += '<input type="hidden" name="action" value="bulk_remove_users_from_department">';
+                html += `<input type="hidden" name="dept_id" value="${deptId}">`;
+                html += '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">';
+                html += '<label style="display: flex; align-items: center; gap: 6px; font-weight: 600; color: #495057;">';
+                html += '<input type="checkbox" id="bulkRemoveSelectAll"> Select All';
+                html += '</label>';
                 html += '</div>';
+                html += '<div style="overflow-x: auto;">';
+                html += '<table style="width: 100%; border-collapse: collapse;">';
+                html += '<thead>';
+                html += '<tr style="background: #f8f9fa; border-bottom: 1px solid #dee2e6;">';
+                html += '<th style="padding: 8px; width: 50px;"></th>';
+                html += '<th style="padding: 8px; text-align: left;">Name</th>';
+                html += '<th style="padding: 8px; text-align: left;">Role</th>';
+                html += '<th style="padding: 8px; text-align: left;">Added</th>';
+                html += '</tr>';
+                html += '</thead>';
+                html += '<tbody>';
+                data.members.forEach(member => {
+                    const addedDate = member.assigned_date ? new Date(member.assigned_date).toLocaleDateString() : '';
+                    html += `<tr style="border-bottom: 1px solid #f1f1f1;">
+                        <td style="padding: 8px; text-align: center;"><input type="checkbox" class="bulk-remove-checkbox" name="user_ids[]" value="${member.id}"></td>
+                        <td style="padding: 8px;">${member.name}</td>
+                        <td style="padding: 8px; color: #6c757d;">${member.role}</td>
+                        <td style="padding: 8px; color: #6c757d;">${addedDate}</td>
+                    </tr>`;
+                });
+                html += '</tbody>';
+                html += '</table>';
+                html += '</div>';
+                html += '<div style="margin-top: 8px; display: flex; justify-content: flex-end; gap: 8px; align-items: center;">';
+                html += '<button type="submit" style="background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Remove Selected Users</button>';
+                html += '</div>';
+                html += '</form>';
             }
 
+            const contentEl = document.getElementById('manageMembersContent');
+            contentEl.innerHTML = html;
+
+            const coursesBtn = document.getElementById('toggleCoursesBtn');
+            const coursesPanel = document.getElementById('departmentCourses');
+            if (coursesBtn && coursesPanel) {
+                coursesBtn.addEventListener('click', () => {
+                    const isHidden = coursesPanel.style.display === 'none';
+                    coursesPanel.style.display = isHidden ? 'block' : 'none';
+                    coursesBtn.textContent = isHidden ? 'Hide Department Courses' : 'View Department Courses';
+                });
+            }
+
+            function setupSelectAll(selectAllId, checkboxSelector) {
+                const selectAllEl = document.getElementById(selectAllId);
+                const checkboxes = Array.from(document.querySelectorAll(checkboxSelector));
+
+                if (!selectAllEl || checkboxes.length === 0) {
+                    return;
             // Bulk add users section
             html += '<h5>Bulk Add Users to Department:</h5>';
             html += '<form method="POST" action="manage_departments.php" style="margin-bottom: 16px;">';
@@ -478,7 +570,50 @@ function showManageMembersModal(deptId, deptName) {
                 if (!data.member_ids.includes(user.id)) {
                     html += `<option value="${user.id}">${user.name} (${user.role})</option>`;
                 }
-            });
+
+                selectAllEl.addEventListener('change', () => {
+                    checkboxes.forEach(cb => {
+                        cb.checked = selectAllEl.checked;
+                    });
+                });
+
+                checkboxes.forEach(cb => {
+                    cb.addEventListener('change', () => {
+                        const allChecked = checkboxes.every(item => item.checked);
+                        const noneChecked = checkboxes.every(item => !item.checked);
+
+                        if (allChecked) {
+                            selectAllEl.checked = true;
+                            selectAllEl.indeterminate = false;
+                        } else if (noneChecked) {
+                            selectAllEl.checked = false;
+                            selectAllEl.indeterminate = false;
+                        } else {
+                            selectAllEl.indeterminate = true;
+                        }
+                    });
+                });
+            }
+
+            function setupFormValidation(formId, checkboxSelector, message) {
+                const formEl = document.getElementById(formId);
+                if (!formEl) {
+                    return;
+                }
+
+                formEl.addEventListener('submit', (event) => {
+                    const hasSelection = Array.from(formEl.querySelectorAll(checkboxSelector)).some(cb => cb.checked);
+                    if (!hasSelection) {
+                        event.preventDefault();
+                        alert(message);
+                    }
+                });
+            }
+
+            setupSelectAll('bulkAddSelectAll', '.bulk-add-checkbox');
+            setupSelectAll('bulkRemoveSelectAll', '.bulk-remove-checkbox');
+            setupFormValidation('bulkAddForm', '.bulk-add-checkbox', 'Please select at least one user to add.');
+            setupFormValidation('bulkRemoveForm', '.bulk-remove-checkbox', 'Please select at least one user to remove.');
 
             html += '</select>';
             html += '<div style="display: flex; flex-direction: column; gap: 8px;">';
