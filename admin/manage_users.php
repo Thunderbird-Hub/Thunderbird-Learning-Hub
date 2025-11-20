@@ -23,6 +23,7 @@
 require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../includes/db_connect.php';
 require_once __DIR__ . '/../includes/user_helpers.php';
+require_once __DIR__ . '/../includes/department_helpers.php';
 
 // Only allow admin users
 if (!is_admin()) {
