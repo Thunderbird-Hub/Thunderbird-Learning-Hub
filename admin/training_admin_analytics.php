@@ -1156,3 +1156,4 @@ document.addEventListener('DOMContentLoaded', function() {
 // Standard footer (includes your latest updates widget, bug report button, etc.)
 include __DIR__ . '/../includes/footer.php';
 ?>
+// Updated 2025-11-20 03:44:47 - Fixed analytics query to include completed attempts with OR completed_at IS NOT NULL
