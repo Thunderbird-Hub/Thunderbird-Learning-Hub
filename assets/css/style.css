@@ -497,11 +497,6 @@ mark {
     tab-size: 4;
 }
 
-/* Ensure nested elements keep whitespace formatting (spaces, tabs, newlines) */
-.post-content * {
-    white-space: inherit;
-}
-
 /* Post content typography matching TinyMCE */
 .post-content h1 {
     font-size: 2em;
