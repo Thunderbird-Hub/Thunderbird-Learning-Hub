@@ -456,6 +456,48 @@ if ($orig_ct_norm === 'post' && $orig_content_id > 0) {
         }
     }
 }
+} else {
+    // User failed the quiz - still update training progress to reflect the attempt
+    if (function_exists('log_debug')) {
+        log_debug("User failed quiz - updating training progress with attempt info - User ID: " . $_SESSION['user_id'] . ", Content Type: '$content_type', Content ID: $content_id, Score: $score");
+    }
+
+    // Normalize content_type to handle legacy blanks/nulls consistently
+    $norm_ct = trim(strtolower((string)$content_type));
+    if ($norm_ct === '') { $norm_ct = 'post'; }
+
+    // Update training progress to reflect quiz attempt (but keep as in_progress since they failed)
+    $upd_failed = $pdo->prepare("
+        UPDATE training_progress
+           SET last_quiz_attempt_id = ?,
+               quiz_score = ?,
+               quiz_completed_at = CURRENT_TIMESTAMP,
+               status = 'in_progress'
+         WHERE user_id = ?
+           AND content_id = ?
+           AND (content_type = ? OR content_type = '' OR content_type IS NULL)
+    ");
+    $upd_failed->execute([$quiz_attempt['id'], $score, $_SESSION['user_id'], $content_id, $norm_ct]);
+
+    if ($upd_failed->rowCount() === 0) {
+        // No existing row? Seed one with in_progress status
+        $ins_failed = $pdo->prepare("
+            INSERT INTO training_progress
+                (user_id, content_id, content_type, status,
+                 quiz_completed, quiz_score, quiz_completed_at,
+                 last_quiz_attempt_id)
+            VALUES
+                (?, ?, ?, 'in_progress',
+                 FALSE, ?, CURRENT_TIMESTAMP,
+                 ?)
+        ");
+        $ins_failed->execute([$_SESSION['user_id'], $content_id, $norm_ct, $score, $quiz_attempt['id']]);
+    }
+
+    if (function_exists('log_debug')) {
+        log_debug('Failed quiz training progress updated - user_id=' . $_SESSION['user_id'] .
+                  ', content_id=' . $content_id . ', score=' . $score . ', status=in_progress');
+    }
 }
 
                     // Check if course is now complete and update assignment status
