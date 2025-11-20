@@ -503,8 +503,9 @@ if ($orig_ct_norm === 'post' && $orig_content_id > 0) {
                 // Commit essential quiz operations before role management
                 $pdo->commit();
 
-                // Now handle post-transaction operations (role management, etc.)
-                // Check if course is now complete and update assignment status
+                try {
+                    // Now handle post-transaction operations (role management, etc.)
+                    // Check if course is now complete and update assignment status
                 if (function_exists('update_course_completion_status') && function_exists('promote_user_if_training_complete')) {
                     // Get course ID for this content
                     $course_stmt = $pdo->prepare("
