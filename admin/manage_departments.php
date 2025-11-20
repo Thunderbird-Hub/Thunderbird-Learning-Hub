@@ -128,6 +128,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $departments_table_exists) {
             }
             break;
 
+        case 'bulk_add_users_to_department':
+            $dept_id = isset($_POST['dept_id']) ? intval($_POST['dept_id']) : 0;
+            $user_ids = isset($_POST['user_ids']) && is_array($_POST['user_ids'])
+                ? array_values(array_unique(array_map('intval', $_POST['user_ids'])))
+                : [];
+
+            if ($dept_id <= 0 || empty($user_ids)) {
+                $error_message = 'Please select at least one user to add.';
+            } else {
+                $added_count = 0;
+                $assigned_courses = 0;
+
+                foreach ($user_ids as $user_id) {
+                    if ($user_id <= 0) {
+                        continue;
+                    }
+
+                    try {
+                        if (assign_user_to_department($pdo, $user_id, $dept_id, $_SESSION['user_id'])) {
+                            $added_count++;
+                            $assigned_courses += assign_user_to_department_courses($pdo, $user_id, $dept_id, $_SESSION['user_id']);
+                        }
+                    } catch (PDOException $e) {
+                        error_log('Error adding user to department: ' . $e->getMessage());
+                    }
+                }
+
+                if ($added_count > 0) {
+                    $success_message = "Added $added_count user(s) to the department.";
+                    if ($assigned_courses > 0) {
+                        $success_message .= " Assigned $assigned_courses course enrollment(s).";
+                    }
+                } else {
+                    $error_message = 'No users were added to the department.';
+                }
+            }
+            break;
+
         case 'remove_user_from_department':
             $dept_id = isset($_POST['dept_id']) ? intval($_POST['dept_id']) : 0;
             $user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
@@ -143,6 +181,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $departments_table_exists) {
                     }
                 } catch (PDOException $e) {
                     $error_message = 'Error removing user: ' . $e->getMessage();
+                }
+            }
+            break;
+
+        case 'bulk_remove_users_from_department':
+            $dept_id = isset($_POST['dept_id']) ? intval($_POST['dept_id']) : 0;
+            $user_ids = isset($_POST['user_ids']) && is_array($_POST['user_ids'])
+                ? array_values(array_unique(array_map('intval', $_POST['user_ids'])))
+                : [];
+
+            if ($dept_id <= 0 || empty($user_ids)) {
+                $error_message = 'Please select at least one user to remove.';
+            } else {
+                $removed_count = 0;
+
+                foreach ($user_ids as $user_id) {
+                    if ($user_id <= 0) {
+                        continue;
+                    }
+
+                    try {
+                        if (remove_user_from_department($pdo, $user_id, $dept_id)) {
+                            $removed_count++;
+                        }
+                    } catch (PDOException $e) {
+                        error_log('Error removing user from department: ' . $e->getMessage());
+                    }
+                }
+
+                if ($removed_count > 0) {
+                    $success_message = "Removed $removed_count user(s) from the department.";
+                } else {
+                    $error_message = 'No users were removed from the department.';
                 }
             }
             break;
@@ -360,6 +431,18 @@ function showManageMembersModal(deptId, deptName) {
         .then(data => {
             let html = `<h4 style="margin-top: 0;">Department: <strong>${deptName}</strong></h4>`;
 
+            // Department courses
+            html += '<h5>Department Courses:</h5>';
+            if (!data.courses || data.courses.length === 0) {
+                html += '<p style="color: #6c757d;">No courses are assigned to this department yet.</p>';
+            } else {
+                html += '<ul style="padding-left: 18px; color: #333;">';
+                data.courses.forEach(course => {
+                    html += `<li><strong>${course.name}</strong> <small style="color: #6c757d;">(Assigned users: ${course.assigned_users}, Completed: ${course.completed_users})</small></li>`;
+                });
+                html += '</ul>';
+            }
+
             // Current members
             html += '<h5>Current Members:</h5>';
             if (data.members.length === 0) {
@@ -383,14 +466,13 @@ function showManageMembersModal(deptId, deptName) {
                 html += '</div>';
             }
 
-            // Add user section
-            html += '<h5>Add User to Department:</h5>';
-            html += '<form method="POST" action="manage_departments.php">';
-            html += '<input type="hidden" name="action" value="add_user_to_department">';
+            // Bulk add users section
+            html += '<h5>Bulk Add Users to Department:</h5>';
+            html += '<form method="POST" action="manage_departments.php" style="margin-bottom: 16px;">';
+            html += '<input type="hidden" name="action" value="bulk_add_users_to_department">';
             html += '<input type="hidden" name="dept_id" value="' + deptId + '">';
-            html += '<div style="display: flex; gap: 8px;">';
-            html += '<select name="user_id" required style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">';
-            html += '<option value="">Select a user...</option>';
+            html += '<div style="display: flex; gap: 8px; align-items: center;">';
+            html += '<select name="user_ids[]" multiple required size="6" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">';
 
             data.all_users.forEach(user => {
                 if (!data.member_ids.includes(user.id)) {
@@ -399,8 +481,36 @@ function showManageMembersModal(deptId, deptName) {
             });
 
             html += '</select>';
-            html += '<button type="submit" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Add User</button>';
+            html += '<div style="display: flex; flex-direction: column; gap: 8px;">';
+            html += '<button type="submit" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Add Selected</button>';
+            html += '<small style="color: #6c757d;">Hold Ctrl (Cmd on Mac) to select multiple users.</small>';
+            html += '</div>';
+            html += '</div>';
             html += '</form>';
+
+            // Bulk remove users section
+            html += '<h5>Bulk Remove Users from Department:</h5>';
+            if (data.members.length === 0) {
+                html += '<p style="color: #6c757d;">No members available to remove.</p>';
+            } else {
+                html += '<form method="POST" action="manage_departments.php">';
+                html += '<input type="hidden" name="action" value="bulk_remove_users_from_department">';
+                html += '<input type="hidden" name="dept_id" value="' + deptId + '">';
+                html += '<div style="display: flex; gap: 8px; align-items: center;">';
+                html += '<select name="user_ids[]" multiple required size="6" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">';
+
+                data.members.forEach(member => {
+                    html += `<option value="${member.id}">${member.name} (${member.role})</option>`;
+                });
+
+                html += '</select>';
+                html += '<div style="display: flex; flex-direction: column; gap: 8px;">';
+                html += '<button type="submit" style="background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Remove Selected</button>';
+                html += '<small style="color: #6c757d;">Hold Ctrl (Cmd on Mac) to select multiple users.</small>';
+                html += '</div>';
+                html += '</div>';
+                html += '</form>';
+            }
 
             document.getElementById('manageMembersContent').innerHTML = html;
             document.getElementById('manageMembersModal').style.display = 'block';
