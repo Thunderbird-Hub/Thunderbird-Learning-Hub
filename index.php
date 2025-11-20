@@ -40,7 +40,7 @@ $current_user_id = $_SESSION['user_id'];
 // Determine if current user is training without altering layout
 $is_training = function_exists('is_training_user')
     ? is_training_user()
-    : (isset($_SESSION['user_role']) && strtolower(trim($_SESSION['user_role'])) === 'training');
+    : (isset($_SESSION['user_is_in_training']) && $_SESSION['user_is_in_training'] == 1);
 
     // Check if visibility columns exist in database
     $visibility_columns_exist = false;
