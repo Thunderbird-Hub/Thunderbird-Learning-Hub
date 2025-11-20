@@ -322,6 +322,7 @@ include __DIR__ . '/../includes/header.php';
                                         </td>
                                         <td style="padding: 12px; text-align: center;">
                                             <div style="display: flex; gap: 4px; justify-content: center;">
+                                                <button type="button" class="btn btn-sm" style="background: #6c757d; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px;" onclick="showDepartmentCourses(<?php echo $dept['id']; ?>, '<?php echo htmlspecialchars($dept['name']); ?>')">Courses</button>
                                                 <button type="button" class="btn btn-sm" style="background: #007bff; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px;" onclick="showManageMembersModal(<?php echo $dept['id']; ?>, '<?php echo htmlspecialchars($dept['name']); ?>')">Manage</button>
                                                 <button type="button" class="btn btn-sm" style="background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px;" onclick="showEditDepartmentModal(<?php echo $dept['id']; ?>, '<?php echo htmlspecialchars($dept['name']); ?>', '<?php echo htmlspecialchars($dept['description'] ?? ''); ?>')">Edit</button>
                                                 <button type="button" class="btn btn-sm" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px;" onclick="deleteDepartment(<?php echo $dept['id']; ?>, '<?php echo htmlspecialchars($dept['name']); ?>')">Delete</button>
@@ -339,6 +340,17 @@ include __DIR__ . '/../includes/header.php';
                 <?php endif; ?>
             </div>
         <?php endif; ?>
+    </div>
+</div>
+
+<!-- Department Courses Modal -->
+<div id="departmentCoursesModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 24px; border-radius: 8px; width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto;">
+        <h3 id="departmentCoursesTitle" style="margin: 0 0 16px 0;">📚 Department Courses</h3>
+        <div id="departmentCoursesContent" style="margin-bottom: 16px;">Loading courses...</div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px;">
+            <button type="button" onclick="hideDepartmentCoursesModal()" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">Close</button>
+        </div>
     </div>
 </div>
 
@@ -405,6 +417,52 @@ include __DIR__ . '/../includes/header.php';
 </div>
 
 <script>
+function showDepartmentCourses(deptId, deptName) {
+    const modal = document.getElementById('departmentCoursesModal');
+    const title = document.getElementById('departmentCoursesTitle');
+    const content = document.getElementById('departmentCoursesContent');
+
+    if (!modal || !title || !content) {
+        return;
+    }
+
+    title.textContent = `📚 Courses for ${deptName}`;
+    content.innerHTML = '<p style="color: #6c757d;">Loading courses...</p>';
+    modal.style.display = 'block';
+
+    fetch(`/admin/api/get_department_courses.php?dept_id=${deptId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                content.innerHTML = '<p style="color: #dc3545;">Unable to load courses for this department.</p>';
+                return;
+            }
+
+            const courses = data.courses || [];
+            if (courses.length === 0) {
+                content.innerHTML = '<p style="color: #6c757d;">No courses are assigned to this department yet.</p>';
+                return;
+            }
+
+            let html = '<ul style="padding-left: 18px; margin: 0;">';
+            courses.forEach(course => {
+                html += `<li style="margin-bottom: 6px;"><strong>${course.name}</strong></li>`;
+            });
+            html += '</ul>';
+            content.innerHTML = html;
+        })
+        .catch(() => {
+            content.innerHTML = '<p style="color: #dc3545;">An error occurred while loading courses.</p>';
+        });
+}
+
+function hideDepartmentCoursesModal() {
+    const modal = document.getElementById('departmentCoursesModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
 function showCreateDepartmentModal() {
     document.getElementById('createDepartmentModal').style.display = 'block';
 }
@@ -640,6 +698,8 @@ window.onclick = function(event) {
         hideEditDepartmentModal();
     } else if (event.target.id === 'manageMembersModal') {
         hideManageMembersModal();
+    } else if (event.target.id === 'departmentCoursesModal') {
+        hideDepartmentCoursesModal();
     }
 };
 </script>
