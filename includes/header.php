@@ -88,7 +88,7 @@ elseif ($is_prod): ?>
                 // Fallback function for progress bar visibility
                 if (!function_exists('should_show_training_progress')) {
                     function should_show_training_progress($pdo, $user_id) {
-                        return isset($_SESSION['user_role']) && strtolower($_SESSION['user_role']) === 'training';
+                        return isset($_SESSION['user_is_in_training']) && $_SESSION['user_is_in_training'] == 1;
                     }
                 }
 
