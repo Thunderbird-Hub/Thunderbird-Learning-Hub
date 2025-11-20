@@ -23,6 +23,7 @@
 require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../includes/db_connect.php';
 require_once __DIR__ . '/../includes/user_helpers.php';
+require_once __DIR__ . '/../includes/department_helpers.php';
 
 // Only allow admin users
 if (!is_admin()) {
@@ -80,7 +81,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $users_table_exists) {
                     // PHASE 4: Set role and is_in_training flag separately
                     $stmt = $pdo->prepare("INSERT INTO users (name, pin, color, role, is_in_training, created_by) VALUES (?, ?, ?, ?, ?, ?)");
                     $stmt->execute([$name, $hashed_pin, $color, $role, $is_in_training, $_SESSION['user_id']]);
-                    $success_message = 'User created successfully!';
+                    $user_id = $pdo->lastInsertId();
+
+                    // Handle department assignments
+                    $department_assignments = 0;
+                    if (isset($_POST['departments']) && is_array($_POST['departments'])) {
+                        foreach ($_POST['departments'] as $department_id) {
+                            $department_id = intval($department_id);
+                            if ($department_id > 0) {
+                                // Assign user to department
+                                if (assign_user_to_department($pdo, $user_id, $department_id, $_SESSION['user_id'])) {
+                                    // Auto-assign user to department courses
+                                    $courses_assigned = assign_user_to_department_courses($pdo, $user_id, $department_id, $_SESSION['user_id']);
+                                    $department_assignments++;
+                                }
+                            }
+                        }
+                    }
+
+                    if ($department_assignments > 0) {
+                        $success_message = "User created successfully! Assigned to {$department_assignments} department(s) with automatic course enrollment.";
+                    } else {
+                        $success_message = 'User created successfully!';
+                    }
                 } catch (PDOException $e) {
                     if ($e->getCode() == 23000) {
                         $error_message = 'Error: This PIN could not be created. Please try again.';
@@ -126,7 +149,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $users_table_exists) {
                     // PHASE 4: Set role and is_in_training flag separately
                     $stmt = $pdo->prepare("UPDATE users SET name = ?, color = ?, role = ?, is_in_training = ? WHERE id = ?");
                     $stmt->execute([$name, $color, $role, $is_in_training, $user_id]);
-                    $success_message = 'User updated successfully!';
+
+                    // Handle department assignments
+                    $department_changes = 0;
+                    try {
+                        // Get current user departments
+                        $current_depts = get_user_departments($pdo, $user_id);
+                        $current_dept_ids = array_column($current_depts, 'id');
+
+                        // Get new department selections
+                        $new_dept_ids = isset($_POST['departments']) && is_array($_POST['departments'])
+                            ? array_map('intval', $_POST['departments'])
+                            : [];
+
+                        // Remove from departments that were unselected
+                        foreach ($current_dept_ids as $dept_id) {
+                            if (!in_array($dept_id, $new_dept_ids)) {
+                                if (remove_user_from_department($pdo, $user_id, $dept_id)) {
+                                    $department_changes++;
+                                }
+                            }
+                        }
+
+                        // Add to newly selected departments
+                        foreach ($new_dept_ids as $dept_id) {
+                            if (!in_array($dept_id, $current_dept_ids) && $dept_id > 0) {
+                                if (assign_user_to_department($pdo, $user_id, $dept_id, $_SESSION['user_id'])) {
+                                    // Auto-assign user to department courses
+                                    assign_user_to_department_courses($pdo, $user_id, $dept_id, $_SESSION['user_id']);
+                                    $department_changes++;
+                                }
+                            }
+                        }
+                    } catch (Exception $e) {
+                        error_log("Error updating department assignments: " . $e->getMessage());
+                    }
+
+                    if ($department_changes > 0) {
+                        $success_message = "User updated successfully! Department assignments updated ({$department_changes} changes).";
+                    } else {
+                        $success_message = 'User updated successfully!';
+                    }
 
                     // If editing current user, update session immediately
                     if ($user_id == $_SESSION['user_id']) {
@@ -259,6 +322,15 @@ if ($users_table_exists) {
     } catch (PDOException $e) {
         $error_message = 'Error fetching users: ' . $e->getMessage();
     }
+}
+
+// Prepare user departments for edit modal
+$user_departments_for_edit = [];
+if (isset($_GET['edit_user'])) {
+    $edit_user_id = intval($_GET['edit_user']);
+    $user_departments_for_edit = get_user_departments($pdo, $edit_user_id);
+    // Convert to simple array of IDs for comparison
+    $user_dept_ids = array_column($user_departments_for_edit, 'id');
 }
 
 include __DIR__ . '/../includes/header.php';
@@ -485,6 +557,29 @@ include __DIR__ . '/../includes/header.php';
                 </div>
             </div>
 
+            <div style="margin-bottom: 16px; padding: 12px; background: #f0f7ff; border: 1px solid #b3d9ff; border-radius: 4px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">🏢 Departments</label>
+                <div style="border: 1px solid #999; background: #fff; padding: 8px; max-height: 120px; overflow-y: auto;">
+                    <?php
+                    $departments = get_all_departments($pdo);
+                    foreach ($departments as $dept):
+                    ?>
+                    <div style="margin: 5px 0;">
+                        <input type="checkbox" name="departments[]" value="<?php echo $dept['id']; ?>" style="width: auto; margin-right: 8px;" id="dept_add_<?php echo $dept['id']; ?>">
+                        <label for="dept_add_<?php echo $dept['id']; ?>" style="font-weight: normal;">
+                            <?php echo htmlspecialchars($dept['name']); ?>
+                            <?php if ($dept['member_count'] > 0): ?>
+                                (<?php echo $dept['member_count']; ?> members)
+                            <?php endif; ?>
+                        </label>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <div style="margin-top: 8px; font-size: 12px; color: #6c757d; font-style: italic;">
+                    Select one or more departments. User will automatically inherit all training courses assigned to selected departments.
+                </div>
+            </div>
+
             <div style="display: flex; gap: 8px; justify-content: flex-end;">
                 <button type="button" onclick="hideAddUserModal()" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">Cancel</button>
                 <button type="submit" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Add User</button>
@@ -534,6 +629,29 @@ include __DIR__ . '/../includes/header.php';
                 </label>
                 <div style="margin-top: 8px; font-size: 12px; color: #6c757d;">
                     Check this to assign training to this user. They will have limited access and must complete assigned training materials before viewing other content.
+                </div>
+            </div>
+
+            <div style="margin-bottom: 16px; padding: 12px; background: #f0f7ff; border: 1px solid #b3d9ff; border-radius: 4px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500;">🏢 Departments</label>
+                <div style="border: 1px solid #999; background: #fff; padding: 8px; max-height: 120px; overflow-y: auto;">
+                    <?php
+                    $departments = get_all_departments($pdo);
+                    foreach ($departments as $dept):
+                    ?>
+                    <div style="margin: 5px 0;">
+                        <input type="checkbox" name="departments[]" value="<?php echo $dept['id']; ?>" style="width: auto; margin-right: 8px;" id="dept_edit_<?php echo $dept['id']; ?>" <?php echo isset($user_dept_ids) && in_array($dept['id'], $user_dept_ids) ? 'checked' : ''; ?>>
+                        <label for="dept_edit_<?php echo $dept['id']; ?>" style="font-weight: normal;">
+                            <?php echo htmlspecialchars($dept['name']); ?>
+                            <?php if ($dept['member_count'] > 0): ?>
+                                (<?php echo $dept['member_count']; ?> members)
+                            <?php endif; ?>
+                        </label>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <div style="margin-top: 8px; font-size: 12px; color: #6c757d; font-style: italic;">
+                    Select one or more departments. User will automatically inherit all training courses assigned to selected departments.
                 </div>
             </div>
 
@@ -591,6 +709,30 @@ function showEditUserModal(userId, name, pin, color, role, isActive, isInTrainin
     document.getElementById('edit_role').value = role;
     // PHASE 4: Set the is_in_training checkbox based on the user's current flag
     document.getElementById('edit_is_in_training').checked = (isInTraining === 1 || isInTraining === true);
+
+    // Clear all department checkboxes first
+    const deptCheckboxes = document.querySelectorAll('input[name="departments[]"]');
+    deptCheckboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+
+    // Load and pre-select user's departments via AJAX
+    fetch(`${window.location.origin}/admin/api/get_user_departments.php?user_id=${userId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.departments) {
+                data.departments.forEach(deptId => {
+                    const checkbox = document.querySelector(`input[name="departments[]"][value="${deptId}"]`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                    }
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading user departments:', error);
+        });
+
     document.getElementById('editUserModal').style.display = 'block';
 }
 
