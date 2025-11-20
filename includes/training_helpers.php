@@ -111,11 +111,13 @@ function auto_manage_user_roles($pdo, $user_id = null) {
             return ['status' => 'user_not_found', 'changes' => []];
         }
 
-        // Never auto-manage Admins or Super Admins
+        $changes = [];
+
+        // Never change roles for Admins or Super Admins, but still update the training flag
         $role_lc = strtolower(trim((string)$user['role']));
-        if ($role_lc === 'admin' || $role_lc === 'super_admin' || $role_lc === 'super admin') {
-            log_debug("Auto-manage skipped for privileged user {$user['id']} (role={$user['role']})", 'INFO');
-            return ['status' => 'skipped_privileged', 'changes' => []];
+        $is_privileged = ($role_lc === 'admin' || $role_lc === 'super_admin' || $role_lc === 'super admin');
+        if ($is_privileged) {
+            log_debug("Auto-manage (flag only) running for privileged user {$user['id']} (role={$user['role']})", 'INFO');
         }
 
         // --- PHASE 3: CHECK FOR RETEST ELIGIBILITY ---
@@ -142,7 +144,6 @@ function auto_manage_user_roles($pdo, $user_id = null) {
         $retestable_quizzes = get_retestable_quizzes($pdo, $user_id);
         $has_retests = count($retestable_quizzes) > 0;
 
-        $changes = [];
         $new_flag_value = ($active_assignments > 0 || $has_retests) ? 1 : 0;
 
         // Update the flag based on active assignments AND retests
@@ -162,7 +163,7 @@ function auto_manage_user_roles($pdo, $user_id = null) {
         if ($active_assignments > 0) {
             $changes[] = "User {$user['name']} → $flag_name ({$active_assignments} active assignment(s))";
         } elseif ($has_retests) {
-            $changes[] = "User {$user['name']} → $flag_name ({count($retestable_quizzes)} retest(s) available)";
+            $changes[] = "User {$user['name']} → $flag_name (" . count($retestable_quizzes) . " retest(s) available)";
         } elseif ($active_assignments === 0 && !$has_retests) {
             $changes[] = "User {$user['name']} → $flag_name (no active assignments or retests)";
         }
