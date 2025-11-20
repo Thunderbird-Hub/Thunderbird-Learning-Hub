@@ -1321,7 +1321,7 @@ mark {
 }
 
 .dev-dropdown-section {
-    margin-bottom: 20px;
+    margin-bottom: 24px;
 }
 
 .dev-dropdown-section:last-child {
@@ -1348,7 +1348,7 @@ mark {
 .dev-file-item {
     display: flex;
     align-items: center;
-    padding: 10px 20px;
+    padding: 10px 20px 10px 35px;
     color: #1e293b;
     text-decoration: none;
     transition: all 0.2s ease;
@@ -1426,7 +1426,7 @@ mark {
     }
 
     .dev-file-item {
-        padding: 8px 16px;
+        padding: 8px 16px 8px 28px;
     }
 
     .dev-file-name {
