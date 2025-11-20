@@ -493,7 +493,8 @@ mark {
     color: #2d3748;
     margin: 20px 0;
     word-wrap: break-word;
-    white-space: pre-line;
+    white-space: pre-wrap;
+    tab-size: 4;
 }
 
 /* Post content typography matching TinyMCE */
