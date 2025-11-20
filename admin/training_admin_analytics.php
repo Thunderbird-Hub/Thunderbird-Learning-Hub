@@ -921,7 +921,7 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
                     FROM user_quiz_attempts
                     WHERE user_id = ?
                       AND quiz_id = ?
-                      AND status IN ('passed','failed')
+                      AND (status IN ('passed','failed') OR completed_at IS NOT NULL)
                     ORDER BY attempt_number DESC
                 ");
 
