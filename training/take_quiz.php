@@ -314,7 +314,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $can_attempt && $quiz_attempt) {
                 $score = $total_points > 0 ? round(($earned_points / $total_points) * 100) : 0;
                 $status = ($score >= $quiz['passing_score']) ? 'passed' : 'failed';
 
-                // Update attempt
+                // Update attempt FIRST - this is the source of truth
                 $stmt = $pdo->prepare("
                     UPDATE user_quiz_attempts
                     SET status = ?, score = ?, total_points = ?, earned_points = ?,
@@ -323,6 +323,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $can_attempt && $quiz_attempt) {
                     WHERE id = ?
                 ");
                 $stmt->execute([$status, $score, $total_points, $earned_points, $quiz_attempt['id']]);
+
+                // Verify the quiz attempt was actually updated before proceeding
+                $verify_stmt = $pdo->prepare("
+                    SELECT status, completed_at FROM user_quiz_attempts
+                    WHERE id = ? AND status IN ('passed', 'failed') AND completed_at IS NOT NULL
+                ");
+                $verify_stmt->execute([$quiz_attempt['id']]);
+                $attempt_verified = $verify_stmt->fetch(PDO::FETCH_ASSOC);
+
+                if (!$attempt_verified) {
+                    throw new PDOException('Failed to properly update quiz attempt record');
+                }
 
                 // If passed, update training progress
                 if ($status === 'passed') {
@@ -367,8 +379,21 @@ if ($rows === 0) {
     $rows = $ins->rowCount();
 }
 
+// Verify the training progress was actually updated
+$verify_progress_stmt = $pdo->prepare("
+    SELECT status, quiz_completed FROM training_progress
+    WHERE user_id = ? AND content_id = ?
+      AND (content_type = ? OR content_type = '' OR content_type IS NULL)
+      AND status = 'completed' AND quiz_completed = TRUE
+");
+$verify_progress_stmt->execute([$_SESSION['user_id'], $content_id, $norm_ct]);
+$progress_verified = $verify_progress_stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$progress_verified) {
+    throw new PDOException('Failed to properly update training progress record');
+}
+
 if (function_exists('log_debug')) {
-    if (function_exists('log_debug')) {
     log_debug('Training progress write - mode=' . ($rows ? 'ok' : 'no-op') .
               ", user_id={$_SESSION['user_id']}, content_id={$content_id}, ct='{$norm_ct}', rows={$rows}");
 }
@@ -431,6 +456,48 @@ if ($orig_ct_norm === 'post' && $orig_content_id > 0) {
         }
     }
 }
+} else {
+    // User failed the quiz - still update training progress to reflect the attempt
+    if (function_exists('log_debug')) {
+        log_debug("User failed quiz - updating training progress with attempt info - User ID: " . $_SESSION['user_id'] . ", Content Type: '$content_type', Content ID: $content_id, Score: $score");
+    }
+
+    // Normalize content_type to handle legacy blanks/nulls consistently
+    $norm_ct = trim(strtolower((string)$content_type));
+    if ($norm_ct === '') { $norm_ct = 'post'; }
+
+    // Update training progress to reflect quiz attempt (but keep as in_progress since they failed)
+    $upd_failed = $pdo->prepare("
+        UPDATE training_progress
+           SET last_quiz_attempt_id = ?,
+               quiz_score = ?,
+               quiz_completed_at = CURRENT_TIMESTAMP,
+               status = 'in_progress'
+         WHERE user_id = ?
+           AND content_id = ?
+           AND (content_type = ? OR content_type = '' OR content_type IS NULL)
+    ");
+    $upd_failed->execute([$quiz_attempt['id'], $score, $_SESSION['user_id'], $content_id, $norm_ct]);
+
+    if ($upd_failed->rowCount() === 0) {
+        // No existing row? Seed one with in_progress status
+        $ins_failed = $pdo->prepare("
+            INSERT INTO training_progress
+                (user_id, content_id, content_type, status,
+                 quiz_completed, quiz_score, quiz_completed_at,
+                 last_quiz_attempt_id)
+            VALUES
+                (?, ?, ?, 'in_progress',
+                 FALSE, ?, CURRENT_TIMESTAMP,
+                 ?)
+        ");
+        $ins_failed->execute([$_SESSION['user_id'], $content_id, $norm_ct, $score, $quiz_attempt['id']]);
+    }
+
+    if (function_exists('log_debug')) {
+        log_debug('Failed quiz training progress updated - user_id=' . $_SESSION['user_id'] .
+                  ', content_id=' . $content_id . ', score=' . $score . ', status=in_progress');
+    }
 }
 
                     // Check if course is now complete and update assignment status
@@ -501,8 +568,15 @@ if (function_exists('auto_manage_user_roles')) {
                 exit;
 
             } catch (PDOException $e) {
-                // Transaction already committed, no rollback needed
+                // Proper error handling - rollback if transaction is still active
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
                 $error_message = 'Error submitting quiz: ' . $e->getMessage();
+
+                if (function_exists('log_debug')) {
+                    log_debug('Quiz submission error: ' . $e->getMessage() . ' - User ID: ' . $_SESSION['user_id'] . ', Quiz ID: ' . $quiz_id);
+                }
             }
         }
     }
@@ -1133,5 +1207,4 @@ window.addEventListener('beforeunload', function() {
 });
 </script>
 
-<?php include __DIR__ . '/../includes/footer.php'; ?>// Updated 2025-11-20 03:44:34 - Fixed transaction structure by moving role management after database commit
 

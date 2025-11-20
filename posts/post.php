@@ -808,5 +808,4 @@ function initPdfLazy(){
 
 document.addEventListener('DOMContentLoaded', initPdfLazy);
 </script>
-<?php include __DIR__ . '/../includes/footer.php'; ?>// Updated 2025-11-20 03:44:40 - Fixed take quiz button link to use absolute path /training/take_quiz.php
 

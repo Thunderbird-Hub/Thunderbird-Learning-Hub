@@ -921,7 +921,11 @@ if (isset($_GET['course_id']) && isset($_GET['user_id']) &&
                     FROM user_quiz_attempts
                     WHERE user_id = ?
                       AND quiz_id = ?
-                      AND (status IN ('passed','failed') OR completed_at IS NOT NULL)
+                      AND (
+                          status IN ('passed','failed')
+                          OR completed_at IS NOT NULL
+                          OR started_at IS NOT NULL
+                      )
                     ORDER BY attempt_number DESC
                 ");
 
@@ -1156,5 +1160,4 @@ document.addEventListener('DOMContentLoaded', function() {
 // Standard footer (includes your latest updates widget, bug report button, etc.)
 include __DIR__ . '/../includes/footer.php';
 ?>
-// Updated 2025-11-20 03:44:47 - Fixed analytics query to include completed attempts with OR completed_at IS NOT NULL
 

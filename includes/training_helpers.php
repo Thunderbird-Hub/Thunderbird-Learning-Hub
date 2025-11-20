@@ -1483,5 +1483,4 @@ function get_retestable_quizzes($pdo, $user_id) {
     }
 }
 
-?># Updated 2025-11-20 03:45:02 - Fixed course completion tracking to check all content types not just posts
 
