@@ -175,7 +175,7 @@ elseif ($is_prod): ?>
                         ?>
                         <span style="background: <?php echo $role_color; ?>; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 5px;"><?php echo htmlspecialchars($current_role); ?></span>
                         <?php if ($user_has_training): ?>
-                        <a href="/training/training_dashboard.php" style="background: #17a2b8; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 3px; text-decoration: none; display: inline-block; transition: background 0.2s ease;" title="Training Active - Click to view training dashboard" onmouseover="this.style.background='#138496'" onmouseout="this.style.background='#17a2b8'">🎓</a>
+                        <span style="background: #17a2b8; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 5px;" title="Training Active">🎓</span>
                         <?php endif; ?>
                     </span>
 
