@@ -461,12 +461,18 @@ function assign_user_to_department_courses($pdo, $user_id, $department_id, $assi
                 SET is_in_training = 1
                 WHERE id = ?
             ");
-            $flag_stmt->execute([$user_id]);
+            $result = $flag_stmt->execute([$user_id]);
+
+            // Debug logging
+            error_log("DEBUG: Department course assignment - User ID: $user_id, Assigned Count: $assigned_count, Flag Update Result: " . ($result ? 'SUCCESS' : 'FAILED'));
 
             // Update session if this is the current user
             if (isset($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
                 $_SESSION['user_is_in_training'] = 1;
+                error_log("DEBUG: Updated session training flag for user $user_id");
             }
+        } else {
+            error_log("DEBUG: No courses assigned to user $user_id from department $department_id");
         }
 
         $pdo->commit();
