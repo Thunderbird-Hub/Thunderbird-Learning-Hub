@@ -129,6 +129,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $training_tables_exist && $course) 
     }
 }
 
+// Get all departments for dropdown
+$all_departments = [];
+if ($training_tables_exist) {
+    try {
+        $all_departments = get_all_departments($pdo);
+    } catch (PDOException $e) {
+        // Handle error gracefully
+        $all_departments = [];
+    }
+}
+
+// Find current department ID from course's department name
+$current_department_id = 0;
+if ($course && !empty($course['department'])) {
+    foreach ($all_departments as $dept) {
+        if ($dept['name'] === $course['department']) {
+            $current_department_id = $dept['id'];
+            break;
+        }
+    }
+}
+
 // Get course statistics
 $course_stats = [];
 if ($training_tables_exist && $course) {
