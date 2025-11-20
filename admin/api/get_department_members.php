@@ -31,6 +31,9 @@ try {
     // Get current members
     $members = get_department_members($pdo, $dept_id);
 
+    // Get courses assigned to this department
+    $courses = get_department_courses($pdo, $dept_id);
+
     // Get all active users
     $stmt = $pdo->query("SELECT id, name, role FROM users WHERE is_active = 1 ORDER BY name ASC");
     $all_users = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -41,6 +44,7 @@ try {
     echo json_encode([
         'success' => true,
         'members' => $members,
+        'courses' => $courses,
         'all_users' => $all_users,
         'member_ids' => $member_ids
     ]);

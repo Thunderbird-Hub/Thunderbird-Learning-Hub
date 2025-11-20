@@ -128,6 +128,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $departments_table_exists) {
             }
             break;
 
+        case 'bulk_add_users_to_department':
+            $dept_id = isset($_POST['dept_id']) ? intval($_POST['dept_id']) : 0;
+            $user_ids = isset($_POST['user_ids']) && is_array($_POST['user_ids'])
+                ? array_values(array_unique(array_map('intval', $_POST['user_ids'])))
+                : [];
+
+            if ($dept_id <= 0 || empty($user_ids)) {
+                $error_message = 'Please select at least one user to add.';
+            } else {
+                $added_count = 0;
+                $assigned_courses = 0;
+
+                foreach ($user_ids as $user_id) {
+                    if ($user_id <= 0) {
+                        continue;
+                    }
+
+                    try {
+                        if (assign_user_to_department($pdo, $user_id, $dept_id, $_SESSION['user_id'])) {
+                            $added_count++;
+                            $assigned_courses += assign_user_to_department_courses($pdo, $user_id, $dept_id, $_SESSION['user_id']);
+                        }
+                    } catch (PDOException $e) {
+                        error_log('Error adding user to department: ' . $e->getMessage());
+                    }
+                }
+
+                if ($added_count > 0) {
+                    $success_message = "Added $added_count user(s) to the department.";
+                    if ($assigned_courses > 0) {
+                        $success_message .= " Assigned $assigned_courses course enrollment(s).";
+                    }
+                } else {
+                    $error_message = 'No users were added to the department.';
+                }
+            }
+            break;
+
         case 'remove_user_from_department':
             $dept_id = isset($_POST['dept_id']) ? intval($_POST['dept_id']) : 0;
             $user_id = isset($_POST['user_id']) ? intval($_POST['user_id']) : 0;
@@ -143,6 +181,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $departments_table_exists) {
                     }
                 } catch (PDOException $e) {
                     $error_message = 'Error removing user: ' . $e->getMessage();
+                }
+            }
+            break;
+
+        case 'bulk_remove_users_from_department':
+            $dept_id = isset($_POST['dept_id']) ? intval($_POST['dept_id']) : 0;
+            $user_ids = isset($_POST['user_ids']) && is_array($_POST['user_ids'])
+                ? array_values(array_unique(array_map('intval', $_POST['user_ids'])))
+                : [];
+
+            if ($dept_id <= 0 || empty($user_ids)) {
+                $error_message = 'Please select at least one user to remove.';
+            } else {
+                $removed_count = 0;
+
+                foreach ($user_ids as $user_id) {
+                    if ($user_id <= 0) {
+                        continue;
+                    }
+
+                    try {
+                        if (remove_user_from_department($pdo, $user_id, $dept_id)) {
+                            $removed_count++;
+                        }
+                    } catch (PDOException $e) {
+                        error_log('Error removing user from department: ' . $e->getMessage());
+                    }
+                }
+
+                if ($removed_count > 0) {
+                    $success_message = "Removed $removed_count user(s) from the department.";
+                } else {
+                    $error_message = 'No users were removed from the department.';
                 }
             }
             break;
@@ -360,49 +431,170 @@ function showManageMembersModal(deptId, deptName) {
         .then(data => {
             let html = `<h4 style="margin-top: 0;">Department: <strong>${deptName}</strong></h4>`;
 
-            // Current members
-            html += '<h5>Current Members:</h5>';
-            if (data.members.length === 0) {
-                html += '<p style="color: #6c757d;">No members in this department yet.</p>';
+            // Department courses block with toggle button
+            html += '<div style="margin-bottom: 12px;">';
+            html += '<button type="button" id="toggleCoursesBtn" style="background: #6c757d; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">View Department Courses</button>';
+            html += '</div>';
+            html += '<div id="departmentCourses" style="display: none; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 12px; margin-bottom: 16px;">';
+            html += '<h5 style="margin-top: 0;">Department Courses</h5>';
+            if (!data.courses || data.courses.length === 0) {
+                html += '<p style="color: #6c757d;">No courses are assigned to this department yet.</p>';
             } else {
-                html += '<div style="background: #f8f9fa; padding: 12px; border-radius: 4px; margin-bottom: 16px;">';
-                data.members.forEach(member => {
-                    html += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #dee2e6;">
-                        <div>
-                            <strong>${member.name}</strong> (${member.role})
-                            <br><small style="color: #6c757d;">Added: ${new Date(member.assigned_date).toLocaleDateString()}</small>
-                        </div>
-                        <form method="POST" action="manage_departments.php" style="margin: 0;">
-                            <input type="hidden" name="action" value="remove_user_from_department">
-                            <input type="hidden" name="dept_id" value="${deptId}">
-                            <input type="hidden" name="user_id" value="${member.id}">
-                            <button type="submit" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">Remove</button>
-                        </form>
-                    </div>`;
+                html += '<ul style="padding-left: 18px; color: #333; margin: 0;">';
+                data.courses.forEach(course => {
+                    html += `<li><strong>${course.name}</strong> <small style="color: #6c757d;">(Assigned users: ${course.assigned_users}, Completed: ${course.completed_users})</small></li>`;
                 });
+                html += '</ul>';
+            }
+            html += '</div>';
+
+            // Bulk add users section with checkboxes
+            html += '<h5>Bulk Add Users to Department:</h5>';
+            const availableUsers = data.all_users.filter(user => !data.member_ids.includes(user.id));
+            if (availableUsers.length === 0) {
+                html += '<p style="color: #6c757d;">No available users to add.</p>';
+            } else {
+                html += '<form id="bulkAddForm" method="POST" action="manage_departments.php" style="margin-bottom: 16px;">';
+                html += '<input type="hidden" name="action" value="bulk_add_users_to_department">';
+                html += `<input type="hidden" name="dept_id" value="${deptId}">`;
+                html += '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">';
+                html += '<label style="display: flex; align-items: center; gap: 6px; font-weight: 600; color: #495057;">';
+                html += '<input type="checkbox" id="bulkAddSelectAll"> Select All';
+                html += '</label>';
                 html += '</div>';
+                html += '<div style="overflow-x: auto;">';
+                html += '<table style="width: 100%; border-collapse: collapse;">';
+                html += '<thead>';
+                html += '<tr style="background: #f8f9fa; border-bottom: 1px solid #dee2e6;">';
+                html += '<th style="padding: 8px; width: 50px;"></th>';
+                html += '<th style="padding: 8px; text-align: left;">Name</th>';
+                html += '<th style="padding: 8px; text-align: left;">Role</th>';
+                html += '</tr>';
+                html += '</thead>';
+                html += '<tbody>';
+                availableUsers.forEach(user => {
+                    html += `<tr style="border-bottom: 1px solid #f1f1f1;">
+                        <td style="padding: 8px; text-align: center;"><input type="checkbox" class="bulk-add-checkbox" name="user_ids[]" value="${user.id}"></td>
+                        <td style="padding: 8px;">${user.name}</td>
+                        <td style="padding: 8px; color: #6c757d;">${user.role}</td>
+                    </tr>`;
+                });
+                html += '</tbody>';
+                html += '</table>';
+                html += '</div>';
+                html += '<div style="margin-top: 8px; display: flex; justify-content: flex-end; gap: 8px; align-items: center;">';
+                html += '<button type="submit" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Add Selected Users</button>';
+                html += '</div>';
+                html += '</form>';
             }
 
-            // Add user section
-            html += '<h5>Add User to Department:</h5>';
-            html += '<form method="POST" action="manage_departments.php">';
-            html += '<input type="hidden" name="action" value="add_user_to_department">';
-            html += '<input type="hidden" name="dept_id" value="' + deptId + '">';
-            html += '<div style="display: flex; gap: 8px;">';
-            html += '<select name="user_id" required style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">';
-            html += '<option value="">Select a user...</option>';
+            // Bulk remove users section with checkboxes
+            html += '<h5>Bulk Remove Users from Department:</h5>';
+            if (data.members.length === 0) {
+                html += '<p style="color: #6c757d;">No members available to remove.</p>';
+            } else {
+                html += '<form id="bulkRemoveForm" method="POST" action="manage_departments.php">';
+                html += '<input type="hidden" name="action" value="bulk_remove_users_from_department">';
+                html += `<input type="hidden" name="dept_id" value="${deptId}">`;
+                html += '<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">';
+                html += '<label style="display: flex; align-items: center; gap: 6px; font-weight: 600; color: #495057;">';
+                html += '<input type="checkbox" id="bulkRemoveSelectAll"> Select All';
+                html += '</label>';
+                html += '</div>';
+                html += '<div style="overflow-x: auto;">';
+                html += '<table style="width: 100%; border-collapse: collapse;">';
+                html += '<thead>';
+                html += '<tr style="background: #f8f9fa; border-bottom: 1px solid #dee2e6;">';
+                html += '<th style="padding: 8px; width: 50px;"></th>';
+                html += '<th style="padding: 8px; text-align: left;">Name</th>';
+                html += '<th style="padding: 8px; text-align: left;">Role</th>';
+                html += '<th style="padding: 8px; text-align: left;">Added</th>';
+                html += '</tr>';
+                html += '</thead>';
+                html += '<tbody>';
+                data.members.forEach(member => {
+                    const addedDate = member.assigned_date ? new Date(member.assigned_date).toLocaleDateString() : '';
+                    html += `<tr style="border-bottom: 1px solid #f1f1f1;">
+                        <td style="padding: 8px; text-align: center;"><input type="checkbox" class="bulk-remove-checkbox" name="user_ids[]" value="${member.id}"></td>
+                        <td style="padding: 8px;">${member.name}</td>
+                        <td style="padding: 8px; color: #6c757d;">${member.role}</td>
+                        <td style="padding: 8px; color: #6c757d;">${addedDate}</td>
+                    </tr>`;
+                });
+                html += '</tbody>';
+                html += '</table>';
+                html += '</div>';
+                html += '<div style="margin-top: 8px; display: flex; justify-content: flex-end; gap: 8px; align-items: center;">';
+                html += '<button type="submit" style="background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Remove Selected Users</button>';
+                html += '</div>';
+                html += '</form>';
+            }
 
-            data.all_users.forEach(user => {
-                if (!data.member_ids.includes(user.id)) {
-                    html += `<option value="${user.id}">${user.name} (${user.role})</option>`;
+            const contentEl = document.getElementById('manageMembersContent');
+            contentEl.innerHTML = html;
+
+            const coursesBtn = document.getElementById('toggleCoursesBtn');
+            const coursesPanel = document.getElementById('departmentCourses');
+            if (coursesBtn && coursesPanel) {
+                coursesBtn.addEventListener('click', () => {
+                    const isHidden = coursesPanel.style.display === 'none';
+                    coursesPanel.style.display = isHidden ? 'block' : 'none';
+                    coursesBtn.textContent = isHidden ? 'Hide Department Courses' : 'View Department Courses';
+                });
+            }
+
+            function setupSelectAll(selectAllId, checkboxSelector) {
+                const selectAllEl = document.getElementById(selectAllId);
+                const checkboxes = Array.from(document.querySelectorAll(checkboxSelector));
+
+                if (!selectAllEl || checkboxes.length === 0) {
+                    return;
                 }
-            });
 
-            html += '</select>';
-            html += '<button type="submit" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Add User</button>';
-            html += '</form>';
+                selectAllEl.addEventListener('change', () => {
+                    checkboxes.forEach(cb => {
+                        cb.checked = selectAllEl.checked;
+                    });
+                });
 
-            document.getElementById('manageMembersContent').innerHTML = html;
+                checkboxes.forEach(cb => {
+                    cb.addEventListener('change', () => {
+                        const allChecked = checkboxes.every(item => item.checked);
+                        const noneChecked = checkboxes.every(item => !item.checked);
+
+                        if (allChecked) {
+                            selectAllEl.checked = true;
+                            selectAllEl.indeterminate = false;
+                        } else if (noneChecked) {
+                            selectAllEl.checked = false;
+                            selectAllEl.indeterminate = false;
+                        } else {
+                            selectAllEl.indeterminate = true;
+                        }
+                    });
+                });
+            }
+
+            function setupFormValidation(formId, checkboxSelector, message) {
+                const formEl = document.getElementById(formId);
+                if (!formEl) {
+                    return;
+                }
+
+                formEl.addEventListener('submit', (event) => {
+                    const hasSelection = Array.from(formEl.querySelectorAll(checkboxSelector)).some(cb => cb.checked);
+                    if (!hasSelection) {
+                        event.preventDefault();
+                        alert(message);
+                    }
+                });
+            }
+
+            setupSelectAll('bulkAddSelectAll', '.bulk-add-checkbox');
+            setupSelectAll('bulkRemoveSelectAll', '.bulk-remove-checkbox');
+            setupFormValidation('bulkAddForm', '.bulk-add-checkbox', 'Please select at least one user to add.');
+            setupFormValidation('bulkRemoveForm', '.bulk-remove-checkbox', 'Please select at least one user to remove.');
+
             document.getElementById('manageMembersModal').style.display = 'block';
         })
         .catch(error => {
