@@ -425,38 +425,34 @@ function hideEditDepartmentModal() {
 }
 
 function showManageMembersModal(deptId, deptName) {
-    // Fetch members for this department
     fetch(`/admin/api/get_department_members.php?dept_id=${deptId}`)
         .then(response => response.json())
         .then(data => {
+            const availableUsers = (data.all_users || []).filter(user => !(data.member_ids || []).includes(user.id));
+            const members = data.members || [];
+            const courses = data.courses || [];
+
             let html = `<h4 style="margin-top: 0;">Department: <strong>${deptName}</strong></h4>`;
 
-            // Department courses block with toggle button
             html += '<div style="margin-bottom: 12px;">';
             html += '<button type="button" id="toggleCoursesBtn" style="background: #6c757d; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">View Department Courses</button>';
             html += '</div>';
             html += '<div id="departmentCourses" style="display: none; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 12px; margin-bottom: 16px;">';
             html += '<h5 style="margin-top: 0;">Department Courses</h5>';
-            if (!data.courses || data.courses.length === 0) {
+            if (courses.length === 0) {
                 html += '<p style="color: #6c757d;">No courses are assigned to this department yet.</p>';
             } else {
                 html += '<ul style="padding-left: 18px; color: #333; margin: 0;">';
-            // Department courses
-            html += '<h5>Department Courses:</h5>';
-            if (!data.courses || data.courses.length === 0) {
-                html += '<p style="color: #6c757d;">No courses are assigned to this department yet.</p>';
-            } else {
-                html += '<ul style="padding-left: 18px; color: #333;">';
-                data.courses.forEach(course => {
-                    html += `<li><strong>${course.name}</strong> <small style="color: #6c757d;">(Assigned users: ${course.assigned_users}, Completed: ${course.completed_users})</small></li>`;
+                courses.forEach(course => {
+                    const assigned = course.assigned_users ?? 0;
+                    const completed = course.completed_users ?? 0;
+                    html += `<li><strong>${course.name}</strong> <small style="color: #6c757d;">(Assigned users: ${assigned}, Completed: ${completed})</small></li>`;
                 });
                 html += '</ul>';
             }
             html += '</div>';
 
-            // Bulk add users section with checkboxes
             html += '<h5>Bulk Add Users to Department:</h5>';
-            const availableUsers = data.all_users.filter(user => !data.member_ids.includes(user.id));
             if (availableUsers.length === 0) {
                 html += '<p style="color: #6c757d;">No available users to add.</p>';
             } else {
@@ -494,12 +490,8 @@ function showManageMembersModal(deptId, deptName) {
                 html += '</form>';
             }
 
-            // Bulk remove users section with checkboxes
             html += '<h5>Bulk Remove Users from Department:</h5>';
-
-            // Current members
-            html += '<h5>Current Members:</h5>';
-            if (data.members.length === 0) {
+            if (members.length === 0) {
                 html += '<p style="color: #6c757d;">No members available to remove.</p>';
             } else {
                 html += '<form id="bulkRemoveForm" method="POST" action="manage_departments.php">';
@@ -521,7 +513,7 @@ function showManageMembersModal(deptId, deptName) {
                 html += '</tr>';
                 html += '</thead>';
                 html += '<tbody>';
-                data.members.forEach(member => {
+                members.forEach(member => {
                     const addedDate = member.assigned_date ? new Date(member.assigned_date).toLocaleDateString() : '';
                     html += `<tr style="border-bottom: 1px solid #f1f1f1;">
                         <td style="padding: 8px; text-align: center;"><input type="checkbox" class="bulk-remove-checkbox" name="user_ids[]" value="${member.id}"></td>
@@ -539,8 +531,7 @@ function showManageMembersModal(deptId, deptName) {
                 html += '</form>';
             }
 
-            const contentEl = document.getElementById('manageMembersContent');
-            contentEl.innerHTML = html;
+            document.getElementById('manageMembersContent').innerHTML = html;
 
             const coursesBtn = document.getElementById('toggleCoursesBtn');
             const coursesPanel = document.getElementById('departmentCourses');
@@ -558,17 +549,6 @@ function showManageMembersModal(deptId, deptName) {
 
                 if (!selectAllEl || checkboxes.length === 0) {
                     return;
-            // Bulk add users section
-            html += '<h5>Bulk Add Users to Department:</h5>';
-            html += '<form method="POST" action="manage_departments.php" style="margin-bottom: 16px;">';
-            html += '<input type="hidden" name="action" value="bulk_add_users_to_department">';
-            html += '<input type="hidden" name="dept_id" value="' + deptId + '">';
-            html += '<div style="display: flex; gap: 8px; align-items: center;">';
-            html += '<select name="user_ids[]" multiple required size="6" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">';
-
-            data.all_users.forEach(user => {
-                if (!data.member_ids.includes(user.id)) {
-                    html += `<option value="${user.id}">${user.name} (${user.role})</option>`;
                 }
 
                 selectAllEl.addEventListener('change', () => {
@@ -615,39 +595,6 @@ function showManageMembersModal(deptId, deptName) {
             setupFormValidation('bulkAddForm', '.bulk-add-checkbox', 'Please select at least one user to add.');
             setupFormValidation('bulkRemoveForm', '.bulk-remove-checkbox', 'Please select at least one user to remove.');
 
-            html += '</select>';
-            html += '<div style="display: flex; flex-direction: column; gap: 8px;">';
-            html += '<button type="submit" style="background: #007bff; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Add Selected</button>';
-            html += '<small style="color: #6c757d;">Hold Ctrl (Cmd on Mac) to select multiple users.</small>';
-            html += '</div>';
-            html += '</div>';
-            html += '</form>';
-
-            // Bulk remove users section
-            html += '<h5>Bulk Remove Users from Department:</h5>';
-            if (data.members.length === 0) {
-                html += '<p style="color: #6c757d;">No members available to remove.</p>';
-            } else {
-                html += '<form method="POST" action="manage_departments.php">';
-                html += '<input type="hidden" name="action" value="bulk_remove_users_from_department">';
-                html += '<input type="hidden" name="dept_id" value="' + deptId + '">';
-                html += '<div style="display: flex; gap: 8px; align-items: center;">';
-                html += '<select name="user_ids[]" multiple required size="6" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">';
-
-                data.members.forEach(member => {
-                    html += `<option value="${member.id}">${member.name} (${member.role})</option>`;
-                });
-
-                html += '</select>';
-                html += '<div style="display: flex; flex-direction: column; gap: 8px;">';
-                html += '<button type="submit" style="background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Remove Selected</button>';
-                html += '<small style="color: #6c757d;">Hold Ctrl (Cmd on Mac) to select multiple users.</small>';
-                html += '</div>';
-                html += '</div>';
-                html += '</form>';
-            }
-
-            document.getElementById('manageMembersContent').innerHTML = html;
             document.getElementById('manageMembersModal').style.display = 'block';
         })
         .catch(error => {
@@ -694,7 +641,7 @@ window.onclick = function(event) {
     } else if (event.target.id === 'manageMembersModal') {
         hideManageMembersModal();
     }
-}
+};
 </script>
 
 <?php include __DIR__ . '/../includes/footer.php'; ?>
