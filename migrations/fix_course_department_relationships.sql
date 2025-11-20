@@ -49,19 +49,6 @@ JOIN training_courses c ON cd.course_id = c.id
 JOIN departments d ON cd.department_id = d.id
 ORDER BY c.name, d.name;
 
--- Step 5: Update the department counts for all departments
-UPDATE departments d
-SET member_count = (
-    SELECT COUNT(ud.user_id)
-    FROM user_departments ud
-    WHERE ud.department_id = d.id
-),
-course_count = (
-    SELECT COUNT(cd.course_id)
-    FROM course_departments cd
-    WHERE cd.department_id = d.id
-);
-
 -- Step 6: Show final department stats
 SELECT 'Final Department Stats:' as status;
 SELECT
