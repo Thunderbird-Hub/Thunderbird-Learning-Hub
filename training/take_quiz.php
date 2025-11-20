@@ -379,6 +379,20 @@ if ($rows === 0) {
     $rows = $ins->rowCount();
 }
 
+// Verify the training progress was actually updated
+$verify_progress_stmt = $pdo->prepare("
+    SELECT status, quiz_completed FROM training_progress
+    WHERE user_id = ? AND content_id = ?
+      AND (content_type = ? OR content_type = '' OR content_type IS NULL)
+      AND status = 'completed' AND quiz_completed = TRUE
+");
+$verify_progress_stmt->execute([$_SESSION['user_id'], $content_id, $norm_ct]);
+$progress_verified = $verify_progress_stmt->fetch(PDO::FETCH_ASSOC);
+
+if (!$progress_verified) {
+    throw new PDOException('Failed to properly update training progress record');
+}
+
 if (function_exists('log_debug')) {
     if (function_exists('log_debug')) {
     log_debug('Training progress write - mode=' . ($rows ? 'ok' : 'no-op') .
