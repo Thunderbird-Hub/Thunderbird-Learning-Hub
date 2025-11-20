@@ -459,18 +459,6 @@ if (!empty($course_data['course_id']) && function_exists('update_course_completi
  * Even if we couldn’t resolve course_id (legacy/blank content_type cases),
  * still evaluate global completion for promotion.
  */
-if (function_exists('promote_user_if_training_complete')) {
-    promote_user_if_training_complete($pdo, $_SESSION['user_id']);
-}
-                    }
-
-                    // Trigger automatic role management
-                    if (function_exists('auto_manage_user_roles')) {
-                        $role_status = auto_manage_user_roles($pdo, $_SESSION['user_id']);
-                        if (function_exists('log_debug') && !empty($role_status['changes'])) {
-                            log_debug("Role management after quiz: " . implode('; ', $role_status['changes']));
-                        }
-                    }
                 }
 
                 // Commit essential quiz operations before role management
