@@ -301,11 +301,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'mark_complete') {
 // ============================================================
 
 /**
- * Check if current user is in training role
- * @return bool True if user is training role
+ * Check if current user is in training (based on is_in_training flag)
+ * @return bool True if user is in training
  */
 function is_training_user() {
-    return isset($_SESSION['user_role']) && strtolower($_SESSION['user_role']) === 'training';
+    return isset($_SESSION['user_is_in_training']) && $_SESSION['user_is_in_training'] == 1;
 }
 
 /**
@@ -456,34 +456,24 @@ function assign_course_to_users($pdo, $course_id, $user_ids, $assigned_by) {
                 $assigned_count++;
             }
 
-            // Convert normal users to training role
+            // Set is_in_training flag for any user getting training assignments
             $user_info_stmt->execute([$user_id]);
             $user_data = $user_info_stmt->fetch(PDO::FETCH_ASSOC);
             error_log("DEBUG: User data for user_id=$user_id: " . json_encode($user_data));
 
-            if ($user_data && strtolower(trim($user_data['role'])) === 'user') {
-                error_log("DEBUG: Converting user_id=$user_id from 'user' to 'training' role");
-                // --- PHASE 2: DUAL-WRITE ---
-                // Set BOTH role (for backwards compat) AND is_in_training flag (new system)
-                $role_stmt = $pdo->prepare("
+            // Always set is_in_training flag for any user getting training assignments
+            if ($user_data) {
+                $flag_stmt = $pdo->prepare("
                     UPDATE users
-                    SET role = 'training', previous_role = 'user', is_in_training = 1
+                    SET is_in_training = 1
                     WHERE id = ?
                 ");
-                $role_rows = $role_stmt->execute([$user_id]);
-                error_log("DEBUG: Role conversion rows affected for user_id=$user_id: $role_rows");
-            } else {
-                error_log("DEBUG: User_id=$user_id already has role: " . ($user_data['role'] ?? 'NULL'));
-                // --- PHASE 2: DUAL-WRITE ---
-                // Even if they're not a 'user', if they're being assigned training, set the flag
-                if ($user_data) {
-                    $flag_stmt = $pdo->prepare("
-                        UPDATE users
-                        SET is_in_training = 1
-                        WHERE id = ?
-                    ");
-                    $flag_stmt->execute([$user_id]);
-                    error_log("DEBUG: Set is_in_training flag for user_id=$user_id");
+                $flag_stmt->execute([$user_id]);
+                error_log("DEBUG: Set is_in_training flag for user_id=$user_id");
+
+                // Update session if current user
+                if (isset($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
+                    $_SESSION['user_is_in_training'] = 1;
                 }
             }
         }
@@ -874,14 +864,14 @@ $stmt = $pdo->prepare("
  * @param int $user_id User ID
  * @return bool True if user was promoted
  */
-// --- BEGIN REPLACEMENT (promote_user_if_training_complete: explicit guard) ---
+// --- BEGIN REPLACEMENT (promote_user_if_training_complete: flag-based system) ---
 function promote_user_if_training_complete($pdo, $user_id) {
     try {
-        // Only consider users who are currently 'training' (case-insensitive)
-        $role_stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
-        $role_stmt->execute([$user_id]);
-        $role = strtolower(trim((string)$role_stmt->fetchColumn()));
-        if ($role !== 'training') {
+        // Only consider users who are currently in training (check flag)
+        $flag_stmt = $pdo->prepare("SELECT is_in_training FROM users WHERE id = ?");
+        $flag_stmt->execute([$user_id]);
+        $is_in_training = $flag_stmt->fetchColumn();
+        if ($is_in_training != 1) {
             return false;
         }
 
@@ -900,20 +890,17 @@ $stmt->execute([$user_id]);
 $data = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ((int)$data['total_courses'] > 0 && (int)$data['incomplete_courses'] === 0) {
-            // --- BEGIN REPLACEMENT (PHASE 2: DB + session + reason/date + flag) ---
+            // --- BEGIN REPLACEMENT (flag-only system) ---
 $update_stmt = $pdo->prepare("
     UPDATE users
-       SET role = 'user',
-           previous_role = 'training',
-           is_in_training = 0,
+       SET is_in_training = 0,
            original_training_completion = CURRENT_TIMESTAMP,
            updated_at = NOW()
-     WHERE id = ? AND role = 'training'
+     WHERE id = ? AND is_in_training = 1
 ");
 $ok = $update_stmt->execute([$user_id]);
 
 if ($ok && isset($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
-    $_SESSION['user_role'] = 'user';
     $_SESSION['user_is_in_training'] = 0;
 }
 
@@ -1074,25 +1061,25 @@ function handle_new_training_content($pdo, $course_id) {
  * @param string $reason Reason for reversion
  * @return bool Success status
  */
-// --- BEGIN REPLACEMENT (revert_user_to_training: PHASE 2 - dual-write with flag) ---
+// --- BEGIN REPLACEMENT (revert_user_to_training: flag-only system) ---
 function revert_user_to_training($pdo, $user_id, $course_id, $reason) {
     try {
         $pdo->beginTransaction();
 
-        // Only flip plain users (never admins or super admins)
-        // --- PHASE 2: DUAL-WRITE ---
-        // Set BOTH role (for backwards compat) AND is_in_training flag (new system)
+        // Only set the is_in_training flag (preserve existing role)
         $user_stmt = $pdo->prepare("
             UPDATE users
-               SET role = 'training',
-                   previous_role = role,
-                   training_revert_reason = ?,
+               SET training_revert_reason = ?,
                    is_in_training = 1,
                    original_training_completion = NOW()
              WHERE id = ?
-               AND role = 'user'
         ");
         $user_stmt->execute([$reason, $user_id]);
+
+        // Update session if current user
+        if (isset($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
+            $_SESSION['user_is_in_training'] = 1;
+        }
 
         // Reset assignment + progress for that course (safe for any role)
         $assignment_stmt = $pdo->prepare("

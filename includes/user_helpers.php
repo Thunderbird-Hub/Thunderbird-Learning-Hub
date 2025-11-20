@@ -175,7 +175,6 @@ function get_user_role_display() {
         $role = strtolower($_SESSION['user_role']);
         if ($role === 'super admin') return 'Super Admin';
         if ($role === 'admin') return 'Admin';
-        if ($role === 'training') return 'Training';
         return 'User';
     }
 
@@ -255,13 +254,19 @@ function get_user_display_with_role() {
     $role_colors = [
         'Super Admin' => '#dc3545',
         'Admin' => '#28a745',
-        'Training' => '#17a2b8',
         'User' => '#6c757d'
     ];
 
     $role_color = $role_colors[$role] ?? '#6c757d';
 
+    // Check if user is in training and add training badge
+    $training_badge = '';
+    if (is_in_training()) {
+        $training_badge = ' <span style="background: #17a2b8; color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 500; margin-left: 6px;">🎓 Training</span>';
+    }
+
     return '<span style="color: ' . $color . '; font-weight: 500;">' . htmlspecialchars($user_name) . '</span> ' .
-           '<span style="background: ' . $role_color . '; color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 500; margin-left: 6px;">' . htmlspecialchars($role) . '</span>';
+           '<span style="background: ' . $role_color . '; color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 500; margin-left: 6px;">' . htmlspecialchars($role) . '</span>' .
+           $training_badge;
 }
 ?>
