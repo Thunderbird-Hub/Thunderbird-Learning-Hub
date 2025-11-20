@@ -74,12 +74,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $training_tables_exist && $course) 
                 $error_message = 'Estimated hours must be between 0 and 999.9.';
             } else {
                 try {
+                    // Get department name for storage
+                    $department_name = '';
+                    if ($department > 0) {
+                        $dept_info = get_department_by_id($pdo, $department);
+                        if ($dept_info) {
+                            $department_name = $dept_info['name'];
+                        }
+                    }
+
                     $update_stmt = $pdo->prepare("
                         UPDATE training_courses
                         SET name = ?, description = ?, department = ?, estimated_hours = ?, is_active = ?, updated_at = NOW()
                         WHERE id = ?
                     ");
-                    $result = $update_stmt->execute([$name, $description, $department, $estimated_hours, $is_active, $course_id]);
+                    $result = $update_stmt->execute([$name, $description, $department_name, $estimated_hours, $is_active, $course_id]);
 
                     if ($result) {
                         // Refresh course data
