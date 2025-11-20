@@ -480,7 +480,7 @@ if (function_exists('promote_user_if_training_complete')) {
                 exit;
 
             } catch (PDOException $e) {
-                $pdo->rollBack();
+                // Transaction already committed, no rollback needed
                 $error_message = 'Error submitting quiz: ' . $e->getMessage();
             }
         }
