@@ -877,10 +877,10 @@ $stmt = $pdo->prepare("
 // --- BEGIN REPLACEMENT (promote_user_if_training_complete: explicit guard) ---
 function promote_user_if_training_complete($pdo, $user_id) {
     try {
-        // Only consider users who are currently 'training'
+        // Only consider users who are currently 'training' (case-insensitive)
         $role_stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
         $role_stmt->execute([$user_id]);
-        $role = strtolower((string)$role_stmt->fetchColumn());
+        $role = strtolower(trim((string)$role_stmt->fetchColumn()));
         if ($role !== 'training') {
             return false;
         }
