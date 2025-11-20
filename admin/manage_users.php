@@ -81,7 +81,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $users_table_exists) {
                     // PHASE 4: Set role and is_in_training flag separately
                     $stmt = $pdo->prepare("INSERT INTO users (name, pin, color, role, is_in_training, created_by) VALUES (?, ?, ?, ?, ?, ?)");
                     $stmt->execute([$name, $hashed_pin, $color, $role, $is_in_training, $_SESSION['user_id']]);
-                    $success_message = 'User created successfully!';
+                    $user_id = $pdo->lastInsertId();
+
+                    // Handle department assignments
+                    $department_assignments = 0;
+                    if (isset($_POST['departments']) && is_array($_POST['departments'])) {
+                        foreach ($_POST['departments'] as $department_id) {
+                            $department_id = intval($department_id);
+                            if ($department_id > 0) {
+                                // Assign user to department
+                                if (assign_user_to_department($pdo, $user_id, $department_id, $_SESSION['user_id'])) {
+                                    // Auto-assign user to department courses
+                                    $courses_assigned = assign_user_to_department_courses($pdo, $user_id, $department_id, $_SESSION['user_id']);
+                                    $department_assignments++;
+                                }
+                            }
+                        }
+                    }
+
+                    if ($department_assignments > 0) {
+                        $success_message = "User created successfully! Assigned to {$department_assignments} department(s) with automatic course enrollment.";
+                    } else {
+                        $success_message = 'User created successfully!';
+                    }
                 } catch (PDOException $e) {
                     if ($e->getCode() == 23000) {
                         $error_message = 'Error: This PIN could not be created. Please try again.';
