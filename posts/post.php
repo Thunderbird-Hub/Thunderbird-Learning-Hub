@@ -84,7 +84,7 @@ if (function_exists('is_training_user') && is_training_user() && $post_id > 0) {
             if ($training_data['training_status'] === 'assigned') {
                 // Content is assigned to user's training
                 $quiz_completed = $training_data['quiz_completed'] ?? false;
-                $quiz_url = "training/take_quiz.php?quiz_id=" . $training_data['quiz_id'] . "&content_type=post&content_id=" . $post_id;
+                $quiz_url = "/training/take_quiz.php?quiz_id=" . $training_data['quiz_id'] . "&content_type=post&content_id=" . $post_id;
 
                 $quiz_banner_html .= "<div class='training-quiz-banner' style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15);'>";
                 $quiz_banner_html .= "<div style='display: flex; align-items: center; justify-content: center; gap: 15px; flex-wrap: wrap;'>";
