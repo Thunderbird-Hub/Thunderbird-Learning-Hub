@@ -49,29 +49,19 @@ JOIN training_courses c ON cd.course_id = c.id
 JOIN departments d ON cd.department_id = d.id
 ORDER BY c.name, d.name;
 
--- Step 5: Update the department counts for all departments
-UPDATE departments d
-SET member_count = (
-    SELECT COUNT(ud.user_id)
-    FROM user_departments ud
-    WHERE ud.department_id = d.id
-),
-course_count = (
-    SELECT COUNT(cd.course_id)
-    FROM course_departments cd
-    WHERE cd.department_id = d.id
-);
-
--- Step 6: Show final department stats
-SELECT 'Final Department Stats:' as status;
+-- Step 5: Show final department stats (calculated, not stored)
+SELECT 'Final Department Stats (Calculated):' as status;
 SELECT
+    d.id,
     d.name,
-    d.member_count,
-    d.course_count
+    d.description,
+    (SELECT COUNT(ud.user_id) FROM user_departments ud WHERE ud.department_id = d.id) as member_count,
+    (SELECT COUNT(cd.course_id) FROM course_departments cd WHERE cd.department_id = d.id) as course_count,
+    d.created_at
 FROM departments d
 ORDER BY d.name;
 
 -- Note: After running this migration:
 -- 1. Courses will be properly linked to departments via the course_departments table
--- 2. Department counts will be accurate
--- 3. The training_courses.department field can be ignored (legacy field)
+-- 2. Department counts will be accurate (calculated on-the-fly)
+-- 3. The training_courses.department field becomes legacy (for reference only)
