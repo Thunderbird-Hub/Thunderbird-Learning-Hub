@@ -185,7 +185,7 @@ elseif ($is_prod): ?>
     $hideBar = isset($HIDE_HEADER_TRAINING_BAR) && $HIDE_HEADER_TRAINING_BAR === true;
 ?>
 <?php if (!$hideBar && should_show_training_progress($pdo, $_SESSION['user_id'])): ?>
-                        <div class="training-progress-header" onclick="window.location='training_dashboard.php'">
+                        <div class="training-progress-header" onclick="window.location='/training/training_dashboard.php'">
                             <div class="progress-info" id="training-progress-info">
                                 <span class="progress-icon">🎓</span>
                                 <span class="progress-text">Training: <span id="progress-percentage">0</span>%</span>
