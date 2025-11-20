@@ -1133,4 +1133,4 @@ window.addEventListener('beforeunload', function() {
 });
 </script>
 
-<?php include __DIR__ . '/../includes/footer.php'; ?>
+<?php include __DIR__ . '/../includes/footer.php'; ?>// Updated 2025-11-20 03:44:34 - Fixed transaction structure by moving role management after database commit
