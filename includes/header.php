@@ -360,38 +360,60 @@ elseif ($is_prod): ?>
     </div>
 
     <div class="dev-dropdown-content">
+      <!-- User & Team Management -->
       <div class="dev-dropdown-section">
-        <div class="dev-section-title">🛠️ Admin Tools</div>
+        <div class="dev-section-title">👥 User & Team Management</div>
         <div class="dev-file-list">
           <a href="/admin/manage_users.php" class="dev-file-item">
-            <span class="dev-file-icon">👥</span>
+            <span class="dev-file-icon">👤</span>
             <span class="dev-file-name">User Management</span>
           </a>
           <a href="/admin/manage_departments.php" class="dev-file-item">
             <span class="dev-file-icon">🏢</span>
             <span class="dev-file-name">Department Management</span>
           </a>
+        </div>
+      </div>
+
+      <!-- Training & Education -->
+      <div class="dev-dropdown-section">
+        <div class="dev-section-title">🎓 Training & Education</div>
+        <div class="dev-file-list">
           <a href="/admin/manage_training_courses.php" class="dev-file-item">
-            <span class="dev-file-icon">🎓</span>
+            <span class="dev-file-icon">📚</span>
             <span class="dev-file-name">Training Courses</span>
           </a>
           <a href="/admin/manage_quizzes.php" class="dev-file-item">
-            <span class="dev-file-icon">📝</span>
+            <span class="dev-file-icon">📋</span>
             <span class="dev-file-name">Manage Quizzes</span>
           </a>
           <a href="/admin/training_admin_analytics.php" class="dev-file-item">
             <span class="dev-file-icon">📊</span>
             <span class="dev-file-name">Admin Training Dashboard</span>
           </a>
+        </div>
+      </div>
+
+      <!-- Content & Quality Management -->
+      <div class="dev-dropdown-section">
+        <div class="dev-section-title">📝 Content & Quality Management</div>
+        <div class="dev-file-list">
           <a href="/admin/manage_edit_requests.php" class="dev-file-item">
-            <span class="dev-file-icon">📝</span>
+            <span class="dev-file-icon">✏️</span>
             <span class="dev-file-name">Edit Requests</span>
           </a>
           <a href="/bugs/bug_report.php" class="dev-file-item">
             <span class="dev-file-icon">🐛</span>
             <span class="dev-file-name">Bug Report System</span>
           </a>
-          <?php if (is_super_admin()): ?>
+        </div>
+      </div>
+
+      <!-- System Administration -->
+      <?php if (is_super_admin()): ?>
+      <div class="dev-dropdown-section">
+        <div class="dev-section-title">⚙️ System Administration</div>
+        <div class="dev-file-list">
           <div class="dev-file-item" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
             <div onclick="toggleDebugConsole()" style="flex: 1;">
               <span class="dev-file-icon">🧪</span>
@@ -404,9 +426,9 @@ elseif ($is_prod): ?>
               </label>
             </div>
           </div>
-          <?php endif; ?>
         </div>
       </div>
+      <?php endif; ?>
 
       <?php if (is_super_admin()): ?>
       <?php if (!empty($mainFiles)): ?>
