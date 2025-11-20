@@ -394,7 +394,6 @@ if (!$progress_verified) {
 }
 
 if (function_exists('log_debug')) {
-    if (function_exists('log_debug')) {
     log_debug('Training progress write - mode=' . ($rows ? 'ok' : 'no-op') .
               ", user_id={$_SESSION['user_id']}, content_id={$content_id}, ct='{$norm_ct}', rows={$rows}");
 }
