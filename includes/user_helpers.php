@@ -175,7 +175,6 @@ function get_user_role_display() {
         $role = strtolower($_SESSION['user_role']);
         if ($role === 'super admin') return 'Super Admin';
         if ($role === 'admin') return 'Admin';
-        if ($role === 'training') return 'Training';
         return 'User';
     }
 
