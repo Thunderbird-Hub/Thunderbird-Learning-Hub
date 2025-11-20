@@ -550,7 +550,6 @@ if (function_exists('auto_manage_user_roles')) {
                 if (function_exists('log_debug')) {
                     log_debug('Quiz submission error: ' . $e->getMessage() . ' - User ID: ' . $_SESSION['user_id'] . ', Quiz ID: ' . $quiz_id);
                 }
-            }
             } catch (PDOException $e) {
                 // Main transaction error handling
                 if ($pdo->inTransaction()) {
