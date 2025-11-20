@@ -149,7 +149,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $users_table_exists) {
                     // PHASE 4: Set role and is_in_training flag separately
                     $stmt = $pdo->prepare("UPDATE users SET name = ?, color = ?, role = ?, is_in_training = ? WHERE id = ?");
                     $stmt->execute([$name, $color, $role, $is_in_training, $user_id]);
-                    $success_message = 'User updated successfully!';
+
+                    // Handle department assignments
+                    $department_changes = 0;
+                    try {
+                        // Get current user departments
+                        $current_depts = get_user_departments($pdo, $user_id);
+                        $current_dept_ids = array_column($current_depts, 'id');
+
+                        // Get new department selections
+                        $new_dept_ids = isset($_POST['departments']) && is_array($_POST['departments'])
+                            ? array_map('intval', $_POST['departments'])
+                            : [];
+
+                        // Remove from departments that were unselected
+                        foreach ($current_dept_ids as $dept_id) {
+                            if (!in_array($dept_id, $new_dept_ids)) {
+                                if (remove_user_from_department($pdo, $user_id, $dept_id)) {
+                                    $department_changes++;
+                                }
+                            }
+                        }
+
+                        // Add to newly selected departments
+                        foreach ($new_dept_ids as $dept_id) {
+                            if (!in_array($dept_id, $current_dept_ids) && $dept_id > 0) {
+                                if (assign_user_to_department($pdo, $user_id, $dept_id, $_SESSION['user_id'])) {
+                                    // Auto-assign user to department courses
+                                    assign_user_to_department_courses($pdo, $user_id, $dept_id, $_SESSION['user_id']);
+                                    $department_changes++;
+                                }
+                            }
+                        }
+                    } catch (Exception $e) {
+                        error_log("Error updating department assignments: " . $e->getMessage());
+                    }
+
+                    if ($department_changes > 0) {
+                        $success_message = "User updated successfully! Department assignments updated ({$department_changes} changes).";
+                    } else {
+                        $success_message = 'User updated successfully!';
+                    }
 
                     // If editing current user, update session immediately
                     if ($user_id == $_SESSION['user_id']) {
