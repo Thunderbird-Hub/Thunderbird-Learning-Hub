@@ -513,8 +513,15 @@ if (function_exists('auto_manage_user_roles')) {
                 exit;
 
             } catch (PDOException $e) {
-                // Transaction already committed, no rollback needed
+                // Proper error handling - rollback if transaction is still active
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
                 $error_message = 'Error submitting quiz: ' . $e->getMessage();
+
+                if (function_exists('log_debug')) {
+                    log_debug('Quiz submission error: ' . $e->getMessage() . ' - User ID: ' . $_SESSION['user_id'] . ', Quiz ID: ' . $quiz_id);
+                }
             }
         }
     }
