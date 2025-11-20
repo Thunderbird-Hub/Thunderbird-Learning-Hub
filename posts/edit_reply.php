@@ -218,7 +218,7 @@ include __DIR__ . '/../includes/header.php';
 </div>
 
 <!-- TinyMCE -->
-<script src="vendor/tinymce/tinymce.min.js" referrerpolicy="origin"></script>
+<script src="/vendor/tinymce/tinymce.min.js" referrerpolicy="origin"></script>
 <script>
     tinymce.init({
         selector: '#content',
