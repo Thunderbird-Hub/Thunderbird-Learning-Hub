@@ -21,7 +21,7 @@ if ($is_dev) {
 ?>
 <title><?php echo $full_title; ?></title>
 
-    <link rel="stylesheet" href="/assets/css/style.css?v=20251112">
+    <link rel="stylesheet" href="/assets/css/style.css?v=20251121">
 
 <?php
 $host = $_SERVER['HTTP_HOST'] ?? '';
