@@ -314,7 +314,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $can_attempt && $quiz_attempt) {
                 $score = $total_points > 0 ? round(($earned_points / $total_points) * 100) : 0;
                 $status = ($score >= $quiz['passing_score']) ? 'passed' : 'failed';
 
-                // Update attempt
+                // Update attempt FIRST - this is the source of truth
                 $stmt = $pdo->prepare("
                     UPDATE user_quiz_attempts
                     SET status = ?, score = ?, total_points = ?, earned_points = ?,
@@ -323,6 +323,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $can_attempt && $quiz_attempt) {
                     WHERE id = ?
                 ");
                 $stmt->execute([$status, $score, $total_points, $earned_points, $quiz_attempt['id']]);
+
+                // Verify the quiz attempt was actually updated before proceeding
+                $verify_stmt = $pdo->prepare("
+                    SELECT status, completed_at FROM user_quiz_attempts
+                    WHERE id = ? AND status IN ('passed', 'failed') AND completed_at IS NOT NULL
+                ");
+                $verify_stmt->execute([$quiz_attempt['id']]);
+                $attempt_verified = $verify_stmt->fetch(PDO::FETCH_ASSOC);
+
+                if (!$attempt_verified) {
+                    throw new PDOException('Failed to properly update quiz attempt record');
+                }
 
                 // If passed, update training progress
                 if ($status === 'passed') {
