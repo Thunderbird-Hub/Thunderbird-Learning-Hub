@@ -1061,25 +1061,25 @@ function handle_new_training_content($pdo, $course_id) {
  * @param string $reason Reason for reversion
  * @return bool Success status
  */
-// --- BEGIN REPLACEMENT (revert_user_to_training: PHASE 2 - dual-write with flag) ---
+// --- BEGIN REPLACEMENT (revert_user_to_training: flag-only system) ---
 function revert_user_to_training($pdo, $user_id, $course_id, $reason) {
     try {
         $pdo->beginTransaction();
 
-        // Only flip plain users (never admins or super admins)
-        // --- PHASE 2: DUAL-WRITE ---
-        // Set BOTH role (for backwards compat) AND is_in_training flag (new system)
+        // Only set the is_in_training flag (preserve existing role)
         $user_stmt = $pdo->prepare("
             UPDATE users
-               SET role = 'training',
-                   previous_role = role,
-                   training_revert_reason = ?,
+               SET training_revert_reason = ?,
                    is_in_training = 1,
                    original_training_completion = NOW()
              WHERE id = ?
-               AND role = 'user'
         ");
         $user_stmt->execute([$reason, $user_id]);
+
+        // Update session if current user
+        if (isset($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
+            $_SESSION['user_is_in_training'] = 1;
+        }
 
         // Reset assignment + progress for that course (safe for any role)
         $assignment_stmt = $pdo->prepare("
