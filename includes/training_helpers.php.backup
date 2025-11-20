@@ -639,7 +639,7 @@ function get_overall_training_progress($pdo, $user_id) {
             JOIN training_course_content tcc ON uta.course_id = tcc.course_id
             LEFT JOIN training_progress tp ON tcc.content_id = tp.content_id
                 AND tp.user_id = ?
-                AND (tcc.content_type = tp.content_type OR tp.content_type = '' OR tp.content_type IS NULL OR tp.content_type = '' OR tp.content_type IS NULL)
+                AND (tcc.content_type = tp.content_type OR tp.content_type = '' OR tp.content_type IS NULL)
             WHERE uta.user_id = ?
             AND tc.is_active = 1
             AND tcc.content_type = 'post'  -- Only count posts
@@ -696,7 +696,7 @@ function calculate_course_progress($pdo, $user_id, $course_id) {
             FROM training_course_content tcc
             LEFT JOIN training_progress tp ON tcc.content_id = tp.content_id
                 AND tp.user_id = ?
-                AND (tcc.content_type = tp.content_type OR tp.content_type = '' OR tp.content_type IS NULL OR tp.content_type = '' OR tp.content_type IS NULL)
+                AND (tcc.content_type = tp.content_type OR tp.content_type = '' OR tp.content_type IS NULL)
             WHERE tcc.course_id = ?
         ");
         $stmt->execute([$user_id, $course_id]);

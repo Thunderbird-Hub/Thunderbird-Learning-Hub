@@ -473,17 +473,14 @@ if (function_exists('promote_user_if_training_complete')) {
                     }
                 }
 
-                // Commit essential quiz operations before role management
                 $pdo->commit();
-
-                // Now handle post-transaction operations (role management, etc.)
 
                 // Redirect to results page
                 header('Location: quiz_results.php?attempt_id=' . $quiz_attempt['id']);
                 exit;
 
             } catch (PDOException $e) {
-                // Transaction already committed, no rollback needed
+                $pdo->rollBack();
                 $error_message = 'Error submitting quiz: ' . $e->getMessage();
             }
         }
