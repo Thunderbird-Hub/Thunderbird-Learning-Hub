@@ -32,6 +32,11 @@ if (!function_exists('can_create_subcategories')) {
 
 $page_title = 'Home';
 
+$has_training_categories = false;
+$assigned_categories = [];
+$other_categories = [];
+$assigned_category_ids = [];
+
 try {
     // Check if user is super user
    $is_super_user = is_super_admin();
@@ -386,10 +391,173 @@ if ($is_training) {
     // Reset array keys to sequential indices
     $categories = array_values($categories);
 
+    // Build training-assigned category list for privileged users without hiding general access
+    $assigned_category_ids = [];
+    if (($is_super_user || is_admin()) && function_exists('get_user_assigned_courses')) {
+        try {
+            $assignedCatStmt = $pdo->prepare("
+                SELECT DISTINCT c.id
+                FROM user_training_assignments uta
+                JOIN training_courses tc
+                  ON uta.course_id = tc.id
+                 AND tc.is_active = 1
+                JOIN training_course_content tcc
+                  ON uta.course_id = tcc.course_id
+                JOIN posts p
+                  ON tcc.content_type = 'post'
+                 AND p.id = tcc.content_id
+                JOIN subcategories s
+                  ON p.subcategory_id = s.id
+                JOIN categories c
+                  ON s.category_id = c.id
+                WHERE uta.user_id = ?
+            ");
+            $assignedCatStmt->execute([$current_user_id]);
+            $assigned_category_ids = array_map('intval', $assignedCatStmt->fetchAll(PDO::FETCH_COLUMN));
+        } catch (PDOException $e) {
+            error_log('Failed to load training categories for admin: ' . $e->getMessage());
+            $assigned_category_ids = [];
+        }
+    }
+
+    $has_training_categories = !empty($assigned_category_ids);
+    $assigned_categories = [];
+    $other_categories = $categories;
+
+    if ($has_training_categories) {
+        $assigned_categories = array_values(array_filter($categories, function ($cat) use ($assigned_category_ids) {
+            return in_array((int)$cat['id'], $assigned_category_ids, true);
+        }));
+
+        $other_categories = array_values(array_filter($categories, function ($cat) use ($assigned_category_ids) {
+            return !in_array((int)$cat['id'], $assigned_category_ids, true);
+        }));
+    }
+
 } catch (PDOException $e) {
     error_log("Database Error: " . $e->getMessage());
     $error_message = "Database error occurred. Please try again.";
     $categories = [];
+}
+
+// Helper to render category cards (reuses existing markup)
+function render_category_cards($categories, $pinned_category_ids, $pinned_categories_table_exists, $is_training, $is_super_user, $visibility_columns_exist, $subcategory_visibility_columns_exist) {
+    ob_start();
+    ?>
+    <div class="category-list">
+        <?php
+        $first_unpinned = true;
+        foreach ($categories as $category):
+            $is_pinned = $pinned_categories_table_exists && in_array($category['id'], $pinned_category_ids);
+
+            // Add a "Pinned Categories" divider before first unpinned category
+            if (!$is_pinned && $first_unpinned && count($pinned_category_ids) > 0):
+                $first_unpinned = false;
+                echo '<div style="margin: 20px 0 10px 0; padding: 10px 0; border-top: 2px solid #e2e8f0; text-align: center; color: #a0aec0; font-size: 12px; font-weight: 500; text-transform: uppercase;">Other Categories</div>';
+            endif;
+            if ($is_pinned) {
+                $first_unpinned = false;
+            }
+            ?>
+            <div class="category-item" <?php echo $is_pinned ? 'style="border-left: 4px solid #fbbf24; background: rgba(251, 191, 36, 0.02);"' : ''; ?>>
+                <div class="category-header">
+                    <div class="category-name">
+                        <?php if ($category['icon']): ?>
+                            <span><?php echo htmlspecialchars($category['icon']); ?></span>
+                        <?php endif; ?>
+                        <span><?php echo htmlspecialchars($category['name']); ?></span>
+                        <?php if (($is_super_user || is_admin()) && $visibility_columns_exist): ?>
+                            <?php
+                            $visibility_colors = [
+                                'public' => '#48bb78',
+                                'hidden' => '#f56565',
+                                'restricted' => '#ed8936',
+                                'it_only' => '#dc3545'
+                            ];
+                            $visibility_labels = [
+                                'public' => '🌐 Public',
+                                'hidden' => '🚫 Hidden',
+                                'restricted' => '👥 Restricted',
+                                'it_only' => '🔒 IT Only'
+                            ];
+                            $cat_visibility = $category['visibility'] ?? 'public';
+                            ?>
+                            <span style="color: <?php echo $visibility_colors[$cat_visibility] ?? '#666'; ?>; font-size: 11px; margin-left: 8px; padding: 2px 6px; background: rgba(0,0,0,0.1); border-radius: 3px;">
+                                <?php echo $visibility_labels[$cat_visibility] ?? 'Unknown'; ?>
+                            </span>
+                            <?php if (!empty($category['visibility_note'])): ?>
+                                <span style="color: #666; font-size: 10px; margin-left: 4px;" title="<?php echo htmlspecialchars($category['visibility_note']); ?>">📝</span>
+                            <?php endif; ?>
+                        <?php endif; ?>
+                    </div>
+                    <div class="card-actions">
+    <?php if (!$is_training && $pinned_categories_table_exists): ?>
+        <button class="btn btn-small" style="background: <?php echo $is_pinned ? '#fbbf24' : '#e2e8f0'; ?>; color: <?php echo $is_pinned ? 'black' : '#4a5568'; ?>; border: none; cursor: pointer;" onclick="togglePinCategory(<?php echo $category['id']; ?>, this)" title="<?php echo $is_pinned ? 'Unpin category' : 'Pin category'; ?>">
+            <?php echo $is_pinned ? '📌' : '📍'; ?> <?php echo $is_pinned ? 'Unpin' : 'Pin'; ?>
+        </button>
+    <?php endif; ?>
+
+    <?php if (can_create_subcategories()): ?>
+        <a href="/categories/add_subcategory.php?category_id=<?php echo $category['id']; ?>" class="btn btn-primary btn-small">+ Add Subcategory</a>
+    <?php endif; ?>
+
+    <?php if ($is_super_user || is_admin()): ?>
+        <a href="/categories/edit_category.php?id=<?php echo $category['id']; ?>" class="btn btn-warning btn-small">Edit</a>
+        <a href="/categories/delete_category.php?id=<?php echo $category['id']; ?>" class="btn btn-danger btn-small" onclick="return confirm('Are you sure? This will delete the category and ALL subcategories, posts, and replies under it. This cannot be undone.');">Delete</a>
+    <?php elseif (!$is_training): ?>
+        <a href="/categories/request_edit_category.php?id=<?php echo $category['id']; ?>" class="btn btn-warning btn-small">Request Edit</a>
+    <?php endif; ?>
+</div>
+                </div>
+
+                <?php if (empty($category['subcategories'])): ?>
+                    <div style="color: #a0aec0; font-style: italic; font-size: 14px;">
+                        <?php if (can_create_subcategories()): ?>
+                            No subcategories yet. Click "Add Subcategory" to create one.
+                        <?php else: ?>
+                            No subcategories yet.
+                        <?php endif; ?>
+                    </div>
+                <?php else: ?>
+                    <div class="subcategory-list">
+                        <?php foreach ($category['subcategories'] as $subcategory): ?>
+                            <div class="subcategory-item">
+                                <a href="/categories/subcategory.php?id=<?php echo $subcategory['id']; ?>" class="subcategory-name">
+                                    <?php echo htmlspecialchars($subcategory['name']); ?>
+                                    <?php if (($is_super_user || is_admin()) && $subcategory_visibility_columns_exist): ?>
+                                        <?php
+                                        $visibility_colors = [
+                                            'public' => '#48bb78',
+                                            'hidden' => '#f56565',
+                                            'restricted' => '#ed8936',
+                                            'it_only' => '#dc3545'
+                                        ];
+                                        $visibility_labels = [
+                                            'public' => '🌐',
+                                            'hidden' => '🚫',
+                                            'restricted' => '👥',
+                                            'it_only' => '🔒'
+                                        ];
+                                        $subcat_visibility = $subcategory['visibility'] ?? 'public';
+                                        ?>
+                                        <span style="color: <?php echo $visibility_colors[$subcat_visibility] ?? '#666'; ?>; font-size: 10px; margin-left: 6px;" title="<?php echo ucfirst($subcat_visibility); ?> subcategory">
+                                            <?php echo $visibility_labels[$subcat_visibility] ?? '?'; ?>
+                                        </span>
+                                        <?php if (!empty($subcategory['visibility_note'])): ?>
+                                            <span style="color: #666; font-size: 9px; margin-left: 2px;" title="<?php echo htmlspecialchars($subcategory['visibility_note']); ?>">📝</span>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
+                                </a>
+                                <span class="post-count"><?php echo $subcategory['post_count']; ?> post(s)</span>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        <?php endforeach; ?>
+    </div>
+    <?php
+    return ob_get_clean();
 }
 
 include 'includes/header.php';
@@ -450,118 +618,16 @@ include 'includes/header.php';
             </div>
         </div>
     <?php else: ?>
-        <div class="category-list">
-            <?php
-            $first_unpinned = true;
-            foreach ($categories as $category):
-                $is_pinned = $pinned_categories_table_exists && in_array($category['id'], $pinned_category_ids);
-
-                // Add a "Pinned Categories" divider before first unpinned category
-                if (!$is_pinned && $first_unpinned && count($pinned_category_ids) > 0):
-                    $first_unpinned = false;
-                    echo '<div style="margin: 20px 0 10px 0; padding: 10px 0; border-top: 2px solid #e2e8f0; text-align: center; color: #a0aec0; font-size: 12px; font-weight: 500; text-transform: uppercase;">Other Categories</div>';
-                endif;
-                if ($is_pinned):
-                    $first_unpinned = false;
-                endif;
-            ?>
-                <div class="category-item" <?php echo $is_pinned ? 'style="border-left: 4px solid #fbbf24; background: rgba(251, 191, 36, 0.02);"' : ''; ?>>
-                    <div class="category-header">
-                        <div class="category-name">
-                            <?php if ($category['icon']): ?>
-                                <span><?php echo htmlspecialchars($category['icon']); ?></span>
-                            <?php endif; ?>
-                            <span><?php echo htmlspecialchars($category['name']); ?></span>
-                            <?php if (($is_super_user || is_admin()) && $visibility_columns_exist): ?>
-                                <?php
-                                $visibility_colors = [
-                                    'public' => '#48bb78',
-                                    'hidden' => '#f56565',
-                                    'restricted' => '#ed8936',
-                                    'it_only' => '#dc3545'
-                                ];
-                                $visibility_labels = [
-                                    'public' => '🌐 Public',
-                                    'hidden' => '🚫 Hidden',
-                                    'restricted' => '👥 Restricted',
-                                    'it_only' => '🔒 IT Only'
-                                ];
-                                $cat_visibility = $category['visibility'] ?? 'public';
-                                ?>
-                                <span style="color: <?php echo $visibility_colors[$cat_visibility] ?? '#666'; ?>; font-size: 11px; margin-left: 8px; padding: 2px 6px; background: rgba(0,0,0,0.1); border-radius: 3px;">
-                                    <?php echo $visibility_labels[$cat_visibility] ?? 'Unknown'; ?>
-                                </span>
-                                <?php if (!empty($category['visibility_note'])): ?>
-                                    <span style="color: #666; font-size: 10px; margin-left: 4px;" title="<?php echo htmlspecialchars($category['visibility_note']); ?>">📝</span>
-                                <?php endif; ?>
-                            <?php endif; ?>
-                        </div>
-                        <div class="card-actions">
-    <?php if (!$is_training && $pinned_categories_table_exists): ?>
-        <button class="btn btn-small" style="background: <?php echo $is_pinned ? '#fbbf24' : '#e2e8f0'; ?>; color: <?php echo $is_pinned ? 'black' : '#4a5568'; ?>; border: none; cursor: pointer;" onclick="togglePinCategory(<?php echo $category['id']; ?>, this)" title="<?php echo $is_pinned ? 'Unpin category' : 'Pin category'; ?>">
-            <?php echo $is_pinned ? '📌' : '📍'; ?> <?php echo $is_pinned ? 'Unpin' : 'Pin'; ?>
-        </button>
-    <?php endif; ?>
-
-    <?php if (can_create_subcategories()): ?>
-        <a href="/categories/add_subcategory.php?category_id=<?php echo $category['id']; ?>" class="btn btn-primary btn-small">+ Add Subcategory</a>
-    <?php endif; ?>
-
-    <?php if ($is_super_user || is_admin()): ?>
-        <a href="/categories/edit_category.php?id=<?php echo $category['id']; ?>" class="btn btn-warning btn-small">Edit</a>
-        <a href="/categories/delete_category.php?id=<?php echo $category['id']; ?>" class="btn btn-danger btn-small" onclick="return confirm('Are you sure? This will delete the category and ALL subcategories, posts, and replies under it. This cannot be undone.');">Delete</a>
-    <?php elseif (!$is_training): ?>
-        <a href="/categories/request_edit_category.php?id=<?php echo $category['id']; ?>" class="btn btn-warning btn-small">Request Edit</a>
-    <?php endif; ?>
-</div>
-                    </div>
-
-                    <?php if (empty($category['subcategories'])): ?>
-                        <div style="color: #a0aec0; font-style: italic; font-size: 14px;">
-                            <?php if (can_create_subcategories()): ?>
-                                No subcategories yet. Click "Add Subcategory" to create one.
-                            <?php else: ?>
-                                No subcategories yet.
-                            <?php endif; ?>
-                        </div>
-                    <?php else: ?>
-                        <div class="subcategory-list">
-                            <?php foreach ($category['subcategories'] as $subcategory): ?>
-                                <div class="subcategory-item">
-                                    <a href="/categories/subcategory.php?id=<?php echo $subcategory['id']; ?>" class="subcategory-name">
-                                        <?php echo htmlspecialchars($subcategory['name']); ?>
-                                        <?php if (($is_super_user || is_admin()) && $subcategory_visibility_columns_exist): ?>
-                                            <?php
-                                            $visibility_colors = [
-                                                'public' => '#48bb78',
-                                                'hidden' => '#f56565',
-                                                'restricted' => '#ed8936',
-                                                'it_only' => '#dc3545'
-                                            ];
-                                            $visibility_labels = [
-                                                'public' => '🌐',
-                                                'hidden' => '🚫',
-                                                'restricted' => '👥',
-                                                'it_only' => '🔒'
-                                            ];
-                                            $subcat_visibility = $subcategory['visibility'] ?? 'public';
-                                            ?>
-                                            <span style="color: <?php echo $visibility_colors[$subcat_visibility] ?? '#666'; ?>; font-size: 10px; margin-left: 6px;" title="<?php echo ucfirst($subcat_visibility); ?> subcategory">
-                                                <?php echo $visibility_labels[$subcat_visibility] ?? '?'; ?>
-                                            </span>
-                                            <?php if (!empty($subcategory['visibility_note'])): ?>
-                                                <span style="color: #666; font-size: 9px; margin-left: 2px;" title="<?php echo htmlspecialchars($subcategory['visibility_note']); ?>">📝</span>
-                                            <?php endif; ?>
-                                        <?php endif; ?>
-                                    </a>
-                                    <span class="post-count"><?php echo $subcategory['post_count']; ?> post(s)</span>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            <?php endforeach; ?>
-        </div>
+        <?php if ($has_training_categories): ?>
+            <div class="flex-between mb-10">
+                <h3 style="font-size: 20px; color: #2d3748; margin-top: 10px;">Training Assignments</h3>
+            </div>
+            <?php echo render_category_cards($assigned_categories, $pinned_category_ids, $pinned_categories_table_exists, $is_training, $is_super_user, $visibility_columns_exist, $subcategory_visibility_columns_exist); ?>
+            <div style="margin: 24px 0 12px 0; border-top: 2px solid #e2e8f0; padding-top: 12px; text-transform: uppercase; color: #718096; font-size: 12px; font-weight: 600;">All Categories</div>
+            <?php echo render_category_cards($other_categories, $pinned_category_ids, $pinned_categories_table_exists, $is_training, $is_super_user, $visibility_columns_exist, $subcategory_visibility_columns_exist); ?>
+        <?php else: ?>
+            <?php echo render_category_cards($categories, $pinned_category_ids, $pinned_categories_table_exists, $is_training, $is_super_user, $visibility_columns_exist, $subcategory_visibility_columns_exist); ?>
+        <?php endif; ?>
     <?php endif; ?>
 </div>
 
