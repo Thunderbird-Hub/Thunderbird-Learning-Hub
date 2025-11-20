@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $training_tables_exist && $course) 
         case 'update_course':
             $name = isset($_POST['name']) ? trim($_POST['name']) : '';
             $description = isset($_POST['description']) ? trim($_POST['description']) : '';
-            $department = isset($_POST['department']) ? trim($_POST['department']) : '';
+            $department = isset($_POST['department']) ? intval($_POST['department']) : 0;
             $estimated_hours = isset($_POST['estimated_hours']) ? floatval($_POST['estimated_hours']) : 0;
             $is_active = isset($_POST['is_active']) ? 1 : 0;
 
