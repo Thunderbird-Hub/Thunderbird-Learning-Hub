@@ -471,7 +471,7 @@ include __DIR__ . '/../includes/header.php';
                     <?php endif; ?>
                 </div>
             </div>
-            <a href="add_post.php?subcategory_id=<?php echo $subcategory_id; ?>" class="btn btn-success">+ Add Post</a>
+            <a href="/posts/add_post.php?subcategory_id=<?php echo $subcategory_id; ?>" class="btn btn-success">+ Add Post</a>
         </div>
     <?php endif; ?>
 
