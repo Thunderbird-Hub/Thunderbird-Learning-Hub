@@ -818,3 +818,5 @@ function initPdfLazy(){
 document.addEventListener('DOMContentLoaded', initPdfLazy);
 </script>
 
+<?php include __DIR__ . '/../includes/footer.php'; ?>
+
