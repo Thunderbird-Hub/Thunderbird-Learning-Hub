@@ -78,6 +78,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $training_tables_exist) {
             }
             break;
 
+        case 'assign_departments_to_course':
+            $course_id = isset($_POST['course_id']) ? intval($_POST['course_id']) : 0;
+            $dept_ids = isset($_POST['dept_ids']) ? $_POST['dept_ids'] : [];
+
+            if ($course_id <= 0) {
+                $error_message = 'Invalid course ID.';
+            } else {
+                try {
+                    // Delete existing department assignments for this course
+                    $delete_stmt = $pdo->prepare("DELETE FROM course_departments WHERE course_id = ?");
+                    $delete_stmt->execute([$course_id]);
+
+                    // Add new department assignments
+                    $assigned_count = 0;
+                    if (!empty($dept_ids)) {
+                        $insert_stmt = $pdo->prepare("INSERT INTO course_departments (course_id, department_id) VALUES (?, ?)");
+                        foreach ($dept_ids as $dept_id) {
+                            $dept_id = intval($dept_id);
+                            if ($dept_id > 0) {
+                                $insert_stmt->execute([$course_id, $dept_id]);
+                                $assigned_count++;
+                            }
+                        }
+                    }
+
+                    if ($assigned_count > 0) {
+                        $success_message = "Course assigned to $assigned_count department(s) successfully!";
+                    } else {
+                        $success_message = 'Course removed from all departments.';
+                    }
+                } catch (PDOException $e) {
+                    $error_message = 'Error assigning course to departments: ' . $e->getMessage();
+                }
+            }
+            break;
+
         case 'assign_course':
             file_put_contents(__DIR__ . '/assignment_debug.log', date('Y-m-d H:i:s') . " - ASSIGN_COURSE CASE TRIGGERED\n", FILE_APPEND | LOCK_EX);
             $course_id = isset($_POST['course_id']) ? intval($_POST['course_id']) : 0;
