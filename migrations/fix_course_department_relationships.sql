@@ -49,12 +49,7 @@ JOIN training_courses c ON cd.course_id = c.id
 JOIN departments d ON cd.department_id = d.id
 ORDER BY c.name, d.name;
 
-ORDER BY d.name;
-
--- Note: After running this migration:
--- 1. Courses will be properly linked to departments via the course_departments table
--- 2. Department counts will be accurate
--- 3. The training_courses.department field can be ignored (legacy field)-- Step 5: Show final department stats (calculated, not stored)
+-- Step 5: Show final department stats (calculated, not stored)
 SELECT 'Final Department Stats (Calculated):' as status;
 SELECT
     d.id,
@@ -65,3 +60,8 @@ SELECT
     d.created_at
 FROM departments d
 ORDER BY d.name;
+
+-- Note: After running this migration:
+-- 1. Courses will be properly linked to departments via the course_departments table
+-- 2. Department counts will be accurate (calculated on-the-fly)
+-- 3. The training_courses.department field becomes legacy (for reference only)
