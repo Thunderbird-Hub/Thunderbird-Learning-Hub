@@ -499,48 +499,39 @@ if ($orig_ct_norm === 'post' && $orig_content_id > 0) {
                   ', content_id=' . $content_id . ', score=' . $score . ', status=in_progress');
     }
 }
-
                 // Commit essential quiz operations before role management
                 $pdo->commit();
 
-                try {
-                    // Now handle post-transaction operations (role management, etc.)
-                    // Check if course is now complete and update assignment status
+                // Now handle post-transaction operations (role management, etc.)
                 if (function_exists('update_course_completion_status') && function_exists('promote_user_if_training_complete')) {
                     // Get course ID for this content
-                    $course_stmt = $pdo->prepare("
-    SELECT course_id
-    FROM training_course_content
-    WHERE (content_type = ? OR content_type = '' OR content_type IS NULL)
-      AND content_id = ?
-    LIMIT 1
-");
-$course_stmt->execute([$norm_ct, $content_id]);
-$course_data = $course_stmt->fetch(PDO::FETCH_ASSOC);
+                    $course_stmt = $pdo->prepare("\n    SELECT course_id\n    FROM training_course_content\n    WHERE (content_type = ? OR content_type = '' OR content_type IS NULL)\n      AND content_id = ?\n    LIMIT 1\n");
+                    $course_stmt->execute([$norm_ct, $content_id]);
+                    $course_data = $course_stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!empty($course_data['course_id']) && function_exists('update_course_completion_status')) {
-    update_course_completion_status($pdo, $_SESSION['user_id'], intval($course_data['course_id']));
-}
+                    if (!empty($course_data['course_id']) && function_exists('update_course_completion_status')) {
+                        update_course_completion_status($pdo, $_SESSION['user_id'], intval($course_data['course_id']));
+                    }
 
-// Even if we couldn't resolve course_id (legacy/blank content_type cases),
-// still evaluate global completion for promotion.
-if (function_exists('promote_user_if_training_complete')) {
-    promote_user_if_training_complete($pdo, $_SESSION['user_id']);
-}
+                    // Even if we couldn't resolve course_id (legacy/blank content_type cases),
+                    // still evaluate global completion for promotion.
+                    if (function_exists('promote_user_if_training_complete')) {
+                        promote_user_if_training_complete($pdo, $_SESSION['user_id']);
+                    }
+                }
 
-// Trigger automatic role management
-if (function_exists('auto_manage_user_roles')) {
-    $role_status = auto_manage_user_roles($pdo, $_SESSION['user_id']);
-    if (function_exists('log_debug') && !empty($role_status['changes'])) {
-        log_debug("Role management after quiz: " . implode('; ', $role_status['changes']));
-    }
-}
+                // Trigger automatic role management
+                if (function_exists('auto_manage_user_roles')) {
+                    $role_status = auto_manage_user_roles($pdo, $_SESSION['user_id']);
+                    if (function_exists('log_debug') && !empty($role_status['changes'])) {
+                        log_debug("Role management after quiz: " . implode('; ', $role_status['changes']));
+                    }
+                }
 
                 // Redirect to results page
                 header('Location: quiz_results.php?attempt_id=' . $quiz_attempt['id']);
                 exit;
-
-                } catch (PDOException $e) {
+            } catch (PDOException $e) {
                 // Proper error handling - rollback if transaction is still active
                 if ($pdo->inTransaction()) {
                     $pdo->rollBack();
@@ -549,16 +540,6 @@ if (function_exists('auto_manage_user_roles')) {
 
                 if (function_exists('log_debug')) {
                     log_debug('Quiz submission error: ' . $e->getMessage() . ' - User ID: ' . $_SESSION['user_id'] . ', Quiz ID: ' . $quiz_id);
-                }
-            } catch (PDOException $e) {
-                // Main transaction error handling
-                if ($pdo->inTransaction()) {
-                    $pdo->rollBack();
-                }
-                $error_message = 'Error submitting quiz: ' . $e->getMessage();
-
-                if (function_exists('log_debug')) {
-                    log_debug('Main quiz transaction error: ' . $e->getMessage() . ' - User ID: ' . $_SESSION['user_id'] . ', Quiz ID: ' . $quiz_id);
                 }
             }
         }
