@@ -495,7 +495,6 @@ if (function_exists('auto_manage_user_roles')) {
         log_debug("Role management after quiz: " . implode('; ', $role_status['changes']));
     }
 }
-                }
 
                 // Redirect to results page
                 header('Location: quiz_results.php?attempt_id=' . $quiz_attempt['id']);
