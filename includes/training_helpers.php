@@ -890,20 +890,17 @@ $stmt->execute([$user_id]);
 $data = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ((int)$data['total_courses'] > 0 && (int)$data['incomplete_courses'] === 0) {
-            // --- BEGIN REPLACEMENT (PHASE 2: DB + session + reason/date + flag) ---
+            // --- BEGIN REPLACEMENT (flag-only system) ---
 $update_stmt = $pdo->prepare("
     UPDATE users
-       SET role = 'user',
-           previous_role = 'training',
-           is_in_training = 0,
+       SET is_in_training = 0,
            original_training_completion = CURRENT_TIMESTAMP,
            updated_at = NOW()
-     WHERE id = ? AND role = 'training'
+     WHERE id = ? AND is_in_training = 1
 ");
 $ok = $update_stmt->execute([$user_id]);
 
 if ($ok && isset($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
-    $_SESSION['user_role'] = 'user';
     $_SESSION['user_is_in_training'] = 0;
 }
 
