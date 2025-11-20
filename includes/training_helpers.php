@@ -461,7 +461,7 @@ function assign_course_to_users($pdo, $course_id, $user_ids, $assigned_by) {
             $user_data = $user_info_stmt->fetch(PDO::FETCH_ASSOC);
             error_log("DEBUG: User data for user_id=$user_id: " . json_encode($user_data));
 
-            if ($user_data && $user_data['role'] === 'user') {
+            if ($user_data && strtolower(trim($user_data['role'])) === 'user') {
                 error_log("DEBUG: Converting user_id=$user_id from 'user' to 'training' role");
                 // --- PHASE 2: DUAL-WRITE ---
                 // Set BOTH role (for backwards compat) AND is_in_training flag (new system)
