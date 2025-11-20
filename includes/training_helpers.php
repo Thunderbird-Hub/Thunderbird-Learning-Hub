@@ -456,34 +456,24 @@ function assign_course_to_users($pdo, $course_id, $user_ids, $assigned_by) {
                 $assigned_count++;
             }
 
-            // Convert normal users to training role
+            // Set is_in_training flag for any user getting training assignments
             $user_info_stmt->execute([$user_id]);
             $user_data = $user_info_stmt->fetch(PDO::FETCH_ASSOC);
             error_log("DEBUG: User data for user_id=$user_id: " . json_encode($user_data));
 
-            if ($user_data && strtolower(trim($user_data['role'])) === 'user') {
-                error_log("DEBUG: Converting user_id=$user_id from 'user' to 'training' role");
-                // --- PHASE 2: DUAL-WRITE ---
-                // Set BOTH role (for backwards compat) AND is_in_training flag (new system)
-                $role_stmt = $pdo->prepare("
+            // Always set is_in_training flag for any user getting training assignments
+            if ($user_data) {
+                $flag_stmt = $pdo->prepare("
                     UPDATE users
-                    SET role = 'training', previous_role = 'user', is_in_training = 1
+                    SET is_in_training = 1
                     WHERE id = ?
                 ");
-                $role_rows = $role_stmt->execute([$user_id]);
-                error_log("DEBUG: Role conversion rows affected for user_id=$user_id: $role_rows");
-            } else {
-                error_log("DEBUG: User_id=$user_id already has role: " . ($user_data['role'] ?? 'NULL'));
-                // --- PHASE 2: DUAL-WRITE ---
-                // Even if they're not a 'user', if they're being assigned training, set the flag
-                if ($user_data) {
-                    $flag_stmt = $pdo->prepare("
-                        UPDATE users
-                        SET is_in_training = 1
-                        WHERE id = ?
-                    ");
-                    $flag_stmt->execute([$user_id]);
-                    error_log("DEBUG: Set is_in_training flag for user_id=$user_id");
+                $flag_stmt->execute([$user_id]);
+                error_log("DEBUG: Set is_in_training flag for user_id=$user_id");
+
+                // Update session if current user
+                if (isset($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
+                    $_SESSION['user_is_in_training'] = 1;
                 }
             }
         }
