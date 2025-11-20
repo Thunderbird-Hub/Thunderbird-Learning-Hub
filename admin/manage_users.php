@@ -262,6 +262,15 @@ if ($users_table_exists) {
     }
 }
 
+// Prepare user departments for edit modal
+$user_departments_for_edit = [];
+if (isset($_GET['edit_user'])) {
+    $edit_user_id = intval($_GET['edit_user']);
+    $user_departments_for_edit = get_user_departments($pdo, $edit_user_id);
+    // Convert to simple array of IDs for comparison
+    $user_dept_ids = array_column($user_departments_for_edit, 'id');
+}
+
 include __DIR__ . '/../includes/header.php';
 ?>
 
