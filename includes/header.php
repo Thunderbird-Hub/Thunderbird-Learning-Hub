@@ -67,7 +67,7 @@ elseif ($is_prod): ?>
                 // Fallback function in case training_helpers.php doesn't exist
                 if (!function_exists('is_training_user')) {
                     function is_training_user() {
-                        return isset($_SESSION['user_role']) && strtolower($_SESSION['user_role']) === 'training';
+                        return isset($_SESSION['user_is_in_training']) && $_SESSION['user_is_in_training'] == 1;
                     }
                 }
 
@@ -88,7 +88,7 @@ elseif ($is_prod): ?>
                 // Fallback function for progress bar visibility
                 if (!function_exists('should_show_training_progress')) {
                     function should_show_training_progress($pdo, $user_id) {
-                        return isset($_SESSION['user_role']) && strtolower($_SESSION['user_role']) === 'training';
+                        return isset($_SESSION['user_is_in_training']) && $_SESSION['user_is_in_training'] == 1;
                     }
                 }
 
@@ -96,22 +96,13 @@ elseif ($is_prod): ?>
                 $pending_edit_requests = 0;
                 $unresolved_bugs = 0;
 
-                // Check if user has training active
+                // Check if user has training active (using is_in_training flag)
                 $user_has_training = false;
                 try {
-                    $stmt = $pdo->prepare("
-                        SELECT COUNT(*) as count
-                        FROM user_training_assignments uta
-                        WHERE uta.user_id = ?
-                        AND uta.status IN ('not_started', 'in_progress')
-                        AND EXISTS (
-                            SELECT 1 FROM training_courses tc
-                            WHERE tc.id = uta.course_id AND tc.is_active = 1
-                        )
-                    ");
+                    $stmt = $pdo->prepare("SELECT is_in_training FROM users WHERE id = ?");
                     $stmt->execute([$_SESSION['user_id']]);
-                    $active_assignments = $stmt->fetchColumn();
-                    $user_has_training = ($active_assignments > 0);
+                    $is_in_training = $stmt->fetchColumn();
+                    $user_has_training = ($is_in_training == 1);
                 } catch (PDOException $e) {
                     // Silently continue if check fails
                     $user_has_training = false;

@@ -73,7 +73,7 @@ if (!isset($_SESSION['user_id'])) {
 if (!file_exists(__DIR__ . '/../includes/training_helpers.php')) {
     // Define fallback functions
     function is_training_user() {
-        return isset($_SESSION['user_role']) && strtolower($_SESSION['user_role']) === 'training';
+        return isset($_SESSION['user_is_in_training']) && $_SESSION['user_is_in_training'] == 1;
     }
     function get_overall_training_progress($pdo, $user_id) {
         return [

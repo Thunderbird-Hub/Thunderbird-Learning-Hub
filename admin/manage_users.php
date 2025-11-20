@@ -426,8 +426,7 @@ include __DIR__ . '/../includes/header.php';
                                             $role_color = '#6c757d'; // default for user
                                             if ($user['role'] === 'admin') {
                                                 $role_color = '#28a745';
-                                            } elseif ($user['role'] === 'training') {
-                                                $role_color = '#17a2b8';
+                                            // Removed training role - now using only user/admin/super_admin
                                             } elseif ($user['role'] === 'super admin') {
                                                 $role_color = '#dc3545';
                                             }
