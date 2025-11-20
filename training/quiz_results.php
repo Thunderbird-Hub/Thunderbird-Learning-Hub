@@ -803,7 +803,7 @@ include __DIR__ . '/../includes/header.php';
             </a>
 
             <?php if ($attempt['status'] === 'failed'): ?>
-                <a href="take_quiz.php?quiz_id=<?php echo $attempt['quiz_id']; ?>&content_id=<?php echo $quiz['content_id']; ?>&content_type=<?php echo $quiz['content_type']; ?>" class="btn btn-warning">
+                <a href="/training/take_quiz.php?quiz_id=<?php echo $attempt['quiz_id']; ?>&content_id=<?php echo $quiz['content_id']; ?>&content_type=<?php echo $quiz['content_type']; ?>" class="btn btn-warning">
                     🔄 Retake Quiz
                 </a>
             <?php endif; ?>
