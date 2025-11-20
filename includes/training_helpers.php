@@ -864,14 +864,14 @@ $stmt = $pdo->prepare("
  * @param int $user_id User ID
  * @return bool True if user was promoted
  */
-// --- BEGIN REPLACEMENT (promote_user_if_training_complete: explicit guard) ---
+// --- BEGIN REPLACEMENT (promote_user_if_training_complete: flag-based system) ---
 function promote_user_if_training_complete($pdo, $user_id) {
     try {
-        // Only consider users who are currently 'training' (case-insensitive)
-        $role_stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
-        $role_stmt->execute([$user_id]);
-        $role = strtolower(trim((string)$role_stmt->fetchColumn()));
-        if ($role !== 'training') {
+        // Only consider users who are currently in training (check flag)
+        $flag_stmt = $pdo->prepare("SELECT is_in_training FROM users WHERE id = ?");
+        $flag_stmt->execute([$user_id]);
+        $is_in_training = $flag_stmt->fetchColumn();
+        if ($is_in_training != 1) {
             return false;
         }
 
