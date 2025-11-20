@@ -396,7 +396,16 @@ include __DIR__ . '/../includes/header.php';
             </div>
 
             <div class="post-content">
-                <?php echo $post['content']; ?>
+                <?php
+                $post_content = $post['content'] ?? '';
+                $has_html_tags = preg_match('/<[^>]+>/', $post_content);
+
+                if ($has_html_tags) {
+                    echo $post_content;
+                } else {
+                    echo '<pre class="post-plain-text">' . htmlspecialchars($post_content) . '</pre>';
+                }
+                ?>
             </div>
 
             <?php if (is_edited($post['created_at'], $post['updated_at']) || $post['edited'] == 1): ?>

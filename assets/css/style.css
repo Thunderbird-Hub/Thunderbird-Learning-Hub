@@ -500,6 +500,8 @@ mark {
 /* Ensure nested elements keep whitespace formatting (spaces, tabs, newlines) */
 .post-content * {
     white-space: inherit !important;
+    white-space: pre-wrap;
+    tab-size: 4;
 }
 
 /* Post content typography matching TinyMCE */
