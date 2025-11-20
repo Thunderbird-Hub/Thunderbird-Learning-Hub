@@ -454,14 +454,20 @@ function assign_user_to_department_courses($pdo, $user_id, $department_id, $assi
             }
         }
 
-        // Set is_in_training flag if courses were assigned
+        // Set is_in_training flag AND update role to Training if courses were assigned
         if ($assigned_count > 0) {
             $flag_stmt = $pdo->prepare("
                 UPDATE users
-                SET is_in_training = 1
-                WHERE id = ?
+                SET is_in_training = 1, role = 'Training'
+                WHERE id = ? AND role NOT IN ('Super Admin', 'Admin')
             ");
             $flag_stmt->execute([$user_id]);
+
+            // Update session if this is the current user
+            if (isset($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
+                $_SESSION['user_role'] = 'Training';
+                $_SESSION['user_is_in_training'] = 1;
+            }
         }
 
         $pdo->commit();
