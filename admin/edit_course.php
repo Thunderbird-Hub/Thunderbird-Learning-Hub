@@ -450,9 +450,17 @@ require_once __DIR__ . '/../includes/header.php';
 
                             <div class="form-group">
                                 <label for="department">Department</label>
-                                <input type="text" name="department" id="department" class="form-control"
-                                       value="<?php echo htmlspecialchars($course['department'] ?? ''); ?>"
-                                       maxlength="100" placeholder="e.g., Human Resources">
+                                <select name="department" id="department" class="form-control">
+                                    <option value="0">No Department</option>
+                                    <?php foreach ($all_departments as $dept): ?>
+                                        <option value="<?php echo $dept['id']; ?>" <?php echo $current_department_id == $dept['id'] ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($dept['name']); ?>
+                                            <?php if ($dept['member_count'] > 0): ?>
+                                                (<?php echo $dept['member_count']; ?> members)
+                                            <?php endif; ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
                             </div>
 
                             <div class="form-group">
