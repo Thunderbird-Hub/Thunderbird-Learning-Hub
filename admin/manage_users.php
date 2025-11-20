@@ -709,6 +709,30 @@ function showEditUserModal(userId, name, pin, color, role, isActive, isInTrainin
     document.getElementById('edit_role').value = role;
     // PHASE 4: Set the is_in_training checkbox based on the user's current flag
     document.getElementById('edit_is_in_training').checked = (isInTraining === 1 || isInTraining === true);
+
+    // Clear all department checkboxes first
+    const deptCheckboxes = document.querySelectorAll('input[name="departments[]"]');
+    deptCheckboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+
+    // Load and pre-select user's departments via AJAX
+    fetch(`${window.location.origin}/admin/api/get_user_departments.php?user_id=${userId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.departments) {
+                data.departments.forEach(deptId => {
+                    const checkbox = document.querySelector(`input[name="departments[]"][value="${deptId}"]`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                    }
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error loading user departments:', error);
+        });
+
     document.getElementById('editUserModal').style.display = 'block';
 }
 
