@@ -18,3 +18,4 @@ SELECT 'Quiz Attempts:' as section,
        COUNT(*) as total_attempts,
        COUNT(CASE WHEN completed_at IS NOT NULL THEN 1 END) as completed_based
 FROM user_quiz_attempts uqa WHERE uqa.user_id = @user_id;
+# Updated 2025-11-20 04:06:28 - Created debugging script for completion vs attempts mismatch
