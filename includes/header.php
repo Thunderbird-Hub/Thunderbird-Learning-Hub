@@ -177,13 +177,15 @@ elseif ($is_prod): ?>
                         $role_colors = [
                             'Super Admin' => '#dc3545',
                             'Admin' => '#28a745',
-                            'User' => '#6c757d',
-                            'Training' => '#17a2b8'
+                            'User' => '#6c757d'
                         ];
                         $current_role = get_user_role_display();
                         $role_color = $role_colors[$current_role] ?? '#6c757d';
                         ?>
                         <span style="background: <?php echo $role_color; ?>; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 5px;"><?php echo htmlspecialchars($current_role); ?></span>
+                        <?php if ($user_has_training): ?>
+                        <span style="background: #17a2b8; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; margin-left: 3px;" title="Training Active">🎓</span>
+                        <?php endif; ?>
                     </span>
 
                     <!-- Training Progress Bar (Training Users and Admins with Active Training) -->
