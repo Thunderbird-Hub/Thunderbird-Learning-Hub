@@ -67,7 +67,7 @@ elseif ($is_prod): ?>
                 // Fallback function in case training_helpers.php doesn't exist
                 if (!function_exists('is_training_user')) {
                     function is_training_user() {
-                        return isset($_SESSION['user_role']) && strtolower($_SESSION['user_role']) === 'training';
+                        return isset($_SESSION['user_is_in_training']) && $_SESSION['user_is_in_training'] == 1;
                     }
                 }
 
