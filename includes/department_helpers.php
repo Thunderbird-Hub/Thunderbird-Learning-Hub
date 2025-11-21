@@ -523,14 +523,11 @@ function assign_user_to_department_courses($pdo, $user_id, $department_id, $assi
 
         $assigned_count = 0;
 
-        // Assign each course to the user
+        // Assign each course to the user using the training helper function with department context
         foreach ($courses as $course_id) {
-            $assign_stmt = $pdo->prepare("
-                INSERT INTO user_training_assignments (user_id, course_id, assigned_by, assigned_date)
-                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-                ON DUPLICATE KEY UPDATE assigned_date = CURRENT_TIMESTAMP
-            ");
-            if ($assign_stmt->execute([$user_id, $course_id, $assigned_by])) {
+            // Use the updated assign_course_to_users function with department_id parameter
+            $result = assign_course_to_users($pdo, $course_id, [$user_id], $assigned_by, $department_id);
+            if ($result > 0) {
                 $assigned_count++;
             }
         }
