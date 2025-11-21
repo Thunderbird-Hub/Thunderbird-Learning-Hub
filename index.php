@@ -454,7 +454,7 @@ if ($is_training) {
 }
 
 // Helper to render category cards (reuses existing markup)
-function render_category_cards($categories, $pinned_category_ids, $pinned_categories_table_exists, $is_training, $is_super_user, $visibility_columns_exist, $subcategory_visibility_columns_exist) {
+function render_category_cards($categories, $pinned_category_ids, $pinned_categories_table_exists, $is_training, $is_super_user, $visibility_columns_exist, $subcategory_visibility_columns_exist, $category_counts = []) {
     ob_start();
     ?>
     <div class="category-list">
