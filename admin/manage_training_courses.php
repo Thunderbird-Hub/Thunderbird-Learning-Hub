@@ -531,6 +531,33 @@ if ($training_tables_exist) {
 include __DIR__ . '/../includes/header.php';
 ?>
 
+<style>
+/* Assignment Source Badges */
+.source-badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 8px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.source-direct {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.source-department {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+</style>
+
+<?php
+
 <div class="container">
     <div class="breadcrumb">
         <a href="/index.php">Home</a>
