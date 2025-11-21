@@ -479,6 +479,11 @@ function render_category_cards($categories, $pinned_category_ids, $pinned_catego
                             <span><?php echo htmlspecialchars($category['icon']); ?></span>
                         <?php endif; ?>
                         <span><?php echo htmlspecialchars($category['name']); ?></span>
+                        <?php if (isset($category_counts[$category['id']]) && $category_counts[$category['id']] > 0): ?>
+                            <span style="background: #3182ce; color: white; font-size: 11px; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: 500;">
+                                <?php echo $category_counts[$category['id']]; ?> courses
+                            </span>
+                        <?php endif; ?>
                         <?php if (($is_super_user || is_admin()) && $visibility_columns_exist): ?>
                             <?php
                             $visibility_colors = [
