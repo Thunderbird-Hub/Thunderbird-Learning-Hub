@@ -317,20 +317,39 @@ if (isset($_GET['action']) && $training_tables_exist) {
         }
 
         try {
-            // Get assigned users for this course
+            // Get assigned users for this course with assignment source information
             $stmt = $pdo->prepare("
-                SELECT user_id
-                FROM user_training_assignments
-                WHERE course_id = ? AND status != 'completed'
+                SELECT
+                    uta.user_id,
+                    uta.assignment_source,
+                    d.name as department_name
+                FROM user_training_assignments uta
+                LEFT JOIN departments d ON uta.department_id = d.id
+                WHERE uta.course_id = ? AND uta.status != 'completed'
             ");
             $stmt->execute([$course_id]);
-            $assigned_users = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
+            $assigned_users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            file_put_contents(__DIR__ . '/assignment_debug.log', date('Y-m-d H:i:s') . " - AJAX: Currently assigned users for course $course_id: " . json_encode($assigned_users) . "\n", FILE_APPEND | LOCK_EX);
+            // Format the response with source information
+            $formatted_users = [];
+            foreach ($assigned_users as $user) {
+                $source_text = $user['assignment_source'] === 'department'
+                    ? "Assigned via " . htmlspecialchars($user['department_name'])
+                    : "Assigned directly";
+
+                $formatted_users[] = [
+                    'user_id' => (int)$user['user_id'],
+                    'assignment_source' => $user['assignment_source'],
+                    'department_name' => $user['department_name'],
+                    'source_text' => $source_text
+                ];
+            }
+
+            file_put_contents(__DIR__ . '/assignment_debug.log', date('Y-m-d H:i:s') . " - AJAX: Currently assigned users for course $course_id: " . json_encode($formatted_users) . "\n", FILE_APPEND | LOCK_EX);
 
             echo json_encode([
                 'success' => true,
-                'assigned_user_ids' => $assigned_users
+                'assigned_users' => $formatted_users
             ]);
         } catch (PDOException $e) {
             file_put_contents(__DIR__ . '/assignment_debug.log', date('Y-m-d H:i:s') . " - AJAX ERROR: " . $e->getMessage() . "\n", FILE_APPEND | LOCK_EX);
