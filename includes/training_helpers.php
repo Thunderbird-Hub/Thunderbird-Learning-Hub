@@ -603,9 +603,7 @@ function get_user_assigned_courses($pdo, $user_id) {
  * @param int $user_id User ID
  * @return bool True if flag was cleared, false if still has assignments
  */
-function remove_training_if_none_remaining($user_id) {
-    global $pdo;
-
+function remove_training_if_none_remaining($pdo, $user_id) {
     if (!$pdo) {
         error_log("remove_training_if_none_remaining: No database connection available");
         return false;
