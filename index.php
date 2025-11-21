@@ -419,7 +419,14 @@ if ($is_training) {
                 ORDER BY course_count DESC, c.name ASC
             ");
             $assignedCatStmt->execute([$current_user_id]);
-            $assigned_category_ids = array_map('intval', $assignedCatStmt->fetchAll(PDO::FETCH_COLUMN));
+            $assigned_categories_data = $assignedCatStmt->fetchAll(PDO::FETCH_ASSOC);
+            $assigned_category_ids = array_map('intval', array_column($assigned_categories_data, 'id'));
+
+            // Store course counts for display
+            $assigned_category_counts = [];
+            foreach ($assigned_categories_data as $cat) {
+                $assigned_category_counts[$cat['id']] = (int)$cat['course_count'];
+            }
         } catch (PDOException $e) {
             error_log('Failed to load training categories for admin: ' . $e->getMessage());
             $assigned_category_ids = [];
