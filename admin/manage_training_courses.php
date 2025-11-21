@@ -808,22 +808,41 @@ function showAssignUsersModal(courseId, courseName) {
     document.getElementById('assign_course_name').textContent = courseName;
     document.getElementById('assign_course_id').value = courseId;
 
-    // Load current user assignments for this course
+    // Load current user assignments for this course with source information
     fetch(`manage_training_courses.php?action=get_assigned_users&course_id=${courseId}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Clear all checkboxes first
+                // Clear all checkboxes first and remove any existing source badges
                 const checkboxes = document.querySelectorAll('input[name="user_ids[]"]');
                 checkboxes.forEach(checkbox => {
                     checkbox.checked = false;
+                    const label = checkbox.closest('label');
+                    const existingBadge = label.querySelector('.source-badge');
+                    if (existingBadge) {
+                        existingBadge.remove();
+                    }
                 });
 
-                // Check boxes for currently assigned users
-                data.assigned_user_ids.forEach(userId => {
-                    const checkbox = document.querySelector(`input[name="user_ids[]"][value="${userId}"]`);
+                // Check boxes for currently assigned users and add source badges
+                data.assigned_users.forEach(user => {
+                    const checkbox = document.querySelector(`input[name="user_ids[]"][value="${user.user_id}"]`);
                     if (checkbox) {
                         checkbox.checked = true;
+
+                        // Create source badge
+                        const label = checkbox.closest('label');
+                        const badge = document.createElement('span');
+                        badge.className = `source-badge source-${user.assignment_source}`;
+                        badge.textContent = user.source_text;
+
+                        // Insert badge after the user ID span
+                        const userSpan = label.querySelector('span[style*="color: #666"]');
+                        if (userSpan && userSpan.nextSibling) {
+                            label.insertBefore(badge, userSpan.nextSibling);
+                        } else {
+                            label.appendChild(badge);
+                        }
                     }
                 });
             }
