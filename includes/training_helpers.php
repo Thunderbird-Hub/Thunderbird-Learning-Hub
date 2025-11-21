@@ -598,6 +598,56 @@ function get_user_assigned_courses($pdo, $user_id) {
 }
 
 /**
+ * Remove training flag when user has no remaining training assignments
+ * @param PDO $pdo Database connection
+ * @param int $user_id User ID
+ * @return bool True if flag was cleared, false if still has assignments
+ */
+function remove_training_if_none_remaining($user_id) {
+    global $pdo;
+
+    if (!$pdo) {
+        error_log("remove_training_if_none_remaining: No database connection available");
+        return false;
+    }
+
+    try {
+        // Check if user has any training assignments
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) as assignment_count
+            FROM user_training_assignments
+            WHERE user_id = ?
+        ");
+        $stmt->execute([$user_id]);
+        $assignment_count = (int)$stmt->fetch()['assignment_count'];
+
+        if ($assignment_count === 0) {
+            // Clear the is_in_training flag
+            $update_stmt = $pdo->prepare("
+                UPDATE users
+                SET is_in_training = 0, updated_at = NOW()
+                WHERE id = ?
+            ");
+            $result = $update_stmt->execute([$user_id]);
+
+            // Update session if current user
+            if (isset($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
+                $_SESSION['user_is_in_training'] = 0;
+            }
+
+            log_debug("Cleared is_in_training flag for user $user_id (no remaining assignments)", 'INFO');
+            return $result;
+        } else {
+            log_debug("User $user_id still has $assignment_count training assignments, keeping flag", 'DEBUG');
+            return false;
+        }
+    } catch (PDOException $e) {
+        error_log("Error in remove_training_if_none_remaining for user $user_id: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
  * Check if content is assigned to user's training
  * @param PDO $pdo Database connection
  * @param int $user_id User ID
