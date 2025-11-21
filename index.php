@@ -396,7 +396,10 @@ if ($is_training) {
     if (($is_super_user || is_admin()) && function_exists('get_user_assigned_courses')) {
         try {
             $assignedCatStmt = $pdo->prepare("
-                SELECT DISTINCT c.id
+                SELECT DISTINCT
+                    c.id,
+                    c.name,
+                    COUNT(DISTINCT p.id) as course_count
                 FROM user_training_assignments uta
                 JOIN training_courses tc
                   ON uta.course_id = tc.id
@@ -411,6 +414,9 @@ if ($is_training) {
                 JOIN categories c
                   ON s.category_id = c.id
                 WHERE uta.user_id = ?
+                GROUP BY c.id, c.name
+                HAVING course_count > 0
+                ORDER BY course_count DESC, c.name ASC
             ");
             $assignedCatStmt->execute([$current_user_id]);
             $assigned_category_ids = array_map('intval', $assignedCatStmt->fetchAll(PDO::FETCH_COLUMN));
