@@ -233,7 +233,7 @@ function remove_user_from_department($pdo, $user_id, $department_id) {
         }
 
         // Check if user has any remaining training assignments and clear flag if none
-        remove_training_if_none_remaining($user_id);
+        remove_training_if_none_remaining($pdo, $user_id);
 
         $pdo->commit();
         return true;
