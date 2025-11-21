@@ -353,9 +353,9 @@ function assign_course_to_department($pdo, $course_id, $department_id, $assigned
         $dept_stmt->execute([$department_id]);
         $department_users = $dept_stmt->fetchAll(PDO::FETCH_COLUMN);
 
-        // Assign course to each user in the department
+        // Assign course to each user in the department using the training helper function with department context
         if (!empty($department_users)) {
-            assign_course_to_users($pdo, $course_id, $department_users, $assigned_by);
+            assign_course_to_users($pdo, $course_id, $department_users, $assigned_by, $department_id);
         }
 
         $pdo->commit();
