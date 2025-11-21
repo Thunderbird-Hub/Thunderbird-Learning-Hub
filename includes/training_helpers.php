@@ -444,11 +444,15 @@ function assign_course_to_users($pdo, $course_id, $user_ids, $assigned_by, $depa
         // Get user info for role conversion
         $user_info_stmt = $pdo->prepare("SELECT id, role FROM users WHERE id = ?");
 
+        // Determine assignment source and department ID
+        $assignment_source = $department_id ? 'department' : 'direct';
+        $dept_id = $department_id ?: null;
+
         foreach ($user_ids as $user_id) {
             error_log("DEBUG: Processing user_id=$user_id for course_id=$course_id");
 
             try {
-                $stmt->execute([$user_id, $course_id, $assigned_by]);
+                $stmt->execute([$user_id, $course_id, $assigned_by, $assignment_source, $dept_id]);
                 $rows_affected = $stmt->rowCount();
                 error_log("DEBUG: INSERT/UPDATE rows affected for user_id=$user_id: $rows_affected");
             } catch (PDOException $e) {
