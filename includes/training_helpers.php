@@ -421,21 +421,24 @@ function add_content_to_course($pdo, $course_id, $content_type, $content_id, $ti
  * @param int $course_id Course ID
  * @param array $user_ids Array of user IDs
  * @param int $assigned_by User ID making the assignment
+ * @param int $department_id Department ID (optional, null for direct assignments)
  * @return bool Success status
  */
-function assign_course_to_users($pdo, $course_id, $user_ids, $assigned_by) {
+function assign_course_to_users($pdo, $course_id, $user_ids, $assigned_by, $department_id = null) {
     try {
-        error_log("DEBUG: assign_course_to_users called with course_id=$course_id, user_ids=" . json_encode($user_ids) . ", assigned_by=$assigned_by");
+        error_log("DEBUG: assign_course_to_users called with course_id=$course_id, user_ids=" . json_encode($user_ids) . ", assigned_by=$assigned_by, department_id=" . ($department_id ?? 'null'));
 
         $pdo->beginTransaction();
         $assigned_count = 0;
 
         $stmt = $pdo->prepare("
-            INSERT INTO user_training_assignments (user_id, course_id, assigned_by, assigned_date)
-            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            INSERT INTO user_training_assignments (user_id, course_id, assigned_by, assigned_date, assignment_source, department_id)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?, ?)
             ON DUPLICATE KEY UPDATE
             assigned_date = CURRENT_TIMESTAMP,
-            assigned_by = VALUES(assigned_by)
+            assigned_by = VALUES(assigned_by),
+            assignment_source = VALUES(assignment_source),
+            department_id = VALUES(department_id)
         ");
 
         // Get user info for role conversion
