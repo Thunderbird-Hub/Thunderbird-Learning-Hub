@@ -396,7 +396,10 @@ if ($is_training) {
     if (($is_super_user || is_admin()) && function_exists('get_user_assigned_courses')) {
         try {
             $assignedCatStmt = $pdo->prepare("
-                SELECT DISTINCT c.id
+                SELECT DISTINCT
+                    c.id,
+                    c.name,
+                    COUNT(DISTINCT p.id) as course_count
                 FROM user_training_assignments uta
                 JOIN training_courses tc
                   ON uta.course_id = tc.id
@@ -411,9 +414,19 @@ if ($is_training) {
                 JOIN categories c
                   ON s.category_id = c.id
                 WHERE uta.user_id = ?
+                GROUP BY c.id, c.name
+                HAVING course_count > 0
+                ORDER BY course_count DESC, c.name ASC
             ");
             $assignedCatStmt->execute([$current_user_id]);
-            $assigned_category_ids = array_map('intval', $assignedCatStmt->fetchAll(PDO::FETCH_COLUMN));
+            $assigned_categories_data = $assignedCatStmt->fetchAll(PDO::FETCH_ASSOC);
+            $assigned_category_ids = array_map('intval', array_column($assigned_categories_data, 'id'));
+
+            // Store course counts for display
+            $assigned_category_counts = [];
+            foreach ($assigned_categories_data as $cat) {
+                $assigned_category_counts[$cat['id']] = (int)$cat['course_count'];
+            }
         } catch (PDOException $e) {
             error_log('Failed to load training categories for admin: ' . $e->getMessage());
             $assigned_category_ids = [];
@@ -441,7 +454,7 @@ if ($is_training) {
 }
 
 // Helper to render category cards (reuses existing markup)
-function render_category_cards($categories, $pinned_category_ids, $pinned_categories_table_exists, $is_training, $is_super_user, $visibility_columns_exist, $subcategory_visibility_columns_exist) {
+function render_category_cards($categories, $pinned_category_ids, $pinned_categories_table_exists, $is_training, $is_super_user, $visibility_columns_exist, $subcategory_visibility_columns_exist, $category_counts = []) {
     ob_start();
     ?>
     <div class="category-list">
@@ -466,6 +479,11 @@ function render_category_cards($categories, $pinned_category_ids, $pinned_catego
                             <span><?php echo htmlspecialchars($category['icon']); ?></span>
                         <?php endif; ?>
                         <span><?php echo htmlspecialchars($category['name']); ?></span>
+                        <?php if (isset($category_counts[$category['id']]) && $category_counts[$category['id']] > 0): ?>
+                            <span style="background: #3182ce; color: white; font-size: 11px; padding: 2px 6px; border-radius: 10px; margin-left: 8px; font-weight: 500;">
+                                <?php echo $category_counts[$category['id']]; ?> courses
+                            </span>
+                        <?php endif; ?>
                         <?php if (($is_super_user || is_admin()) && $visibility_columns_exist): ?>
                             <?php
                             $visibility_colors = [
@@ -620,13 +638,13 @@ include 'includes/header.php';
     <?php else: ?>
         <?php if ($has_training_categories): ?>
             <div class="flex-between mb-10">
-                <h3 style="font-size: 20px; color: #2d3748; margin-top: 10px;">Training Assignments</h3>
+                <h3 style="font-size: 20px; color: #2d3748; margin-top: 10px;">📚 Training Assignments</h3>
             </div>
-            <?php echo render_category_cards($assigned_categories, $pinned_category_ids, $pinned_categories_table_exists, $is_training, $is_super_user, $visibility_columns_exist, $subcategory_visibility_columns_exist); ?>
+            <?php echo render_category_cards($assigned_categories, $pinned_category_ids, $pinned_categories_table_exists, $is_training, $is_super_user, $visibility_columns_exist, $subcategory_visibility_columns_exist, $assigned_category_counts); ?>
             <div style="margin: 24px 0 12px 0; border-top: 2px solid #e2e8f0; padding-top: 12px; text-transform: uppercase; color: #718096; font-size: 12px; font-weight: 600;">All Categories</div>
-            <?php echo render_category_cards($other_categories, $pinned_category_ids, $pinned_categories_table_exists, $is_training, $is_super_user, $visibility_columns_exist, $subcategory_visibility_columns_exist); ?>
+            <?php echo render_category_cards($other_categories, $pinned_category_ids, $pinned_categories_table_exists, $is_training, $is_super_user, $visibility_columns_exist, $subcategory_visibility_columns_exist, []); ?>
         <?php else: ?>
-            <?php echo render_category_cards($categories, $pinned_category_ids, $pinned_categories_table_exists, $is_training, $is_super_user, $visibility_columns_exist, $subcategory_visibility_columns_exist); ?>
+            <?php echo render_category_cards($categories, $pinned_category_ids, $pinned_categories_table_exists, $is_training, $is_super_user, $visibility_columns_exist, $subcategory_visibility_columns_exist, []); ?>
         <?php endif; ?>
     <?php endif; ?>
 </div>

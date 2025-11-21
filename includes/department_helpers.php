@@ -196,79 +196,44 @@ function remove_user_from_department($pdo, $user_id, $department_id) {
         ");
         $stmt->execute([$user_id, $department_id]);
 
-        // Find courses tied to this department
-        $course_stmt = $pdo->prepare("
-            SELECT course_id FROM course_departments
-            WHERE department_id = ?
+        // Smart removal: Only remove training assignments that came from this specific department
+        // Use the new assignment_source field to precisely target department-sourced assignments
+        $remove_assignments_stmt = $pdo->prepare("
+            DELETE FROM user_training_assignments
+            WHERE user_id = ?
+            AND assignment_source = 'department'
+            AND department_id = ?
         ");
-        $course_stmt->execute([$department_id]);
-        $dept_courses = $course_stmt->fetchAll(PDO::FETCH_COLUMN);
+        $remove_assignments_stmt->execute([$user_id, $department_id]);
+        $removed_assignments = $remove_assignments_stmt->rowCount();
 
-        if (!empty($dept_courses)) {
-            // Check if the user still has any other reason to keep each course
-            $other_dept_stmt = $pdo->prepare("
-                SELECT COUNT(*)
-                FROM course_departments cd
-                JOIN user_departments ud ON cd.department_id = ud.department_id
-                WHERE cd.course_id = ? AND ud.user_id = ?
+        // Also remove training progress for assignments that were removed
+        if ($removed_assignments > 0) {
+            // Get the course IDs that were removed to clean up progress
+            $removed_courses_stmt = $pdo->prepare("
+                SELECT course_id FROM user_training_assignments
+                WHERE user_id = ?
+                AND assignment_source = 'department'
+                AND department_id = ?
             ");
+            $removed_courses_stmt->execute([$user_id, $department_id]);
+            $removed_courses = $removed_courses_stmt->fetchAll(PDO::FETCH_COLUMN);
 
-            // Check if the assignment exists before attempting removals
-            $assignment_exists_stmt = $pdo->prepare("
-                SELECT COUNT(*)
-                FROM user_training_assignments
-                WHERE user_id = ? AND course_id = ?
-            ");
-
-            // A direct assignment exists when the user/course pair has no department link
-            $direct_assignment_stmt = $pdo->prepare("
-                SELECT COUNT(*)
-                FROM user_training_assignments uta
-                WHERE uta.user_id = ? AND uta.course_id = ?
-                  AND NOT EXISTS (
-                      SELECT 1
-                      FROM course_departments cd
-                      JOIN user_departments ud ON cd.department_id = ud.department_id
-                      WHERE cd.course_id = uta.course_id AND ud.user_id = uta.user_id
-                  )
-            ");
-
-            $delete_assignment_stmt = $pdo->prepare("
-                DELETE FROM user_training_assignments
-                WHERE user_id = ? AND course_id = ?
-            ");
-
-            $delete_progress_stmt = $pdo->prepare("
-                DELETE FROM training_progress
-                WHERE user_id = ? AND course_id = ?
-            ");
-
-            foreach ($dept_courses as $course_id) {
-                // Skip if the user isn't assigned to this course
-                $assignment_exists_stmt->execute([$user_id, $course_id]);
-                if ((int)$assignment_exists_stmt->fetchColumn() === 0) {
-                    continue;
-                }
-
-                // Keep the course if another department still links the user to it
-                $other_dept_stmt->execute([$course_id, $user_id]);
-                $other_dept_count = (int)$other_dept_stmt->fetchColumn();
-                if ($other_dept_count > 0) {
-                    continue;
-                }
-
-                // Keep the course if it's directly assigned outside of departments
-                $direct_assignment_stmt->execute([$user_id, $course_id]);
-                $direct_count = (int)$direct_assignment_stmt->fetchColumn();
-                if ($direct_count > 0) {
-                    continue;
-                }
-
-                // Otherwise, remove department-only training assignments and progress
-                $delete_assignment_stmt->execute([$user_id, $course_id]);
-                $delete_progress_stmt->execute([$user_id, $course_id]);
+            if (!empty($removed_courses)) {
+                // Remove progress for the specific courses that were removed
+                $placeholders = str_repeat('?,', count($removed_courses) - 1) . '?';
+                $progress_delete_stmt = $pdo->prepare("
+                    DELETE FROM training_progress
+                    WHERE user_id = ?
+                    AND course_id IN ($placeholders)
+                ");
+                $progress_params = array_merge([$user_id], $removed_courses);
+                $progress_delete_stmt->execute($progress_params);
             }
         }
+
+        // Check if user has any remaining training assignments and clear flag if none
+        remove_training_if_none_remaining($user_id);
 
         $pdo->commit();
         return true;
@@ -388,9 +353,9 @@ function assign_course_to_department($pdo, $course_id, $department_id, $assigned
         $dept_stmt->execute([$department_id]);
         $department_users = $dept_stmt->fetchAll(PDO::FETCH_COLUMN);
 
-        // Assign course to each user in the department
+        // Assign course to each user in the department using the training helper function with department context
         if (!empty($department_users)) {
-            assign_course_to_users($pdo, $course_id, $department_users, $assigned_by);
+            assign_course_to_users($pdo, $course_id, $department_users, $assigned_by, $department_id);
         }
 
         $pdo->commit();
@@ -523,14 +488,11 @@ function assign_user_to_department_courses($pdo, $user_id, $department_id, $assi
 
         $assigned_count = 0;
 
-        // Assign each course to the user
+        // Assign each course to the user using the training helper function with department context
         foreach ($courses as $course_id) {
-            $assign_stmt = $pdo->prepare("
-                INSERT INTO user_training_assignments (user_id, course_id, assigned_by, assigned_date)
-                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-                ON DUPLICATE KEY UPDATE assigned_date = CURRENT_TIMESTAMP
-            ");
-            if ($assign_stmt->execute([$user_id, $course_id, $assigned_by])) {
+            // Use the updated assign_course_to_users function with department_id parameter
+            $result = assign_course_to_users($pdo, $course_id, [$user_id], $assigned_by, $department_id);
+            if ($result > 0) {
                 $assigned_count++;
             }
         }

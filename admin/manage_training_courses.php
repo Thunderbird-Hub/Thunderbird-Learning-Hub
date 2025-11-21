@@ -317,20 +317,39 @@ if (isset($_GET['action']) && $training_tables_exist) {
         }
 
         try {
-            // Get assigned users for this course
+            // Get assigned users for this course with assignment source information
             $stmt = $pdo->prepare("
-                SELECT user_id
-                FROM user_training_assignments
-                WHERE course_id = ? AND status != 'completed'
+                SELECT
+                    uta.user_id,
+                    uta.assignment_source,
+                    d.name as department_name
+                FROM user_training_assignments uta
+                LEFT JOIN departments d ON uta.department_id = d.id
+                WHERE uta.course_id = ? AND uta.status != 'completed'
             ");
             $stmt->execute([$course_id]);
-            $assigned_users = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
+            $assigned_users = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            file_put_contents(__DIR__ . '/assignment_debug.log', date('Y-m-d H:i:s') . " - AJAX: Currently assigned users for course $course_id: " . json_encode($assigned_users) . "\n", FILE_APPEND | LOCK_EX);
+            // Format the response with source information
+            $formatted_users = [];
+            foreach ($assigned_users as $user) {
+                $source_text = $user['assignment_source'] === 'department'
+                    ? "Assigned via " . htmlspecialchars($user['department_name'])
+                    : "Assigned directly";
+
+                $formatted_users[] = [
+                    'user_id' => (int)$user['user_id'],
+                    'assignment_source' => $user['assignment_source'],
+                    'department_name' => $user['department_name'],
+                    'source_text' => $source_text
+                ];
+            }
+
+            file_put_contents(__DIR__ . '/assignment_debug.log', date('Y-m-d H:i:s') . " - AJAX: Currently assigned users for course $course_id: " . json_encode($formatted_users) . "\n", FILE_APPEND | LOCK_EX);
 
             echo json_encode([
                 'success' => true,
-                'assigned_user_ids' => $assigned_users
+                'assigned_users' => $formatted_users
             ]);
         } catch (PDOException $e) {
             file_put_contents(__DIR__ . '/assignment_debug.log', date('Y-m-d H:i:s') . " - AJAX ERROR: " . $e->getMessage() . "\n", FILE_APPEND | LOCK_EX);
@@ -511,6 +530,33 @@ if ($training_tables_exist) {
 
 include __DIR__ . '/../includes/header.php';
 ?>
+
+<style>
+/* Assignment Source Badges */
+.source-badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 8px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.source-direct {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.source-department {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+</style>
+
+<?php
 
 <div class="container">
     <div class="breadcrumb">
@@ -789,22 +835,41 @@ function showAssignUsersModal(courseId, courseName) {
     document.getElementById('assign_course_name').textContent = courseName;
     document.getElementById('assign_course_id').value = courseId;
 
-    // Load current user assignments for this course
+    // Load current user assignments for this course with source information
     fetch(`manage_training_courses.php?action=get_assigned_users&course_id=${courseId}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Clear all checkboxes first
+                // Clear all checkboxes first and remove any existing source badges
                 const checkboxes = document.querySelectorAll('input[name="user_ids[]"]');
                 checkboxes.forEach(checkbox => {
                     checkbox.checked = false;
+                    const label = checkbox.closest('label');
+                    const existingBadge = label.querySelector('.source-badge');
+                    if (existingBadge) {
+                        existingBadge.remove();
+                    }
                 });
 
-                // Check boxes for currently assigned users
-                data.assigned_user_ids.forEach(userId => {
-                    const checkbox = document.querySelector(`input[name="user_ids[]"][value="${userId}"]`);
+                // Check boxes for currently assigned users and add source badges
+                data.assigned_users.forEach(user => {
+                    const checkbox = document.querySelector(`input[name="user_ids[]"][value="${user.user_id}"]`);
                     if (checkbox) {
                         checkbox.checked = true;
+
+                        // Create source badge
+                        const label = checkbox.closest('label');
+                        const badge = document.createElement('span');
+                        badge.className = `source-badge source-${user.assignment_source}`;
+                        badge.textContent = user.source_text;
+
+                        // Insert badge after the user ID span
+                        const userSpan = label.querySelector('span[style*="color: #666"]');
+                        if (userSpan && userSpan.nextSibling) {
+                            label.insertBefore(badge, userSpan.nextSibling);
+                        } else {
+                            label.appendChild(badge);
+                        }
                     }
                 });
             }

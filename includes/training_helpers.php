@@ -421,31 +421,38 @@ function add_content_to_course($pdo, $course_id, $content_type, $content_id, $ti
  * @param int $course_id Course ID
  * @param array $user_ids Array of user IDs
  * @param int $assigned_by User ID making the assignment
+ * @param int $department_id Department ID (optional, null for direct assignments)
  * @return bool Success status
  */
-function assign_course_to_users($pdo, $course_id, $user_ids, $assigned_by) {
+function assign_course_to_users($pdo, $course_id, $user_ids, $assigned_by, $department_id = null) {
     try {
-        error_log("DEBUG: assign_course_to_users called with course_id=$course_id, user_ids=" . json_encode($user_ids) . ", assigned_by=$assigned_by");
+        error_log("DEBUG: assign_course_to_users called with course_id=$course_id, user_ids=" . json_encode($user_ids) . ", assigned_by=$assigned_by, department_id=" . ($department_id ?? 'null'));
 
         $pdo->beginTransaction();
         $assigned_count = 0;
 
         $stmt = $pdo->prepare("
-            INSERT INTO user_training_assignments (user_id, course_id, assigned_by, assigned_date)
-            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            INSERT INTO user_training_assignments (user_id, course_id, assigned_by, assigned_date, assignment_source, department_id)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?, ?)
             ON DUPLICATE KEY UPDATE
             assigned_date = CURRENT_TIMESTAMP,
-            assigned_by = VALUES(assigned_by)
+            assigned_by = VALUES(assigned_by),
+            assignment_source = VALUES(assignment_source),
+            department_id = VALUES(department_id)
         ");
 
         // Get user info for role conversion
         $user_info_stmt = $pdo->prepare("SELECT id, role FROM users WHERE id = ?");
 
+        // Determine assignment source and department ID
+        $assignment_source = $department_id ? 'department' : 'direct';
+        $dept_id = $department_id ?: null;
+
         foreach ($user_ids as $user_id) {
             error_log("DEBUG: Processing user_id=$user_id for course_id=$course_id");
 
             try {
-                $stmt->execute([$user_id, $course_id, $assigned_by]);
+                $stmt->execute([$user_id, $course_id, $assigned_by, $assignment_source, $dept_id]);
                 $rows_affected = $stmt->rowCount();
                 error_log("DEBUG: INSERT/UPDATE rows affected for user_id=$user_id: $rows_affected");
             } catch (PDOException $e) {
@@ -566,9 +573,11 @@ function get_user_assigned_courses($pdo, $user_id) {
     try {
         $stmt = $pdo->prepare("
             SELECT tc.*, uta.status as assignment_status, uta.assigned_date, uta.completion_date,
+                   uta.assignment_source, d.name as department_name,
                    0 as progress_percentage
             FROM training_courses tc
             JOIN user_training_assignments uta ON tc.id = uta.course_id
+            LEFT JOIN departments d ON uta.department_id = d.id
             WHERE uta.user_id = ? AND tc.is_active = TRUE
             ORDER BY uta.assigned_date, tc.name
         ");
@@ -585,6 +594,56 @@ function get_user_assigned_courses($pdo, $user_id) {
     } catch (PDOException $e) {
         error_log("Error getting user assigned courses: " . $e->getMessage());
         return [];
+    }
+}
+
+/**
+ * Remove training flag when user has no remaining training assignments
+ * @param PDO $pdo Database connection
+ * @param int $user_id User ID
+ * @return bool True if flag was cleared, false if still has assignments
+ */
+function remove_training_if_none_remaining($user_id) {
+    global $pdo;
+
+    if (!$pdo) {
+        error_log("remove_training_if_none_remaining: No database connection available");
+        return false;
+    }
+
+    try {
+        // Check if user has any training assignments
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) as assignment_count
+            FROM user_training_assignments
+            WHERE user_id = ?
+        ");
+        $stmt->execute([$user_id]);
+        $assignment_count = (int)$stmt->fetch()['assignment_count'];
+
+        if ($assignment_count === 0) {
+            // Clear the is_in_training flag
+            $update_stmt = $pdo->prepare("
+                UPDATE users
+                SET is_in_training = 0, updated_at = NOW()
+                WHERE id = ?
+            ");
+            $result = $update_stmt->execute([$user_id]);
+
+            // Update session if current user
+            if (isset($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
+                $_SESSION['user_is_in_training'] = 0;
+            }
+
+            log_debug("Cleared is_in_training flag for user $user_id (no remaining assignments)", 'INFO');
+            return $result;
+        } else {
+            log_debug("User $user_id still has $assignment_count training assignments, keeping flag", 'DEBUG');
+            return false;
+        }
+    } catch (PDOException $e) {
+        error_log("Error in remove_training_if_none_remaining for user $user_id: " . $e->getMessage());
+        return false;
     }
 }
 
