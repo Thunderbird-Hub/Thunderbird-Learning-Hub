@@ -96,7 +96,6 @@ function log_debug($message, $level = 'DEBUG') {
  * @param int $user_id User ID (optional, defaults to current user)
  * @return array Status of role changes
  */
-// --- BEGIN REPLACEMENT (PHASE 5: auto_manage_user_roles - flag only, no role mutations) ---
 function auto_manage_user_roles($pdo, $user_id = null) {
     $user_id = $user_id ?? ($_SESSION['user_id'] ?? null);
     if (!$user_id) {
@@ -113,11 +112,12 @@ function auto_manage_user_roles($pdo, $user_id = null) {
 
         $changes = [];
 
-        // Never change roles for Admins or Super Admins, but still update the training flag
+        // Never auto-change roles for Admins or Super Admins (but still manage flags)
         $role_lc = strtolower(trim((string)$user['role']));
-        $is_privileged = ($role_lc === 'admin' || $role_lc === 'super_admin' || $role_lc === 'super admin');
+        $normalized_role = str_replace(' ', '_', $role_lc);
+        $is_privileged = ($normalized_role === 'admin' || $normalized_role === 'super_admin');
         if ($is_privileged) {
-            log_debug("Auto-manage (flag only) running for privileged user {$user['id']} (role={$user['role']})", 'INFO');
+            log_debug("Auto-manage running for privileged user {$user['id']} (role={$user['role']})", 'INFO');
         }
 
         // --- PHASE 3: CHECK FOR RETEST ELIGIBILITY ---
@@ -127,7 +127,6 @@ function auto_manage_user_roles($pdo, $user_id = null) {
             $changes[] = "User {$user['name']} → {$retest_result['retests_enabled']} retest(s) now eligible";
         }
 
-        // --- PHASE 5: ONLY MANAGE FLAG, NOT ROLE ---
         // Count active training assignments
         $assignment_stmt = $pdo->prepare("
             SELECT COUNT(*) AS active_assignments
@@ -157,6 +156,22 @@ function auto_manage_user_roles($pdo, $user_id = null) {
         // Update session cache if current user
         if (!empty($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
             $_SESSION['user_is_in_training'] = $new_flag_value;
+        }
+
+        // Manage role (training <-> user) for non-privileged users
+        if (!$is_privileged) {
+            $desired_role = $new_flag_value ? 'training' : 'user';
+            if ($desired_role !== $normalized_role) {
+                $role_update_stmt = $pdo->prepare("UPDATE users SET role = ?, updated_at = NOW() WHERE id = ?");
+                $role_update_stmt->execute([$desired_role, $user_id]);
+
+                if (!empty($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
+                    $_SESSION['user_role'] = $desired_role;
+                }
+
+                $changes[] = "User {$user['name']} role → {$desired_role}";
+                log_debug("Auto-manage updated role for user {$user_id} to {$desired_role}", 'INFO');
+            }
         }
 
         $flag_name = $new_flag_value ? 'in training' : 'not in training';
@@ -471,6 +486,7 @@ function assign_course_to_users($pdo, $course_id, $user_ids, $assigned_by, $depa
 
             // Always set is_in_training flag for any user getting training assignments
             if ($user_data) {
+                $normalized_role = strtolower(str_replace(' ', '_', (string)$user_data['role']));
                 $flag_stmt = $pdo->prepare("
                     UPDATE users
                     SET is_in_training = 1
@@ -478,6 +494,17 @@ function assign_course_to_users($pdo, $course_id, $user_ids, $assigned_by, $depa
                 ");
                 $flag_stmt->execute([$user_id]);
                 error_log("DEBUG: Set is_in_training flag for user_id=$user_id");
+
+                // Move user into training role unless privileged
+                if ($normalized_role !== 'admin' && $normalized_role !== 'super_admin' && $normalized_role !== 'training') {
+                    $role_stmt = $pdo->prepare("UPDATE users SET role = 'training', updated_at = NOW() WHERE id = ?");
+                    $role_stmt->execute([$user_id]);
+                    log_debug("Updated user {$user_id} role to training after assignment (course {$course_id})", 'INFO');
+
+                    if (isset($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
+                        $_SESSION['user_role'] = 'training';
+                    }
+                }
 
                 // Update session if current user
                 if (isset($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
@@ -627,6 +654,22 @@ function remove_training_if_none_remaining($pdo, $user_id) {
                 WHERE id = ?
             ");
             $result = $update_stmt->execute([$user_id]);
+
+            // Move non-privileged users back to standard role if they were in training
+            $role_stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
+            $role_stmt->execute([$user_id]);
+            $current_role = strtolower(str_replace(' ', '_', (string)$role_stmt->fetchColumn()));
+
+            if ($current_role === 'training') {
+                $downgrade_stmt = $pdo->prepare("UPDATE users SET role = 'user', updated_at = NOW() WHERE id = ?");
+                $downgrade_stmt->execute([$user_id]);
+
+                if (isset($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
+                    $_SESSION['user_role'] = 'user';
+                }
+
+                log_debug("Downgraded user {$user_id} to role user (no remaining assignments)", 'INFO');
+            }
 
             // Update session if current user
             if (isset($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
