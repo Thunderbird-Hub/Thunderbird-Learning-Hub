@@ -453,7 +453,10 @@ function assign_course_to_users($pdo, $course_id, $user_ids, $assigned_by, $depa
             assigned_date = CURRENT_TIMESTAMP,
             assigned_by = VALUES(assigned_by),
             assignment_source = VALUES(assignment_source),
-            department_id = VALUES(department_id)
+            department_id = VALUES(department_id),
+            status = CASE WHEN status = 'completed' THEN 'not_started' ELSE status END,
+            completion_date = CASE WHEN status = 'completed' THEN NULL ELSE completion_date END,
+            retest_exempt = 0
         ");
 
         // Get user info for role conversion
