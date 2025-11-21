@@ -638,13 +638,13 @@ include 'includes/header.php';
     <?php else: ?>
         <?php if ($has_training_categories): ?>
             <div class="flex-between mb-10">
-                <h3 style="font-size: 20px; color: #2d3748; margin-top: 10px;">Training Assignments</h3>
+                <h3 style="font-size: 20px; color: #2d3748; margin-top: 10px;">📚 Training Assignments</h3>
             </div>
-            <?php echo render_category_cards($assigned_categories, $pinned_category_ids, $pinned_categories_table_exists, $is_training, $is_super_user, $visibility_columns_exist, $subcategory_visibility_columns_exist); ?>
+            <?php echo render_category_cards($assigned_categories, $pinned_category_ids, $pinned_categories_table_exists, $is_training, $is_super_user, $visibility_columns_exist, $subcategory_visibility_columns_exist, $assigned_category_counts); ?>
             <div style="margin: 24px 0 12px 0; border-top: 2px solid #e2e8f0; padding-top: 12px; text-transform: uppercase; color: #718096; font-size: 12px; font-weight: 600;">All Categories</div>
-            <?php echo render_category_cards($other_categories, $pinned_category_ids, $pinned_categories_table_exists, $is_training, $is_super_user, $visibility_columns_exist, $subcategory_visibility_columns_exist); ?>
+            <?php echo render_category_cards($other_categories, $pinned_category_ids, $pinned_categories_table_exists, $is_training, $is_super_user, $visibility_columns_exist, $subcategory_visibility_columns_exist, []); ?>
         <?php else: ?>
-            <?php echo render_category_cards($categories, $pinned_category_ids, $pinned_categories_table_exists, $is_training, $is_super_user, $visibility_columns_exist, $subcategory_visibility_columns_exist); ?>
+            <?php echo render_category_cards($categories, $pinned_category_ids, $pinned_categories_table_exists, $is_training, $is_super_user, $visibility_columns_exist, $subcategory_visibility_columns_exist, []); ?>
         <?php endif; ?>
     <?php endif; ?>
 </div>
