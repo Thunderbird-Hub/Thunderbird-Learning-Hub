@@ -556,8 +556,6 @@ include __DIR__ . '/../includes/header.php';
 }
 </style>
 
-<?php
-
 <div class="container">
     <div class="breadcrumb">
         <a href="/index.php">Home</a>
