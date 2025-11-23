@@ -115,119 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $training_tables_exist) {
             break;
 
         case 'assign_course':
-            file_put_contents(__DIR__ . '/assignment_debug.log', date('Y-m-d H:i:s') . " - ASSIGN_COURSE CASE TRIGGERED\n", FILE_APPEND | LOCK_EX);
-            $course_id = isset($_POST['course_id']) ? intval($_POST['course_id']) : 0;
-            $user_ids = isset($_POST['user_ids']) ? $_POST['user_ids'] : [];
-
-            file_put_contents(__DIR__ . '/assignment_debug.log', date('Y-m-d H:i:s') . " - Course ID: $course_id, User IDs: " . json_encode($user_ids) . "\n", FILE_APPEND | LOCK_EX);
-
-            if ($course_id <= 0) {
-                $error_message = 'Invalid course ID.';
-                file_put_contents(__DIR__ . '/assignment_debug.log', date('Y-m-d H:i:s') . " - ERROR: Invalid course ID\n", FILE_APPEND | LOCK_EX);
-            } else {
-                try {
-                    // DEBUG: Log incoming data
-                    $assignment_debug = "DEBUG: Session user_id: " . ($_SESSION['user_id'] ?? 'NOT SET') . "\n";
-                    $assignment_debug .= "DEBUG: Course ID: $course_id\n";
-                    $assignment_debug .= "DEBUG: User IDs received: " . json_encode($user_ids) . "\n";
-                    $assignment_debug .= "DEBUG: POST data: " . json_encode($_POST) . "\n";
-                    file_put_contents(__DIR__ . '/assignment_debug.log', date('Y-m-d H:i:s') . " - " . $assignment_debug, FILE_APPEND | LOCK_EX);
-
-                    // Check if course exists
-                    $course_check = $pdo->prepare("SELECT id FROM training_courses WHERE id = ?");
-                    $course_check->execute([$course_id]);
-                    if ($course_check->rowCount() === 0) {
-                        $error_message = 'Course not found.';
-                        error_log("DEBUG: Course not found for ID: $course_id");
-                    } else {
-                        // Get currently assigned users
-                        $current_assignments = $pdo->prepare("
-                            SELECT user_id, status FROM user_training_assignments
-                            WHERE course_id = ?
-                        ");
-                        $current_assignments->execute([$course_id]);
-                        $all_current_assignments = $current_assignments->fetchAll(PDO::FETCH_ASSOC);
-
-                        error_log("DEBUG: All current assignments: " . json_encode($all_current_assignments));
-
-                        // Filter out completed assignments
-                        $current_user_ids = [];
-                        foreach ($all_current_assignments as $assignment) {
-                            if ($assignment['status'] !== 'completed') {
-                                $current_user_ids[] = $assignment['user_id'];
-                            }
-                        }
-
-                        error_log("DEBUG: Current non-completed user IDs: " . json_encode($current_user_ids));
-
-                        // Find users to unassign (currently assigned but not in new selection)
-                        $users_to_unassign = array_diff($current_user_ids, $user_ids);
-                        error_log("DEBUG: Users to unassign: " . json_encode($users_to_unassign));
-
-                        // Find users to assign (in new selection but not currently assigned)
-                        $users_to_assign = array_diff($user_ids, $current_user_ids);
-                        error_log("DEBUG: Users to assign: " . json_encode($users_to_assign));
-                        file_put_contents(__DIR__ . '/assignment_debug.log', date('Y-m-d H:i:s') . " - Users to assign: " . json_encode($users_to_assign) . "\n", FILE_APPEND | LOCK_EX);
-
-                        $assigned_count = 0;
-                        $unassigned_count = 0;
-
-                        // Assign new users
-                        if (!empty($users_to_assign)) {
-                            error_log("DEBUG: Attempting to assign users: " . json_encode($users_to_assign));
-                            error_log("DEBUG: Session user_id in assignment: " . ($_SESSION['user_id'] ?? 'NOT SET'));
-                            file_put_contents(__DIR__ . '/assignment_debug.log', date('Y-m-d H:i:s') . " - Calling assign_course_to_users function\n", FILE_APPEND | LOCK_EX);
-
-                            $assigned_count = assign_course_to_users($pdo, $course_id, $users_to_assign, $_SESSION['user_id']);
-                            error_log("DEBUG: Assigned count: $assigned_count");
-                            file_put_contents(__DIR__ . '/assignment_debug.log', date('Y-m-d H:i:s') . " - Function returned: $assigned_count\n", FILE_APPEND | LOCK_EX);
-                        } else {
-                            error_log("DEBUG: No new users to assign - users_to_assign is empty");
-                            file_put_contents(__DIR__ . '/assignment_debug.log', date('Y-m-d H:i:s') . " - SKIPPING: No new users to assign\n", FILE_APPEND | LOCK_EX);
-                        }
-
-                        // Unassign users who were deselected
-                        if (!empty($users_to_unassign)) {
-                            error_log("DEBUG: Attempting to unassign users: " . json_encode($users_to_unassign));
-                            $unassign_stmt = $pdo->prepare("
-                                DELETE FROM user_training_assignments
-                                WHERE course_id = ? AND user_id = ? AND status != 'completed'
-                            ");
-
-                            foreach ($users_to_unassign as $user_id) {
-                                error_log("DEBUG: Unassigning user ID: $user_id from course ID: $course_id");
-                                $unassign_stmt->execute([$course_id, $user_id]);
-                                $rows_affected = $unassign_stmt->rowCount();
-                                error_log("DEBUG: Rows affected for user $user_id: $rows_affected");
-                                if ($rows_affected > 0) {
-                                    $unassigned_count++;
-                                }
-                            }
-                            error_log("DEBUG: Total unassigned count: $unassigned_count");
-                        }
-
-                        // Build success message
-                        $message_parts = [];
-                        if ($assigned_count > 0) {
-                            $message_parts[] = "assigned to {$assigned_count} user(s)";
-                        }
-                        if ($unassigned_count > 0) {
-                            $message_parts[] = "unassigned from {$unassigned_count} user(s)";
-                        }
-
-                        if (!empty($message_parts)) {
-                            $success_message = 'Course ' . implode(' and ', $message_parts) . ' successfully!';
-                            error_log("DEBUG: Success message: $success_message");
-                        } else {
-                            $error_message = 'No changes made to user assignments.';
-                            error_log("DEBUG: No changes made - current assignments match new selections");
-                        }
-                    }
-                } catch (PDOException $e) {
-                    $error_message = 'Database error: ' . $e->getMessage();
-                    error_log("DEBUG: Database error: " . $e->getMessage());
-                }
-            }
+            $error_message = 'Direct user assignments have been disabled. Assign courses through departments instead.';
             break;
 
         case 'delete_course':
@@ -302,65 +190,7 @@ try {
     }
 }
 
-// Handle AJAX requests
-if (isset($_GET['action']) && $training_tables_exist) {
-    $action = $_GET['action'];
-
-    if ($action === 'get_assigned_users') {
-        $course_id = isset($_GET['course_id']) ? intval($_GET['course_id']) : 0;
-
-        header('Content-Type: application/json');
-
-        if ($course_id <= 0) {
-            echo json_encode(['success' => false, 'message' => 'Invalid course ID']);
-            exit;
-        }
-
-        try {
-            // Get assigned users for this course with assignment source information
-            $stmt = $pdo->prepare("
-                SELECT
-                    uta.user_id,
-                    uta.assignment_source,
-                    d.name as department_name
-                FROM user_training_assignments uta
-                LEFT JOIN departments d ON uta.department_id = d.id
-                WHERE uta.course_id = ? AND uta.status != 'completed'
-            ");
-            $stmt->execute([$course_id]);
-            $assigned_users = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            // Format the response with source information
-            $formatted_users = [];
-            foreach ($assigned_users as $user) {
-                $source_text = $user['assignment_source'] === 'department'
-                    ? "Assigned via " . htmlspecialchars($user['department_name'])
-                    : "Assigned directly";
-
-                $formatted_users[] = [
-                    'user_id' => (int)$user['user_id'],
-                    'assignment_source' => $user['assignment_source'],
-                    'department_name' => $user['department_name'],
-                    'source_text' => $source_text
-                ];
-            }
-
-            file_put_contents(__DIR__ . '/assignment_debug.log', date('Y-m-d H:i:s') . " - AJAX: Currently assigned users for course $course_id: " . json_encode($formatted_users) . "\n", FILE_APPEND | LOCK_EX);
-
-            echo json_encode([
-                'success' => true,
-                'assigned_users' => $formatted_users
-            ]);
-        } catch (PDOException $e) {
-            file_put_contents(__DIR__ . '/assignment_debug.log', date('Y-m-d H:i:s') . " - AJAX ERROR: " . $e->getMessage() . "\n", FILE_APPEND | LOCK_EX);
-            echo json_encode([
-                'success' => false,
-                'message' => 'Database error: ' . $e->getMessage()
-            ]);
-        }
-        exit;
-    }
-}
+// Handle AJAX requests (none at this time for this page)
 
 // Handle GET requests (like delete)
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && $training_tables_exist && isset($_GET['action'])) {
@@ -430,7 +260,6 @@ try {
 
 // Fetch data
 $courses = [];
-$all_users = [];
 $all_departments = [];
 
 if ($training_tables_exist) {
@@ -519,8 +348,6 @@ if ($training_tables_exist) {
     }
     unset($courseRow);
 
-    // Get all users for assignment using the same approach as category visibility controls
-    $all_users = get_all_users($pdo);
 // --- END REPLACEMENT ---
 
     } catch (PDOException $e) {
@@ -530,31 +357,6 @@ if ($training_tables_exist) {
 
 include __DIR__ . '/../includes/header.php';
 ?>
-
-<style>
-/* Assignment Source Badges */
-.source-badge {
-    display: inline-block;
-    font-size: 11px;
-    padding: 2px 6px;
-    border-radius: 3px;
-    margin-left: 8px;
-    font-weight: 500;
-    white-space: nowrap;
-}
-
-.source-direct {
-    background-color: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
-}
-
-.source-department {
-    background-color: #d1ecf1;
-    color: #0c5460;
-    border: 1px solid #bee5eb;
-}
-</style>
 
 <div class="container">
     <div class="breadcrumb">
@@ -746,7 +548,6 @@ $completion_rate = ($denominator > 0 && $total_posts > 0)
                                         <td style="padding: 12px; text-align: center;">
                                             <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;">
                                                 <button type="button" class="btn btn-sm" style="background: #007bff; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px;" onclick="window.location='manage_course_content.php?course_id=<?php echo $course['id']; ?>'">📚 Content</button>
-                                                <button type="button" class="btn btn-sm" style="background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px;" onclick="showAssignUsersModal(<?php echo $course['id']; ?>, '<?php echo htmlspecialchars($course['name']); ?>')">👥 Assign</button>
                                                 <button type="button" class="btn btn-sm" style="background: #ffc107; color: #212529; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px;" onclick="window.location='edit_course.php?id=<?php echo $course['id']; ?>'">✏️ Edit</button>
                                                 <?php if ((int)$course['assigned_total_users'] === 0): ?>
                                                 <button type="button" class="btn btn-sm" style="background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 11px;" onclick="if(confirm('Are you sure you want to delete this course? This action cannot be undone.')) { window.location='manage_training_courses.php?action=delete_course&course_id=<?php echo $course['id']; ?>'; }">🗑️ Delete</button>
@@ -762,52 +563,6 @@ $completion_rate = ($denominator > 0 && $total_posts > 0)
             </div>
         </div>
     <?php endif; ?>
-
-<!-- Assign Users Modal -->
-<div id="assignUsersModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
-    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 24px; border-radius: 8px; width: 90%; max-width: 600px; max-height: 80vh; overflow-y: auto;">
-        <h3 style="margin: 0 0 16px 0;">👥 Assign Users to Course</h3>
-        <div style="margin-bottom: 16px; padding: 12px; background: #f8f9fa; border-radius: 4px;">
-            <strong>Course:</strong> <span id="assign_course_name"></span>
-        </div>
-
-        <form id="assignUsersForm" method="POST" action="manage_training_courses.php">
-            <input type="hidden" name="action" value="assign_course">
-            <input type="hidden" id="assign_course_id" name="course_id">
-
-            <div style="margin-bottom: 16px;">
-                <label style="display: block; margin-bottom: 8px; font-weight: 500;">Select Users to Assign</label>
-                <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 12px;">
-                    <?php foreach ($all_users as $user): ?>
-                        <label style="display: block; margin-bottom: 8px; cursor: pointer; padding: 4px; border-radius: 3px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f0f0f0'" onmouseout="this.style.backgroundColor='transparent'">
-                            <input
-                                type="checkbox"
-                                name="user_ids[]"
-                                value="<?php echo $user['id']; ?>"
-                                style="margin-right: 8px;"
-                            >
-                            <span style="display: inline-block; width: 12px; height: 12px; background: <?php echo htmlspecialchars($user['color']); ?>; border-radius: 50%; margin-right: 6px; vertical-align: middle;"></span>
-                            <?php echo htmlspecialchars($user['name']); ?>
-                            <span style="color: #666; font-size: 12px; margin-left: 4px;">(ID: <?php echo $user['id']; ?>)</span>
-                        </label>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-
-            <div style="display: flex; gap: 8px; justify-content: space-between; margin-top: 16px; padding-top: 16px; border-top: 1px solid #dee2e6;">
-                <div>
-                    <small style="color: #6c757d;">
-                        💡 Check users to assign, uncheck to remove. Use buttons below to confirm changes.
-                    </small>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <button type="button" onclick="hideAssignUsersModal()" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">Cancel</button>
-                    <button type="submit" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">✅ Apply Changes</button>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -828,67 +583,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
-
-function showAssignUsersModal(courseId, courseName) {
-    document.getElementById('assign_course_name').textContent = courseName;
-    document.getElementById('assign_course_id').value = courseId;
-
-    // Load current user assignments for this course with source information
-    fetch(`manage_training_courses.php?action=get_assigned_users&course_id=${courseId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Clear all checkboxes first and remove any existing source badges
-                const checkboxes = document.querySelectorAll('input[name="user_ids[]"]');
-                checkboxes.forEach(checkbox => {
-                    checkbox.checked = false;
-                    const label = checkbox.closest('label');
-                    const existingBadge = label.querySelector('.source-badge');
-                    if (existingBadge) {
-                        existingBadge.remove();
-                    }
-                });
-
-                // Check boxes for currently assigned users and add source badges
-                data.assigned_users.forEach(user => {
-                    const checkbox = document.querySelector(`input[name="user_ids[]"][value="${user.user_id}"]`);
-                    if (checkbox) {
-                        checkbox.checked = true;
-
-                        // Create source badge
-                        const label = checkbox.closest('label');
-                        const badge = document.createElement('span');
-                        badge.className = `source-badge source-${user.assignment_source}`;
-                        badge.textContent = user.source_text;
-
-                        // Insert badge after the user ID span
-                        const userSpan = label.querySelector('span[style*="color: #666"]');
-                        if (userSpan && userSpan.nextSibling) {
-                            label.insertBefore(badge, userSpan.nextSibling);
-                        } else {
-                            label.appendChild(badge);
-                        }
-                    }
-                });
-            }
-        })
-        .catch(error => {
-            console.error('Error loading assigned users:', error);
-        });
-
-    document.getElementById('assignUsersModal').style.display = 'block';
-}
-
-function hideAssignUsersModal() {
-    document.getElementById('assignUsersModal').style.display = 'none';
-}
-
-// Close modal when clicking outside
-window.onclick = function(event) {
-    if (event.target.id === 'assignUsersModal') {
-        hideAssignUsersModal();
-    }
-}
 
 </script>
 
