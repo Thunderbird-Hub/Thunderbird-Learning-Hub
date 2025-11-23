@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../includes/db_connect.php';
 require_once __DIR__ . '/../includes/user_helpers.php';
+require_once __DIR__ . '/../includes/department_helpers.php';
 
 // Load training helpers if available
 if (file_exists(__DIR__ . '/../includes/training_helpers.php')) {
@@ -137,6 +138,10 @@ if ($post_id <= 0) {
 // Check if visibility columns exist
 $subcategory_visibility_columns_exist = false;
 $category_visibility_columns_exist = false;
+$subcategory_departments_supported = false;
+$category_departments_supported = false;
+$shared_departments_supported = false;
+$user_department_ids = [];
 try {
     $test_query = $pdo->query("SELECT visibility FROM subcategories LIMIT 1");
     $subcategory_visibility_columns_exist = true;
@@ -149,6 +154,32 @@ try {
     $category_visibility_columns_exist = true;
 } catch (PDOException $e) {
     // Category visibility columns don't exist yet
+}
+
+try {
+    $pdo->query("SELECT allowed_departments FROM subcategories LIMIT 1");
+    $subcategory_departments_supported = true;
+} catch (PDOException $e) {
+    $subcategory_departments_supported = false;
+}
+
+try {
+    $pdo->query("SELECT allowed_departments FROM categories LIMIT 1");
+    $category_departments_supported = true;
+} catch (PDOException $e) {
+    $category_departments_supported = false;
+}
+
+try {
+    $pdo->query("SELECT shared_departments FROM posts LIMIT 1");
+    $shared_departments_supported = true;
+} catch (PDOException $e) {
+    $shared_departments_supported = false;
+}
+
+if ($subcategory_departments_supported || $category_departments_supported || $shared_departments_supported) {
+    $user_departments = get_user_departments($pdo, $_SESSION['user_id']);
+    $user_department_ids = array_map('intval', array_column($user_departments, 'id'));
 }
 
 // Fetch post with subcategory and category info and visibility checks
@@ -197,7 +228,52 @@ try {
         $post = $stmt->fetch();
     } elseif ($subcategory_visibility_columns_exist && $category_visibility_columns_exist) {
         // Regular users need visibility and privacy checks
-        $stmt = $pdo->prepare("
+        $category_conditions = ["c.visibility = 'public'"];
+        $category_params = [];
+        $category_checks = ["c.allowed_users LIKE ?", "c.allowed_users IS NULL"];
+        $category_params[] = '%"' . $current_user_id . '"%';
+
+        if ($category_departments_supported) {
+            if (!empty($user_department_ids)) {
+                foreach ($user_department_ids as $dept_id) {
+                    $category_checks[] = "c.allowed_departments LIKE ?";
+                    $category_params[] = '%"' . $dept_id . '"%';
+                }
+            }
+            $category_checks[] = "c.allowed_departments IS NULL";
+        }
+
+        $category_conditions[] = "(c.visibility = 'restricted' AND (" . implode(' OR ', $category_checks) . "))";
+
+        $subcategory_conditions = ["s.visibility = 'public'"];
+        $subcategory_params = [];
+        $subcategory_checks = ["s.allowed_users LIKE ?", "s.allowed_users IS NULL"];
+        $subcategory_params[] = '%"' . $current_user_id . '"%';
+
+        if ($subcategory_departments_supported) {
+            if (!empty($user_department_ids)) {
+                foreach ($user_department_ids as $dept_id) {
+                    $subcategory_checks[] = "s.allowed_departments LIKE ?";
+                    $subcategory_params[] = '%"' . $dept_id . '"%';
+                }
+            }
+            $subcategory_checks[] = "s.allowed_departments IS NULL";
+        }
+
+        $subcategory_conditions[] = "(s.visibility = 'restricted' AND (" . implode(' OR ', $subcategory_checks) . "))";
+
+        $shared_checks = ["p.shared_with LIKE ?"];
+        $shared_params = ['%"' . $current_user_id . '"%'];
+        if ($shared_departments_supported && !empty($user_department_ids)) {
+            foreach ($user_department_ids as $dept_id) {
+                $shared_checks[] = "p.shared_departments LIKE ?";
+                $shared_params[] = '%"' . $dept_id . '"%';
+            }
+        }
+
+        $privacy_conditions = ["p.privacy = 'public'", "p.user_id = ?", "(p.privacy = 'shared' AND (" . implode(' OR ', $shared_checks) . "))"];
+
+        $sql = "
             SELECT
                 p.*,
                 s.name AS subcategory_name,
@@ -211,21 +287,17 @@ try {
             JOIN subcategories s ON p.subcategory_id = s.id
             JOIN categories c ON s.category_id = c.id
             WHERE p.id = ?
-            AND (c.visibility = 'public'
-                 OR (c.visibility = 'restricted' AND (c.allowed_users LIKE ? OR c.allowed_users IS NULL)))
-            AND (s.visibility = 'public'
-                 OR (s.visibility = 'restricted' AND (s.allowed_users LIKE ? OR s.allowed_users IS NULL)))
-            AND (p.privacy = 'public'
-                 OR p.user_id = ?
-                 OR (p.privacy = 'shared' AND p.shared_with LIKE ?))
-        ");
-        $stmt->execute([
-            $post_id,
-            '%"' . $current_user_id . '"%',
-            '%"' . $current_user_id . '"%',
-            $current_user_id,
-            '%"' . $current_user_id . '"%'
-        ]);
+            AND (" . implode(' OR ', $category_conditions) . ")
+            AND (" . implode(' OR ', $subcategory_conditions) . ")
+            AND (" . implode(' OR ', $privacy_conditions) . ")
+        ";
+
+        $params = array_merge([
+            $post_id
+        ], $category_params, $subcategory_params, [$current_user_id], $shared_params);
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
         $post = $stmt->fetch();
     } else {
         // Old database - basic query with just privacy checks

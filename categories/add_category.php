@@ -12,6 +12,7 @@
 require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../includes/db_connect.php';
 require_once __DIR__ . '/../includes/user_helpers.php';
+require_once __DIR__ . '/../includes/department_helpers.php';
 
 $page_title = 'Add Category';
 $error_message = '';
@@ -22,6 +23,8 @@ $is_admin = is_admin();
 $is_super_user = is_super_admin();
 $users_table_exists = false;
 $all_users = [];
+$all_departments = [];
+$departments_column_exists = false;
 
 // Get all users for checkbox selection
 if ($is_admin) {
@@ -32,6 +35,19 @@ if ($is_admin) {
         // No fallback - require database users table
         $all_users = [];
     }
+
+    // Check if departments sharing column exists
+    try {
+        $pdo->query("SELECT allowed_departments FROM categories LIMIT 1");
+        $departments_column_exists = true;
+    } catch (PDOException $e) {
+        $departments_column_exists = false;
+    }
+
+    // Fetch all departments if available
+    if ($departments_column_exists) {
+        $all_departments = get_all_departments($pdo);
+    }
 }
 
 // Handle form submission
@@ -40,6 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $icon = isset($_POST['icon']) ? trim($_POST['icon']) : '';
     $visibility = isset($_POST['visibility']) ? $_POST['visibility'] : 'public';
     $allowed_users_array = isset($_POST['allowed_users']) ? $_POST['allowed_users'] : [];
+    $allowed_departments_array = isset($_POST['allowed_departments']) ? array_map('intval', $_POST['allowed_departments']) : [];
     $visibility_note = isset($_POST['visibility_note']) ? trim($_POST['visibility_note']) : '';
 
     // Validation
@@ -49,8 +66,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error_message = 'Category name must be 255 characters or less.';
     } elseif ($visibility === 'it_only' && !is_super_admin()) {
         $error_message = 'Only Super Admins can set visibility to "Restricted - For IT Only".';
-    } elseif ($visibility === 'restricted' && empty($allowed_users_array)) {
-        $error_message = 'Please select at least one user for restricted visibility.';
+    } elseif ($visibility === 'restricted' && empty($allowed_users_array) && ($departments_column_exists ? empty($allowed_departments_array) : true)) {
+        $error_message = 'Please select at least one user or department for restricted visibility.';
     } else {
         // Prepare visibility data
         $allowed_users_json = null;
@@ -58,14 +75,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $allowed_users_json = json_encode($allowed_users_array);
         }
 
+        $allowed_departments_json = null;
+        if ($departments_column_exists && $visibility === 'restricted' && !empty($allowed_departments_array)) {
+            $allowed_departments_json = json_encode($allowed_departments_array);
+        }
+
         // Insert category
         try {
             if ($is_admin) {
-                $stmt = $pdo->prepare("
-                    INSERT INTO categories (user_id, name, icon, visibility, allowed_users, visibility_note)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ");
-                $stmt->execute([$_SESSION['user_id'], $name, $icon, $visibility, $allowed_users_json, $visibility_note]);
+                if ($departments_column_exists) {
+                    $stmt = $pdo->prepare("
+                        INSERT INTO categories (user_id, name, icon, visibility, allowed_users, allowed_departments, visibility_note)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ");
+                    $stmt->execute([$_SESSION['user_id'], $name, $icon, $visibility, $allowed_users_json, $allowed_departments_json, $visibility_note]);
+                } else {
+                    $stmt = $pdo->prepare("
+                        INSERT INTO categories (user_id, name, icon, visibility, allowed_users, visibility_note)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ");
+                    $stmt->execute([$_SESSION['user_id'], $name, $icon, $visibility, $allowed_users_json, $visibility_note]);
+                }
             } else {
                 $stmt = $pdo->prepare("INSERT INTO categories (user_id, name, icon) VALUES (?, ?, ?)");
                 $stmt->execute([$_SESSION['user_id'], $name, $icon]);
@@ -182,6 +212,32 @@ include __DIR__ . '/../includes/header.php';
                         <div class="form-hint">Select the users who can access this restricted category. These users will be able to see and use this category.</div>
                     </div>
 
+                    <?php if ($departments_column_exists): ?>
+                        <div class="form-group" id="allowed_departments_group" style="display: <?php echo (($_POST['visibility'] ?? 'public') === 'restricted') ? 'block' : 'none'; ?>;">
+                            <label class="form-label">Allowed Departments</label>
+                            <div style="background: white; border: 1px solid #ddd; border-radius: 4px; padding: 12px; max-height: 200px; overflow-y: auto;">
+                                <?php if (empty($all_departments)): ?>
+                                    <div style="color: #999; text-align: center; padding: 20px;">No departments found</div>
+                                <?php else: ?>
+                                    <?php foreach ($all_departments as $department): ?>
+                                        <label style="display: block; margin-bottom: 8px; cursor: pointer; padding: 4px; border-radius: 3px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f0f0f0'" onmouseout="this.style.backgroundColor='transparent'">
+                                            <input
+                                                type="checkbox"
+                                                name="allowed_departments[]"
+                                                value="<?php echo $department['id']; ?>"
+                                                <?php echo (isset($_POST['allowed_departments']) && in_array($department['id'], array_map('intval', $_POST['allowed_departments']))) ? 'checked' : ''; ?>
+                                                style="margin-right: 8px;"
+                                            >
+                                            <?php echo htmlspecialchars($department['name']); ?>
+                                            <span style="color: #666; font-size: 12px; margin-left: 4px;">(Members: <?php echo intval($department['member_count'] ?? 0); ?>)</span>
+                                        </label>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </div>
+                            <div class="form-hint">Share this category with entire departments in addition to specific users.</div>
+                        </div>
+                    <?php endif; ?>
+
                     <div class="form-group">
                         <label for="visibility_note" class="form-label">Visibility Note (Optional)</label>
                         <textarea
@@ -209,11 +265,18 @@ include __DIR__ . '/../includes/header.php';
 function toggleVisibilityOptions() {
     const visibility = document.getElementById('visibility').value;
     const allowedUsersGroup = document.getElementById('allowed_users_group');
+    const allowedDepartmentsGroup = document.getElementById('allowed_departments_group');
 
     if (visibility === 'restricted') {
         allowedUsersGroup.style.display = 'block';
+        if (allowedDepartmentsGroup) {
+            allowedDepartmentsGroup.style.display = 'block';
+        }
     } else {
         allowedUsersGroup.style.display = 'none';
+        if (allowedDepartmentsGroup) {
+            allowedDepartmentsGroup.style.display = 'none';
+        }
     }
 }
 
