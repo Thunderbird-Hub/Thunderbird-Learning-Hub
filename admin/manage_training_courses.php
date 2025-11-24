@@ -408,71 +408,76 @@ include __DIR__ . '/../includes/header.php';
         <?php else: ?>
             <!-- Create New Course Form -->
             <div class="card-content" style="padding: 20px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-                    <h3 style="margin: 0; color: #495057;">➕ Create New Training Course</h3>
-                    <button
-                        type="button"
-                        id="toggleCreateCourse"
-                        style="background: #f8f9fa; color: #495057; border: 1px solid #ced4da; padding: 8px 12px; border-radius: 4px; font-size: 13px; cursor: pointer; min-width: 120px;"
+                <div id="createCourseContainer" style="border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden;">
+                    <div
+                        id="createCourseToggle"
+                        style="padding: 14px 16px; background: #f8f9fa; border-bottom: 1px solid #dee2e6; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px;"
                     >
-                        Show Form ▾
-                    </button>
-                </div>
-
-                <div id="createCoursePanel" style="margin-top: 16px; display: none;">
-                    <form method="POST" action="manage_training_courses.php" style="margin: 0;">
-                        <input type="hidden" name="action" value="create_course">
-
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span style="font-size: 18px;">➕</span>
                             <div>
-                                <label style="display: block; margin-bottom: 4px; font-weight: 500; color: #495057;">
-                                    Course Name <span style="color: #dc3545;">*</span>
-                                </label>
-                                <input type="text" name="name" required maxlength="255"
-                                       style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
-                                       placeholder="e.g., New Employee Orientation">
-                            </div>
-                            <div>
-                                <label style="display: block; margin-bottom: 4px; font-weight: 500; color: #495057;">
-                                    Department
-                                </label>
-                                <select name="department"
-                                       style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
-                                    <option value="">-- Select Department --</option>
-                                    <?php foreach ($all_departments as $dept): ?>
-                                        <option value="<?php echo htmlspecialchars($dept['id']); ?>">
-                                            <?php echo htmlspecialchars($dept['name']); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
+                                <div style="margin: 0; color: #495057; font-weight: 600;">Create New Training Course</div>
+                                <div style="font-size: 12px; color: #6c757d;">Click anywhere in this bar to expand or collapse</div>
                             </div>
                         </div>
+                        <span id="createCourseArrow" style="font-size: 14px; color: #6c757d;">▼</span>
+                    </div>
 
-                        <div style="margin-bottom: 16px;">
-                            <label style="display: block; margin-bottom: 4px; font-weight: 500; color: #495057;">
-                                Description
-                            </label>
-                            <textarea name="description" rows="3" maxlength="1000"
-                                      style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px; resize: vertical;"
-                                      placeholder="Course description and objectives..."></textarea>
-                        </div>
+                    <div id="createCoursePanel" style="display: none; padding: 16px; background: #fff;">
+                        <form method="POST" action="manage_training_courses.php" style="margin: 0;">
+                            <input type="hidden" name="action" value="create_course">
 
-                        <div style="margin-bottom: 16px;">
-                            <label style="display: block; margin-bottom: 4px; font-weight: 500; color: #495057;">
-                                Estimated Hours
-                            </label>
-                            <input type="number" name="estimated_hours" min="0" max="999.9" step="0.1"
-                                   style="width: 150px; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
-                                   placeholder="0.0">
-                            <span style="margin-left: 8px; color: #6c757d; font-size: 13px;">Optional: Estimated completion time</span>
-                        </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 500; color: #495057;">
+                                        Course Name <span style="color: #dc3545;">*</span>
+                                    </label>
+                                    <input type="text" name="name" required maxlength="255"
+                                           style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+                                           placeholder="e.g., New Employee Orientation">
+                                </div>
+                                <div>
+                                    <label style="display: block; margin-bottom: 4px; font-weight: 500; color: #495057;">
+                                        Department
+                                    </label>
+                                    <select name="department"
+                                           style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;">
+                                        <option value="">-- Select Department --</option>
+                                        <?php foreach ($all_departments as $dept): ?>
+                                            <option value="<?php echo htmlspecialchars($dept['id']); ?>">
+                                                <?php echo htmlspecialchars($dept['name']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                            </div>
 
-                        <div style="text-align: right;">
-                            <button type="submit" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: 500;">
-                                🎓 Create Course
-                            </button>
-                        </div>
-                    </form>
+                            <div style="margin-bottom: 16px;">
+                                <label style="display: block; margin-bottom: 4px; font-weight: 500; color: #495057;">
+                                    Description
+                                </label>
+                                <textarea name="description" rows="3" maxlength="1000"
+                                          style="width: 100%; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px; resize: vertical;"
+                                          placeholder="Course description and objectives..."></textarea>
+                            </div>
+
+                            <div style="margin-bottom: 16px;">
+                                <label style="display: block; margin-bottom: 4px; font-weight: 500; color: #495057;">
+                                    Estimated Hours
+                                </label>
+                                <input type="number" name="estimated_hours" min="0" max="999.9" step="0.1"
+                                       style="width: 150px; padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;"
+                                       placeholder="0.0">
+                                <span style="margin-left: 8px; color: #6c757d; font-size: 13px;">Optional: Estimated completion time</span>
+                            </div>
+
+                            <div style="text-align: right;">
+                                <button type="submit" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: 500;">
+                                    🎓 Create Course
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         <?php endif; ?>
@@ -575,20 +580,21 @@ $completion_rate = ($denominator > 0 && $total_posts > 0)
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const toggleBtn = document.getElementById('toggleCreateCourse');
+    const toggleBar = document.getElementById('createCourseToggle');
     const panel = document.getElementById('createCoursePanel');
+    const arrow = document.getElementById('createCourseArrow');
 
-    if (toggleBtn && panel) {
-        const setButtonLabel = (isOpen) => {
-            toggleBtn.textContent = isOpen ? 'Hide Form ▴' : 'Show Form ▾';
+    if (toggleBar && panel && arrow) {
+        const setState = (isOpen) => {
+            panel.style.display = isOpen ? 'block' : 'none';
+            arrow.textContent = isOpen ? '▲' : '▼';
         };
 
-        setButtonLabel(false);
+        setState(false);
 
-        toggleBtn.addEventListener('click', function() {
+        toggleBar.addEventListener('click', function() {
             const shouldOpen = panel.style.display === 'none';
-            panel.style.display = shouldOpen ? 'block' : 'none';
-            setButtonLabel(shouldOpen);
+            setState(shouldOpen);
         });
     }
 });
