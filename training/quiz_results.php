@@ -192,26 +192,33 @@ if (!$attempt) {
                    uqa.selected_choice_id, uqa.is_correct, uqa.points_earned,
                    qac.choice_text, qac.is_correct as correct_answer
             FROM quiz_questions qq
-            JOIN user_quiz_answers uqa ON qq.id = uqa.question_id
-            JOIN quiz_answer_choices qac ON uqa.selected_choice_id = qac.id
-            WHERE qq.quiz_id = ? AND uqa.attempt_id = ?
+            LEFT JOIN user_quiz_answers uqa
+              ON qq.id = uqa.question_id
+             AND uqa.attempt_id = ?
+            LEFT JOIN quiz_answer_choices qac ON uqa.selected_choice_id = qac.id
+            WHERE qq.quiz_id = ?
             ORDER BY qq.question_order, qq.id
         ");
-        $stmt->execute([$attempt['quiz_id'], $attempt_id]);
+        $stmt->execute([$attempt_id, $attempt['quiz_id']]);
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // Group by question
         foreach ($results as $row) {
             $question_id = $row['id'];
             if (!isset($questions[$question_id])) {
+                $user_choice_text = $row['choice_text'] ?? '';
+                if ($user_choice_text === null || $user_choice_text === '') {
+                    $user_choice_text = 'No answer submitted';
+                }
+
                 $questions[$question_id] = [
                     'id' => $row['id'],
                     'question_text' => $row['question_text'],
                     'points' => $row['points'],
                     'user_choice' => [
-                        'text' => $row['choice_text'],
-                        'is_correct' => $row['is_correct'],
-                        'points_earned' => $row['points_earned']
+                        'text' => $user_choice_text,
+                        'is_correct' => !empty($row['is_correct']),
+                        'points_earned' => $row['points_earned'] ?? 0
                     ]
                 ];
             }
