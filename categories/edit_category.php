@@ -80,7 +80,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $category) {
     $name = isset($_POST['name']) ? trim($_POST['name']) : '';
     $icon = isset($_POST['icon']) ? trim($_POST['icon']) : '';
     $visibility = isset($_POST['visibility']) ? $_POST['visibility'] : 'public';
-    $allowed_users_array = isset($_POST['allowed_users']) ? $_POST['allowed_users'] : [];
     $allowed_departments_array = isset($_POST['allowed_departments']) ? array_map('intval', $_POST['allowed_departments']) : [];
     $visibility_note = isset($_POST['visibility_note']) ? trim($_POST['visibility_note']) : '';
 
@@ -91,14 +90,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $category) {
         $error_message = 'Category name must be 255 characters or less.';
     } elseif ($visibility === 'it_only' && !is_super_admin()) {
         $error_message = 'Only Super Admins can set visibility to "Restricted - For IT Only".';
-    } elseif ($visibility === 'restricted' && empty($allowed_users_array) && ($departments_column_exists ? empty($allowed_departments_array) : true)) {
-        $error_message = 'Please select at least one user or department for restricted visibility.';
+    } elseif ($visibility === 'restricted' && !$departments_column_exists) {
+        $error_message = 'Department visibility storage is required for restricted visibility. Please add the allowed_departments column.';
+    } elseif ($visibility === 'restricted' && empty($allowed_departments_array)) {
+        $error_message = 'Please select at least one department for restricted visibility.';
     } else {
         // Prepare visibility data
         $allowed_users_json = null;
-        if ($visibility === 'restricted' && !empty($allowed_users_array)) {
-            $allowed_users_json = json_encode($allowed_users_array);
-        }
 
         $allowed_departments_json = null;
         if ($departments_column_exists && $visibility === 'restricted' && !empty($allowed_departments_array)) {
@@ -207,12 +205,6 @@ include __DIR__ . '/../includes/header.php';
 
                 <?php if ($is_admin): ?>
                     <?php
-                    // Decode existing allowed users for pre-selection
-                    $selected_users = [];
-                    if (!empty($category['allowed_users'])) {
-                        $selected_users = json_decode($category['allowed_users'], true) ?? [];
-                    }
-
                     // Decode existing allowed departments for pre-selection
                     $selected_departments = [];
                     if (!empty($category['allowed_departments'])) {
@@ -232,7 +224,7 @@ include __DIR__ . '/../includes/header.php';
                                 $visibility_options = is_super_admin() ? $GLOBALS['VISIBILITY_OPTIONS_ALL'] : $GLOBALS['VISIBILITY_OPTIONS'];
                                 $visibility_labels = [
                                     'public' => '🌐 Public - Everyone can see',
-                                    'restricted' => '👥 Restricted - Only specific users',
+                                    'restricted' => '👥 Restricted - Only specific departments can see this category',
                                     'hidden' => '🚫 Hidden - Only admins can see',
                                     'it_only' => '🔒 Restricted - For IT Only'
                                 ];
@@ -251,31 +243,6 @@ include __DIR__ . '/../includes/header.php';
                                 Department visibility storage isn't available yet. Add the <strong>allowed_departments</strong> column to the <strong>categories</strong> table (see migrations/add_department_visibility_columns.sql) to enable it.
                             </div>
                         <?php endif; ?>
-
-                        <div class="form-group" id="allowed_users_group" style="display: <?php echo (($_POST['visibility'] ?? $category['visibility'] ?? 'public') === 'restricted') ? 'block' : 'none'; ?>;">
-                            <label class="form-label">Allowed Users</label>
-                            <div style="background: white; border: 1px solid #ddd; border-radius: 4px; padding: 12px; max-height: 200px; overflow-y: auto;">
-                                <?php foreach ($all_users as $user): ?>
-                                    <?php
-                                    $is_selected = in_array($user['id'], $selected_users) ||
-                                                   (isset($_POST['allowed_users']) && in_array($user['id'], $_POST['allowed_users']));
-                                    ?>
-                                    <label style="display: block; margin-bottom: 8px; cursor: pointer; padding: 4px; border-radius: 3px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f0f0f0'" onmouseout="this.style.backgroundColor='transparent'">
-                                        <input
-                                            type="checkbox"
-                                            name="allowed_users[]"
-                                            value="<?php echo $user['id']; ?>"
-                                            <?php echo $is_selected ? 'checked' : ''; ?>
-                                            style="margin-right: 8px;"
-                                        >
-                                        <span style="display: inline-block; width: 12px; height: 12px; background: <?php echo htmlspecialchars($user['color']); ?>; border-radius: 50%; margin-right: 6px; vertical-align: middle;"></span>
-                                        <?php echo htmlspecialchars($user['name']); ?>
-                                        <span style="color: #666; font-size: 12px; margin-left: 4px;">(ID: <?php echo $user['id']; ?>)</span>
-                                    </label>
-                                <?php endforeach; ?>
-                            </div>
-                            <div class="form-hint">Select the users who can access this restricted category. These users will be able to see and use this category.</div>
-                        </div>
 
                         <?php if ($departments_column_exists): ?>
                             <div class="form-group" id="allowed_departments_group" style="display: <?php echo (($_POST['visibility'] ?? $category['visibility'] ?? 'public') === 'restricted') ? 'block' : 'none'; ?>;">
@@ -333,20 +300,13 @@ include __DIR__ . '/../includes/header.php';
 <script>
 function toggleVisibilityOptions() {
     const visibility = document.getElementById('visibility').value;
-    const allowedUsersGroup = document.getElementById('allowed_users_group');
     const allowedDepartmentsGroup = document.getElementById('allowed_departments_group');
 
-    if (visibility === 'restricted') {
-        allowedUsersGroup.style.display = 'block';
-        if (allowedDepartmentsGroup) {
-            allowedDepartmentsGroup.style.display = 'block';
-        }
-    } else {
-        allowedUsersGroup.style.display = 'none';
-        if (allowedDepartmentsGroup) {
-            allowedDepartmentsGroup.style.display = 'none';
-        }
+    if (!allowedDepartmentsGroup) {
+        return;
     }
+
+    allowedDepartmentsGroup.style.display = visibility === 'restricted' ? 'block' : 'none';
 }
 
 // Initialize on page load

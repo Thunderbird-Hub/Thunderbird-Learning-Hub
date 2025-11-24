@@ -78,14 +78,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $post) {
     $title = isset($_POST['title']) ? trim($_POST['title']) : '';
     $content = isset($_POST['content']) ? trim($_POST['content']) : '';
     $privacy = isset($_POST['privacy']) ? $_POST['privacy'] : $post['privacy'];
-    $shared_with = isset($_POST['shared_with']) ? $_POST['shared_with'] : json_decode($post['shared_with'] ?: '[]', true);
+    $shared_with = [];
     $shared_departments = isset($_POST['shared_departments']) ? array_map('intval', $_POST['shared_departments']) : ($shared_departments_supported ? (json_decode($post['shared_departments'] ?? '[]', true) ?: []) : []);
     $files_to_delete = isset($_POST['delete_files']) ? $_POST['delete_files'] : [];
 
     // Only allow owner to edit privacy
     if ($post['user_id'] != $_SESSION['user_id']) {
         $privacy = $post['privacy'];
-        $shared_with = json_decode($post['shared_with'] ?: '[]', true);
+        $shared_with = [];
         if ($shared_departments_supported) {
             $shared_departments = json_decode($post['shared_departments'] ?? '[]', true) ?: [];
         }
@@ -98,15 +98,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $post) {
         $error_message = 'Post title must be 500 characters or less.';
     } elseif (empty(strip_tags($content))) {
         $error_message = 'Post content is required.';
-    } elseif ($privacy === 'shared' && empty($shared_with) && ($shared_departments_supported ? empty($shared_departments) : true)) {
-        $error_message = 'Please select at least one user or department to share with.';
+    } elseif ($privacy === 'shared' && !$shared_departments_supported) {
+        $error_message = 'Department sharing is required for shared privacy. Please add the shared_departments column.';
+    } elseif ($privacy === 'shared' && empty($shared_departments)) {
+        $error_message = 'Please select at least one department to share with.';
     } else {
         try {
             // Begin transaction
             $pdo->beginTransaction();
 
             // Prepare shared_with JSON
-            $shared_with_json = ($privacy === 'shared') ? json_encode($shared_with) : null;
+            $shared_with_json = null;
 
             $shared_departments_json = null;
             if ($shared_departments_supported && $privacy === 'shared' && !empty($shared_departments)) {
@@ -355,49 +357,25 @@ include __DIR__ . '/../includes/header.php';
                     <?php endif; ?>
 
                     <div class="form-group" id="shared_users_group" style="display: none;">
-                        <label class="form-label">Share With Users *</label>
+                        <label class="form-label">Share With Departments *</label>
                         <div class="checkbox-group">
-                            <?php
-                            // Get all users from database
-                            try {
-                                $users_stmt = $pdo->query("SELECT id, name, color FROM users WHERE is_active = 1 ORDER BY name ASC");
-                                $db_users = $users_stmt->fetchAll();
-                            } catch (PDOException $e) {
-                                $db_users = [];
-                            }
-
-                            $current_shared = isset($_POST['shared_with']) ? $_POST['shared_with'] : json_decode($post['shared_with'] ?: '[]', true);
-                            foreach ($db_users as $user): ?>
-                                <?php if ($user['id'] != $_SESSION['user_id']): ?>
+                            <?php if (empty($all_departments)): ?>
+                                <div style="color: #999; text-align: center; padding: 10px;">No departments found</div>
+                            <?php else: ?>
+                                <?php
+                                $current_shared_departments = isset($_POST['shared_departments'])
+                                    ? array_map('intval', $_POST['shared_departments'])
+                                    : ($shared_departments ?? []);
+                                ?>
+                                <?php foreach ($all_departments as $department): ?>
                                     <label class="checkbox-label">
-                                        <input type="checkbox" name="shared_with[]" value="<?php echo $user['id']; ?>" <?php echo (in_array($user['id'], $current_shared)) ? 'checked' : ''; ?>>
-                                        <span style="color: <?php echo $user['color']; ?>"><?php echo htmlspecialchars($user['name']); ?></span>
+                                        <input type="checkbox" name="shared_departments[]" value="<?php echo $department['id']; ?>" <?php echo (in_array($department['id'], $current_shared_departments)) ? 'checked' : ''; ?>>
+                                        <?php echo htmlspecialchars($department['name']); ?>
+                                        <span style="color: #666; font-size: 12px; margin-left: 4px;">(Members: <?php echo intval($department['member_count'] ?? 0); ?>)</span>
                                     </label>
-                                <?php endif; ?>
-                            <?php endforeach; ?>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </div>
-
-                        <?php if ($shared_departments_supported): ?>
-                            <label class="form-label" style="margin-top: 12px;">Share With Departments</label>
-                            <div class="checkbox-group">
-                                <?php if (empty($all_departments)): ?>
-                                    <div style="color: #999; text-align: center; padding: 10px;">No departments found</div>
-                                <?php else: ?>
-                                    <?php
-                                    $current_shared_departments = isset($_POST['shared_departments'])
-                                        ? array_map('intval', $_POST['shared_departments'])
-                                        : ($shared_departments ?? []);
-                                    ?>
-                                    <?php foreach ($all_departments as $department): ?>
-                                        <label class="checkbox-label">
-                                            <input type="checkbox" name="shared_departments[]" value="<?php echo $department['id']; ?>" <?php echo (in_array($department['id'], $current_shared_departments)) ? 'checked' : ''; ?>>
-                                            <?php echo htmlspecialchars($department['name']); ?>
-                                            <span style="color: #666; font-size: 12px; margin-left: 4px;">(Members: <?php echo intval($department['member_count'] ?? 0); ?>)</span>
-                                        </label>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </div>
-                        <?php endif; ?>
                     </div>
                 <?php else: ?>
                     <div class="form-group">
@@ -406,27 +384,6 @@ include __DIR__ . '/../includes/header.php';
                             <?php
                             $privacy_label = $GLOBALS['PRIVACY_OPTIONS'][$post['privacy']] ?? $post['privacy'];
                             echo htmlspecialchars($privacy_label);
-                            $shared_names = [];
-                            if ($post['privacy'] === 'shared' && !empty($post['shared_with'])) {
-                                $shared_users = json_decode($post['shared_with'], true);
-                                foreach ($shared_users as $user_id) {
-                                    // Get user from database
-                                    try {
-                                        $user_stmt = $pdo->prepare("SELECT name, color FROM users WHERE id = ? AND is_active = 1");
-                                        $user_stmt->execute([$user_id]);
-                                        $user = $user_stmt->fetch();
-                                        if ($user) {
-                                            $shared_names[] = '<span style="color: ' . $user['color'] . '">' . htmlspecialchars($user['name']) . '</span>';
-                                        }
-                                    } catch (PDOException $e) {
-                                        // Skip if user not found
-                                    }
-                                }
-                                if (!empty($shared_names)) {
-                                    echo ' (shared with: ' . implode(', ', $shared_names) . ')';
-                                }
-                            }
-
                             if ($shared_departments_supported && !empty($post['shared_departments'])) {
                                 $shared_department_ids = json_decode($post['shared_departments'], true) ?: [];
                                 $department_names = [];
@@ -444,8 +401,7 @@ include __DIR__ . '/../includes/header.php';
                                 }
 
                                 if (!empty($department_names)) {
-                                    echo !empty($shared_names) ? '; ' : ' (';
-                                    echo 'departments: ' . implode(', ', $department_names) . ')';
+                                    echo ' (departments: ' . implode(', ', $department_names) . ')';
                                 }
                             }
                             ?>
