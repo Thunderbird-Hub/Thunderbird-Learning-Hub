@@ -59,7 +59,7 @@ function is_super_admin() {
             $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ? AND is_active = 1");
             $stmt->execute([$_SESSION['user_id']]);
             $user = $stmt->fetch();
-            if ($user && strtolower($user['role']) === 'super admin') {
+            if ($user && _normalize_role($user['role']) === 'super_admin') {
                 return true;
             }
         } catch (PDOException $e) {
