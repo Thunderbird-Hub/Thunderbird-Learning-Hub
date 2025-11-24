@@ -58,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $training_tables_exist) {
         case 'create_course':
             $name = isset($_POST['name']) ? trim($_POST['name']) : '';
             $description = isset($_POST['description']) ? trim($_POST['description']) : '';
-            $department = isset($_POST['department']) ? trim($_POST['department']) : '';
+            $department_id = isset($_POST['department']) ? intval($_POST['department']) : 0;
             $estimated_hours = isset($_POST['estimated_hours']) ? floatval($_POST['estimated_hours']) : 0;
 
             // Validation
@@ -69,7 +69,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $training_tables_exist) {
             } elseif ($estimated_hours < 0 || $estimated_hours > 999.9) {
                 $error_message = 'Estimated hours must be between 0 and 999.9.';
             } else {
-                $course_id = create_training_course($pdo, $name, $description, $department, $_SESSION['user_id']);
+                // Store department name (not ID) for display consistency
+                $department_name = '';
+                if ($department_id > 0) {
+                    $dept_info = get_department_by_id($pdo, $department_id);
+                    if ($dept_info) {
+                        $department_name = $dept_info['name'];
+                    }
+                }
+
+                $course_id = create_training_course($pdo, $name, $description, $department_name, $_SESSION['user_id']);
                 if ($course_id) {
                     $success_message = 'Training course created successfully!';
                 } else {
