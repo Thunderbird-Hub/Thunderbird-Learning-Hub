@@ -260,7 +260,7 @@ include __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
-<?php if ($is_super_user): ?>
+<?php if ($is_admin): ?>
 <script>
 function toggleVisibilityOptions() {
     const visibility = document.getElementById('visibility').value;
