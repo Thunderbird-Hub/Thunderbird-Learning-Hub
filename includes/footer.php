@@ -51,6 +51,23 @@
                 <!-- Latest Updates Panel -->
                 <div id="latestUpdatesPanel" class="updates-panel active">
                     <div class="updates-list">
+
+                        <!-- Version 2.6.0 -->
+                        <div class="update-item">
+                            <div class="update-version">v2.6.0</div>
+                            <div class="update-title">Departments!</div>
+                            <div class="update-features">
+                                <div class="feature-item">Departments added</div>
+                                <div class="feature-item">- Category, Subcategory, Post, and training course visibility now limited to departments and not specific users. (May re-add in future if there is a need for it)</div>
+                                <div class="feature-item">- Users can be assigned to multiple departments if needed</div>
+                                <div class="feature-item">- Added retesting periods for training courses</div>
+                                <br>
+                                <div class="feature-item">Still to do:</div>
+                                <div class="feature-item">- Ability to have images in quiz questions</div>
+                            </div>
+                            <div class="update-date">2025-11-25</div>
+                        </div>
+                        
                         <!-- File Structure Overhaul + FTP -->
                         <div class="update-item">
                             <div class="update-version">Side Update</div>
@@ -164,7 +181,7 @@
 
                         <div class="roadmap-section">
                             <div class="roadmap-label roadmap-label-next">Next</div>
-                            <div class="update-version">v2.7.0</div>
+                            <div class="update-version">v2.6.0</div>
                             <ul>
                                 <li>Departments – department-based visibility</li>
                                 <li>Admin-friendly training management improvements</li>
@@ -175,10 +192,8 @@
                             <div class="roadmap-label roadmap-label-later">Later</div>
                             <div class="update-version">v2.7.0+</div>
                             <ul>
-                                <li>2.8.0 Retest periods - For knowledge rentention</li>
-                                <li>2.9.0 Email functionality - Notifying managers / users about training</li>
-                                <li>3.0.0 Landing page overhaul - Menu for different programs</li>
-                                <li>4.0.0 🤫</li> <!-- H&S program -->
+                                <li>2.7.0 Email functionality - Notifying managers / users about training</li>
+                                 
                             </ul>
                         </div>
                     </div>
