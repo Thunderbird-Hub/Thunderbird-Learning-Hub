@@ -13,6 +13,7 @@
 require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../includes/db_connect.php';
 require_once __DIR__ . '/../includes/user_helpers.php';
+require_once __DIR__ . '/../includes/department_helpers.php';
 
 // Load training helpers if available
 if (file_exists(__DIR__ . '/../includes/training_helpers.php')) {
@@ -23,6 +24,8 @@ $page_title = 'Edit Post';
 $error_message = '';
 $post_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $post = null;
+$shared_departments_supported = false;
+$all_departments = [];
 
 if ($post_id <= 0) {
     header('Location: /index.php');
@@ -32,6 +35,13 @@ if ($post_id <= 0) {
 // PERMISSION CHECK: Only admins and super admins can edit posts
 if (!is_admin() && !is_super_admin()) {
     $error_message = 'You do not have permission to edit posts. Only administrators can edit posts.';
+}
+
+// Check if posts table supports department sharing
+$shared_departments_supported = column_exists_in_table($pdo, 'posts', 'shared_departments');
+
+if ($shared_departments_supported) {
+    $all_departments = get_all_departments($pdo);
 }
 
 // Fetch post data
@@ -64,12 +74,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $post) {
     $content = isset($_POST['content']) ? trim($_POST['content']) : '';
     $privacy = isset($_POST['privacy']) ? $_POST['privacy'] : $post['privacy'];
     $shared_with = isset($_POST['shared_with']) ? $_POST['shared_with'] : json_decode($post['shared_with'] ?: '[]', true);
+    $shared_departments = isset($_POST['shared_departments']) ? array_map('intval', $_POST['shared_departments']) : ($shared_departments_supported ? (json_decode($post['shared_departments'] ?? '[]', true) ?: []) : []);
     $files_to_delete = isset($_POST['delete_files']) ? $_POST['delete_files'] : [];
 
     // Only allow owner to edit privacy
     if ($post['user_id'] != $_SESSION['user_id']) {
         $privacy = $post['privacy'];
         $shared_with = json_decode($post['shared_with'] ?: '[]', true);
+        if ($shared_departments_supported) {
+            $shared_departments = json_decode($post['shared_departments'] ?? '[]', true) ?: [];
+        }
     }
 
     // Validation
@@ -79,8 +93,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $post) {
         $error_message = 'Post title must be 500 characters or less.';
     } elseif (empty(strip_tags($content))) {
         $error_message = 'Post content is required.';
-    } elseif ($privacy === 'shared' && empty($shared_with)) {
-        $error_message = 'Please select at least one user to share with.';
+    } elseif ($privacy === 'shared' && empty($shared_with) && ($shared_departments_supported ? empty($shared_departments) : true)) {
+        $error_message = 'Please select at least one user or department to share with.';
     } else {
         try {
             // Begin transaction
@@ -89,9 +103,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $post) {
             // Prepare shared_with JSON
             $shared_with_json = ($privacy === 'shared') ? json_encode($shared_with) : null;
 
+            $shared_departments_json = null;
+            if ($shared_departments_supported && $privacy === 'shared' && !empty($shared_departments)) {
+                $shared_departments_json = json_encode($shared_departments);
+            }
+
             // Update post
-            $stmt = $pdo->prepare("UPDATE posts SET title = ?, content = ?, privacy = ?, shared_with = ?, edited = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-            $stmt->execute([$title, $content, $privacy, $shared_with_json, $post_id]);
+            if ($shared_departments_supported) {
+                $stmt = $pdo->prepare("UPDATE posts SET title = ?, content = ?, privacy = ?, shared_with = ?, shared_departments = ?, edited = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                $stmt->execute([$title, $content, $privacy, $shared_with_json, $shared_departments_json, $post_id]);
+            } else {
+                $stmt = $pdo->prepare("UPDATE posts SET title = ?, content = ?, privacy = ?, shared_with = ?, edited = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                $stmt->execute([$title, $content, $privacy, $shared_with_json, $post_id]);
+            }
 
             // Handle file deletions
             if (!empty($files_to_delete)) {
@@ -319,6 +343,12 @@ include __DIR__ . '/../includes/header.php';
                         </select>
                     </div>
 
+                    <?php if (!$shared_departments_supported): ?>
+                        <div style="background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 10px 12px; border-radius: 4px; margin-bottom: 12px;">
+                            Department sharing isn't available yet. Add the <strong>shared_departments</strong> column to the <strong>posts</strong> table (see migrations/add_department_visibility_columns.sql) to enable it.
+                        </div>
+                    <?php endif; ?>
+
                     <div class="form-group" id="shared_users_group" style="display: none;">
                         <label class="form-label">Share With Users *</label>
                         <div class="checkbox-group">
@@ -341,6 +371,28 @@ include __DIR__ . '/../includes/header.php';
                                 <?php endif; ?>
                             <?php endforeach; ?>
                         </div>
+
+                        <?php if ($shared_departments_supported): ?>
+                            <label class="form-label" style="margin-top: 12px;">Share With Departments</label>
+                            <div class="checkbox-group">
+                                <?php if (empty($all_departments)): ?>
+                                    <div style="color: #999; text-align: center; padding: 10px;">No departments found</div>
+                                <?php else: ?>
+                                    <?php
+                                    $current_shared_departments = isset($_POST['shared_departments'])
+                                        ? array_map('intval', $_POST['shared_departments'])
+                                        : ($shared_departments ?? []);
+                                    ?>
+                                    <?php foreach ($all_departments as $department): ?>
+                                        <label class="checkbox-label">
+                                            <input type="checkbox" name="shared_departments[]" value="<?php echo $department['id']; ?>" <?php echo (in_array($department['id'], $current_shared_departments)) ? 'checked' : ''; ?>>
+                                            <?php echo htmlspecialchars($department['name']); ?>
+                                            <span style="color: #666; font-size: 12px; margin-left: 4px;">(Members: <?php echo intval($department['member_count'] ?? 0); ?>)</span>
+                                        </label>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 <?php else: ?>
                     <div class="form-group">
@@ -349,9 +401,9 @@ include __DIR__ . '/../includes/header.php';
                             <?php
                             $privacy_label = $GLOBALS['PRIVACY_OPTIONS'][$post['privacy']] ?? $post['privacy'];
                             echo htmlspecialchars($privacy_label);
+                            $shared_names = [];
                             if ($post['privacy'] === 'shared' && !empty($post['shared_with'])) {
                                 $shared_users = json_decode($post['shared_with'], true);
-                                $shared_names = [];
                                 foreach ($shared_users as $user_id) {
                                     // Get user from database
                                     try {
@@ -367,6 +419,28 @@ include __DIR__ . '/../includes/header.php';
                                 }
                                 if (!empty($shared_names)) {
                                     echo ' (shared with: ' . implode(', ', $shared_names) . ')';
+                                }
+                            }
+
+                            if ($shared_departments_supported && !empty($post['shared_departments'])) {
+                                $shared_department_ids = json_decode($post['shared_departments'], true) ?: [];
+                                $department_names = [];
+                                foreach ($shared_department_ids as $dept_id) {
+                                    try {
+                                        $dept_stmt = $pdo->prepare("SELECT name FROM departments WHERE id = ?");
+                                        $dept_stmt->execute([$dept_id]);
+                                        $dept = $dept_stmt->fetch();
+                                        if ($dept) {
+                                            $department_names[] = htmlspecialchars($dept['name']);
+                                        }
+                                    } catch (PDOException $e) {
+                                        // Skip missing department
+                                    }
+                                }
+
+                                if (!empty($department_names)) {
+                                    echo !empty($shared_names) ? '; ' : ' (';
+                                    echo 'departments: ' . implode(', ', $department_names) . ')';
                                 }
                             }
                             ?>

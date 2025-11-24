@@ -12,6 +12,7 @@
 require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../includes/db_connect.php';
 require_once __DIR__ . '/../includes/user_helpers.php';
+require_once __DIR__ . '/../includes/department_helpers.php';
 
 $page_title = 'Add Subcategory';
 $error_message = '';
@@ -51,6 +52,8 @@ try {
 // Check if visibility columns exist and get users for checkboxes
 $users_table_exists = false;
 $all_users = [];
+$departments_column_exists = false;
+$all_departments = [];
 
 if ($visibility_columns_exist) {
     $users_table_exists = users_table_exists($pdo);
@@ -59,6 +62,13 @@ if ($visibility_columns_exist) {
     } else {
         // No fallback - require database users table
         $all_users = [];
+    }
+
+    // Check if department visibility column exists for subcategories
+    $departments_column_exists = column_exists_in_table($pdo, 'subcategories', 'allowed_departments');
+
+    if ($departments_column_exists) {
+        $all_departments = get_all_departments($pdo);
     }
 }
 
@@ -70,6 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Visibility fields (only if columns exist)
     $visibility = isset($_POST['visibility']) ? $_POST['visibility'] : 'public';
     $allowed_users_array = isset($_POST['allowed_users']) ? $_POST['allowed_users'] : [];
+    $allowed_departments_array = isset($_POST['allowed_departments']) ? array_map('intval', $_POST['allowed_departments']) : [];
     $visibility_note = isset($_POST['visibility_note']) ? trim($_POST['visibility_note']) : '';
 
     // Validation
@@ -84,6 +95,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($visibility_columns_exist && $visibility === 'restricted') {
         // For restricted subcategories, always include the creator
         $allowed_users_array = array_unique(array_merge([$_SESSION['user_id']], $allowed_users_array));
+        if (empty($allowed_users_array) && ($departments_column_exists ? empty($allowed_departments_array) : true)) {
+            $error_message = 'Please select at least one user or department for restricted visibility.';
+        }
     } else {
         // Verify category exists
         try {
@@ -99,8 +113,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Process allowed users
                     $allowed_users_json = !empty($allowed_users_array) ? json_encode($allowed_users_array) : null;
 
-                    $stmt = $pdo->prepare("INSERT INTO subcategories (category_id, user_id, name, visibility, allowed_users, visibility_note) VALUES (?, ?, ?, ?, ?, ?)");
-                    $stmt->execute([$category_id, $_SESSION['user_id'], $name, $visibility, $allowed_users_json, $visibility_note]);
+                    $allowed_departments_json = null;
+                    if ($departments_column_exists && !empty($allowed_departments_array)) {
+                        $allowed_departments_json = json_encode($allowed_departments_array);
+                    }
+
+                    if ($departments_column_exists) {
+                        $stmt = $pdo->prepare("INSERT INTO subcategories (category_id, user_id, name, visibility, allowed_users, allowed_departments, visibility_note) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                        $stmt->execute([$category_id, $_SESSION['user_id'], $name, $visibility, $allowed_users_json, $allowed_departments_json, $visibility_note]);
+                    } else {
+                        $stmt = $pdo->prepare("INSERT INTO subcategories (category_id, user_id, name, visibility, allowed_users, visibility_note) VALUES (?, ?, ?, ?, ?, ?)");
+                        $stmt->execute([$category_id, $_SESSION['user_id'], $name, $visibility, $allowed_users_json, $visibility_note]);
+                    }
                 } else {
                     // Old database - insert without visibility fields
                     $stmt = $pdo->prepare("INSERT INTO subcategories (category_id, user_id, name) VALUES (?, ?, ?)");
@@ -179,6 +203,11 @@ include __DIR__ . '/../includes/header.php';
                 </div>
 
                 <?php if ($visibility_columns_exist): ?>
+                    <?php if (!$departments_column_exists): ?>
+                        <div style="background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 10px 12px; border-radius: 4px; margin-bottom: 12px;">
+                            Department visibility storage isn't available yet. Add the <strong>allowed_departments</strong> column to the <strong>subcategories</strong> table (see migrations/add_department_visibility_columns.sql) to enable it.
+                        </div>
+                    <?php endif; ?>
                     <div class="form-group">
                         <label for="visibility" class="form-label">Visibility *</label>
                         <select id="visibility" name="visibility" class="form-select" required onchange="toggleAllowedUsers()">
@@ -247,6 +276,32 @@ include __DIR__ . '/../includes/header.php';
                         <div class="form-hint">Select the users who can access this restricted subcategory. These users will be able to see and use this subcategory.</div>
                     </div>
 
+                    <?php if ($departments_column_exists): ?>
+                        <div class="form-group" id="allowed_departments_group" style="display: <?php echo (isset($_POST['visibility']) && $_POST['visibility'] == 'restricted') ? 'block' : 'none'; ?>;">
+                            <label class="form-label">Allowed Departments</label>
+                            <div style="background: white; border: 1px solid #ddd; border-radius: 4px; padding: 12px; max-height: 200px; overflow-y: auto;">
+                                <?php if (empty($all_departments)): ?>
+                                    <div style="color: #999; text-align: center; padding: 20px;">No departments found</div>
+                                <?php else: ?>
+                                    <?php foreach ($all_departments as $department): ?>
+                                        <label style="display: block; margin-bottom: 8px; cursor: pointer; padding: 4px; border-radius: 3px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f0f0f0'" onmouseout="this.style.backgroundColor='transparent'">
+                                            <input
+                                                type="checkbox"
+                                                name="allowed_departments[]"
+                                                value="<?php echo $department['id']; ?>"
+                                                <?php echo (isset($_POST['allowed_departments']) && in_array($department['id'], array_map('intval', $_POST['allowed_departments']))) ? 'checked' : ''; ?>
+                                                style="margin-right: 8px;"
+                                            >
+                                            <?php echo htmlspecialchars($department['name']); ?>
+                                            <span style="color: #666; font-size: 12px; margin-left: 4px;">(Members: <?php echo intval($department['member_count'] ?? 0); ?>)</span>
+                                        </label>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </div>
+                            <div class="form-hint">Share this subcategory with entire departments as well as specific users.</div>
+                        </div>
+                    <?php endif; ?>
+
                     <div class="form-group">
                         <label for="visibility_note" class="form-label">Visibility Note</label>
                         <textarea
@@ -302,11 +357,18 @@ function updateVisibilityFromCategory() {
 function toggleAllowedUsers() {
     var visibility = document.getElementById('visibility').value;
     var allowedUsersGroup = document.getElementById('allowed_users_group');
+    var allowedDepartmentsGroup = document.getElementById('allowed_departments_group');
 
     if (visibility === 'restricted') {
         allowedUsersGroup.style.display = 'block';
+        if (allowedDepartmentsGroup) {
+            allowedDepartmentsGroup.style.display = 'block';
+        }
     } else {
         allowedUsersGroup.style.display = 'none';
+        if (allowedDepartmentsGroup) {
+            allowedDepartmentsGroup.style.display = 'none';
+        }
     }
 }
 
