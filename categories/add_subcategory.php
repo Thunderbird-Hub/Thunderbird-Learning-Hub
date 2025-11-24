@@ -208,6 +208,11 @@ include __DIR__ . '/../includes/header.php';
                 </div>
 
                 <?php if ($visibility_columns_exist): ?>
+                    <?php if (!$departments_column_exists): ?>
+                        <div style="background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 10px 12px; border-radius: 4px; margin-bottom: 12px;">
+                            Department visibility storage isn't available yet. Add the <strong>allowed_departments</strong> column to the <strong>subcategories</strong> table (see migrations/add_department_visibility_columns.sql) to enable it.
+                        </div>
+                    <?php endif; ?>
                     <div class="form-group">
                         <label for="visibility" class="form-label">Visibility *</label>
                         <select id="visibility" name="visibility" class="form-select" required onchange="toggleAllowedUsers()">

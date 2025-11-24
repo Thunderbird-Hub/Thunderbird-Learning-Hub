@@ -250,6 +250,12 @@ include __DIR__ . '/../includes/header.php';
                         <div class="form-hint">Control who can see this subcategory</div>
                     </div>
 
+                    <?php if (!$departments_column_exists): ?>
+                        <div style="background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 10px 12px; border-radius: 4px; margin-bottom: 12px;">
+                            Department visibility storage isn't available yet. Add the <strong>allowed_departments</strong> column to the <strong>subcategories</strong> table (see migrations/add_department_visibility_columns.sql) to enable it.
+                        </div>
+                    <?php endif; ?>
+
                     <div class="form-group" id="allowed_users_group" style="display: <?php echo ((isset($_POST['visibility']) ? $_POST['visibility'] : $subcategory['visibility']) == 'restricted') ? 'block' : 'none'; ?>;">
                         <label class="form-label">Allowed Users</label>
                               <div style="background: white; border: 1px solid #ddd; border-radius: 4px; padding: 12px; max-height: 200px; overflow-y: auto;">

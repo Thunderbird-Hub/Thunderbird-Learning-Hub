@@ -17,6 +17,20 @@ if (!isset($pdo) || !$pdo) {
     require_once __DIR__ . '/db_connect.php';
 }
 
+/**
+ * Check if a column exists on the current database
+ */
+function column_exists_in_table($pdo, $table, $column) {
+    try {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?");
+        $stmt->execute([$table, $column]);
+        return $stmt->fetchColumn() > 0;
+    } catch (PDOException $e) {
+        error_log("Column existence check failed for {$table}.{$column}: " . $e->getMessage());
+        return false;
+    }
+}
+
 // ============================================================
 // DEPARTMENT CRUD FUNCTIONS
 // ============================================================

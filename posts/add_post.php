@@ -367,6 +367,12 @@ include __DIR__ . '/../includes/header.php';
                     ?> (matching subcategory visibility)</div>
                 </div>
 
+                <?php if (!$shared_departments_supported): ?>
+                    <div style="background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 10px 12px; border-radius: 4px; margin-bottom: 12px;">
+                        Department sharing isn't available yet. Add the <strong>shared_departments</strong> column to the <strong>posts</strong> table (see migrations/add_department_visibility_columns.sql) to enable it.
+                    </div>
+                <?php endif; ?>
+
                 <div class="form-group" id="shared_users_group" style="display: none;">
                     <label class="form-label">Share With Users *</label>
                     <div class="checkbox-group">

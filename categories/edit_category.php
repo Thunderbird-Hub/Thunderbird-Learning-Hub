@@ -224,8 +224,8 @@ include __DIR__ . '/../includes/header.php';
                             🔐 Visibility Controls (Admin Only)
                         </h3>
 
-                        <div class="form-group">
-                            <label for="visibility" class="form-label">Visibility</label>
+                    <div class="form-group">
+                        <label for="visibility" class="form-label">Visibility</label>
                             <select id="visibility" name="visibility" class="form-input" onchange="toggleVisibilityOptions()">
                                 <?php
                                 // Use all options for Super Admins, regular options for others
@@ -245,6 +245,12 @@ include __DIR__ . '/../includes/header.php';
                             </select>
                             <div class="form-hint">Control who can see this category</div>
                         </div>
+
+                        <?php if (!$departments_column_exists): ?>
+                            <div style="background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 10px 12px; border-radius: 4px; margin-bottom: 12px;">
+                                Department visibility storage isn't available yet. Add the <strong>allowed_departments</strong> column to the <strong>categories</strong> table (see migrations/add_department_visibility_columns.sql) to enable it.
+                            </div>
+                        <?php endif; ?>
 
                         <div class="form-group" id="allowed_users_group" style="display: <?php echo (($_POST['visibility'] ?? $category['visibility'] ?? 'public') === 'restricted') ? 'block' : 'none'; ?>;">
                             <label class="form-label">Allowed Users</label>
