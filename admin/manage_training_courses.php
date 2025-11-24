@@ -78,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $training_tables_exist) {
                     }
                 }
 
-                $course_id = create_training_course($pdo, $name, $description, $department_name, $_SESSION['user_id']);
+                $course_id = create_training_course($pdo, $name, $description, $department_name, $_SESSION['user_id'], $estimated_hours);
                 if ($course_id) {
                     $success_message = 'Training course created successfully!';
                 } else {
