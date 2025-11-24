@@ -49,21 +49,11 @@ try {
     $visibility_columns_exist = false;
 }
 
-// Check if visibility columns exist and get users for checkboxes
-$users_table_exists = false;
-$all_users = [];
+// Check if visibility columns exist and get departments for checkboxes
 $departments_column_exists = false;
 $all_departments = [];
 
 if ($visibility_columns_exist) {
-    $users_table_exists = users_table_exists($pdo);
-    if ($users_table_exists) {
-        $all_users = get_all_users($pdo);
-    } else {
-        // No fallback - require database users table
-        $all_users = [];
-    }
-
     // Check if department visibility column exists for subcategories
     try {
         $pdo->query("SELECT allowed_departments FROM subcategories LIMIT 1");
@@ -84,7 +74,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Visibility fields (only if columns exist)
     $visibility = isset($_POST['visibility']) ? $_POST['visibility'] : 'public';
-    $allowed_users_array = isset($_POST['allowed_users']) ? $_POST['allowed_users'] : [];
     $allowed_departments_array = isset($_POST['allowed_departments']) ? array_map('intval', $_POST['allowed_departments']) : [];
     $visibility_note = isset($_POST['visibility_note']) ? trim($_POST['visibility_note']) : '';
 
@@ -97,12 +86,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error_message = 'Please select a parent category.';
     } elseif ($visibility_columns_exist && $visibility === 'it_only' && !is_super_admin()) {
         $error_message = 'Only Super Admins can set visibility to "Restricted - For IT Only".';
-    } elseif ($visibility_columns_exist && $visibility === 'restricted') {
-        // For restricted subcategories, always include the creator
-        $allowed_users_array = array_unique(array_merge([$_SESSION['user_id']], $allowed_users_array));
-        if (empty($allowed_users_array) && ($departments_column_exists ? empty($allowed_departments_array) : true)) {
-            $error_message = 'Please select at least one user or department for restricted visibility.';
-        }
+    } elseif ($visibility_columns_exist && $visibility === 'restricted' && !$departments_column_exists) {
+        $error_message = 'Department visibility storage is required for restricted visibility. Please add the allowed_departments column.';
+    } elseif ($visibility_columns_exist && $visibility === 'restricted' && empty($allowed_departments_array)) {
+        $error_message = 'Please select at least one department for restricted visibility.';
     } else {
         // Verify category exists
         try {
@@ -115,8 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 // Insert subcategory
                 if ($visibility_columns_exist) {
-                    // Process allowed users
-                    $allowed_users_json = !empty($allowed_users_array) ? json_encode($allowed_users_array) : null;
+                    $allowed_users_json = null;
 
                     $allowed_departments_json = null;
                     if ($departments_column_exists && !empty($allowed_departments_array)) {
@@ -221,7 +207,7 @@ include __DIR__ . '/../includes/header.php';
                             $visibility_options = is_super_admin() ? $GLOBALS['VISIBILITY_OPTIONS_ALL'] : $GLOBALS['VISIBILITY_OPTIONS'];
                             $visibility_labels = [
                                 'public' => '🌐 Public - Everyone can see this subcategory',
-                                'restricted' => '👥 Restricted - Only specific users can see this subcategory',
+                                'restricted' => '👥 Restricted - Only specific departments can see this subcategory',
                                 'hidden' => '🚫 Hidden - Nobody can see this subcategory (for archiving)',
                                 'it_only' => '🔒 Restricted - For IT Only'
                             ];
@@ -237,48 +223,6 @@ include __DIR__ . '/../includes/header.php';
                             <?php endforeach; ?>
                         </select>
                         <div class="form-hint">Control who can see this subcategory (defaults to parent category's visibility)</div>
-                    </div>
-
-                    <div class="form-group" id="allowed_users_group" style="display: <?php echo (isset($_POST['visibility']) && $_POST['visibility'] == 'restricted') ? 'block' : 'none'; ?>;">
-                        <label class="form-label">Allowed Users</label>
-                            <div style="background: white; border: 1px solid #ddd; border-radius: 4px; padding: 12px; max-height: 200px; overflow-y: auto;">
-                            <?php if (empty($all_users)): ?>
-                                <div style="color: #999; text-align: center; padding: 20px;">No users found in database</div>
-                            <?php else: ?>
-                                <?php
-                                $current_user_id = $_SESSION['user_id'];
-                                $other_users = array_filter($all_users, function($user) use ($current_user_id) {
-                                    return $user['id'] != $current_user_id;
-                                });
-                                ?>
-
-                                <?php if (empty($other_users)): ?>
-                                    <div style="color: #999; text-align: center; padding: 20px;">
-                                        <div style="font-weight: 500; margin-bottom: 8px;">👤 You automatically have access</div>
-                                        <div style="font-size: 12px;">No other users available to share with</div>
-                                    </div>
-                                <?php else: ?>
-                                    <div style="background: #e8f5e8; border-left: 4px solid #28a745; padding: 8px; margin-bottom: 12px; font-size: 12px; color: #155724;">
-                                        👤 You automatically have access as the creator. Select additional users to share with:
-                                    </div>
-                                    <?php foreach ($other_users as $user): ?>
-                                    <label style="display: block; margin-bottom: 8px; cursor: pointer; padding: 4px; border-radius: 3px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f0f0f0'" onmouseout="this.style.backgroundColor='transparent'">
-                                        <input
-                                            type="checkbox"
-                                            name="allowed_users[]"
-                                            value="<?php echo $user['id']; ?>"
-                                            <?php echo (isset($_POST['allowed_users']) && in_array($user['id'], $_POST['allowed_users'])) ? 'checked' : ''; ?>
-                                            style="margin-right: 8px;"
-                                        >
-                                        <span style="display: inline-block; width: 12px; height: 12px; background: <?php echo htmlspecialchars($user['color']); ?>; border-radius: 50%; margin-right: 6px; vertical-align: middle;"></span>
-                                        <?php echo htmlspecialchars($user['name']); ?>
-                                        <span style="color: #666; font-size: 12px; margin-left: 4px;">(ID: <?php echo $user['id']; ?>)</span>
-                                    </label>
-                                <?php endforeach; ?>
-                                <?php endif; ?>
-                            <?php endif; ?>
-                        </div>
-                        <div class="form-hint">Select the users who can access this restricted subcategory. These users will be able to see and use this subcategory.</div>
                     </div>
 
                     <?php if ($departments_column_exists): ?>
@@ -361,20 +305,13 @@ function updateVisibilityFromCategory() {
 
 function toggleAllowedUsers() {
     var visibility = document.getElementById('visibility').value;
-    var allowedUsersGroup = document.getElementById('allowed_users_group');
     var allowedDepartmentsGroup = document.getElementById('allowed_departments_group');
 
-    if (visibility === 'restricted') {
-        allowedUsersGroup.style.display = 'block';
-        if (allowedDepartmentsGroup) {
-            allowedDepartmentsGroup.style.display = 'block';
-        }
-    } else {
-        allowedUsersGroup.style.display = 'none';
-        if (allowedDepartmentsGroup) {
-            allowedDepartmentsGroup.style.display = 'none';
-        }
+    if (!allowedDepartmentsGroup) {
+        return;
     }
+
+    allowedDepartmentsGroup.style.display = visibility === 'restricted' ? 'block' : 'none';
 }
 
 // Mark visibility as manually set when user changes it
