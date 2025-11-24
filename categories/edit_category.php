@@ -44,7 +44,12 @@ if ($is_admin) {
     }
 
     // Check if departments sharing column exists
-    $departments_column_exists = column_exists_in_table($pdo, 'categories', 'allowed_departments');
+    try {
+        $pdo->query("SELECT allowed_departments FROM categories LIMIT 1");
+        $departments_column_exists = true;
+    } catch (PDOException $e) {
+        $departments_column_exists = false;
+    }
 
     // Fetch all departments if available
     if ($departments_column_exists) {

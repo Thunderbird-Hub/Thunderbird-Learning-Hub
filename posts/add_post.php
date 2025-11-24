@@ -64,7 +64,13 @@ try {
 }
 
 // Check if posts table supports department sharing
-$shared_departments_supported = column_exists_in_table($pdo, 'posts', 'shared_departments');
+$shared_departments_supported = false;
+try {
+    $pdo->query("SELECT shared_departments FROM posts LIMIT 1");
+    $shared_departments_supported = true;
+} catch (PDOException $e) {
+    $shared_departments_supported = false;
+}
 
 $all_departments = $shared_departments_supported ? get_all_departments($pdo) : [];
 

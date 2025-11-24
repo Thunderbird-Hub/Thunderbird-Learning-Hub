@@ -55,7 +55,12 @@ if ($visibility_columns_exist) {
     }
 
     // Check if department visibility column exists for subcategories
-    $departments_column_exists = column_exists_in_table($pdo, 'subcategories', 'allowed_departments');
+    try {
+        $pdo->query("SELECT allowed_departments FROM subcategories LIMIT 1");
+        $departments_column_exists = true;
+    } catch (PDOException $e) {
+        $departments_column_exists = false;
+    }
 
     if ($departments_column_exists) {
         $all_departments = get_all_departments($pdo);

@@ -1,0 +1,2 @@
+This dbsnapshots folder holds snapshots of the DB for help with code. it will be called snapshot {date} as an e.g. snapshot 24.11.25
+you need to make sure, if you need to view the database snapshots, always ask whether its the most up to date version and if so then use it.
