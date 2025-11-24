@@ -385,15 +385,16 @@ function can_access_content($pdo, $content_id, $content_type, $user_id = null) {
  * @param string $description Course description
  * @param string $department Department (optional)
  * @param int $created_by User ID of creator
+ * @param float $estimated_hours Estimated hours to complete the course
  * @return int Course ID or false on failure
  */
-function create_training_course($pdo, $name, $description, $department, $created_by) {
+function create_training_course($pdo, $name, $description, $department, $created_by, $estimated_hours = 0) {
     try {
         $stmt = $pdo->prepare("
-            INSERT INTO training_courses (name, description, department, created_by)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO training_courses (name, description, department, estimated_hours, created_by)
+            VALUES (?, ?, ?, ?, ?)
         ");
-        $stmt->execute([$name, $description, $department, $created_by]);
+        $stmt->execute([$name, $description, $department, $estimated_hours, $created_by]);
         return $pdo->lastInsertId();
     } catch (PDOException $e) {
         error_log("Error creating training course: " . $e->getMessage());
