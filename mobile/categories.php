@@ -272,7 +272,7 @@ try {
                 <h2 class="section-title" style="margin:0;">Search</h2>
                 <a href="/mobile/index.php" style="color:#e2e8f0; font-size:12px; text-decoration:none;">Back to mobile home</a>
             </div>
-            <?php if (function_exists('render_search_bar')) { render_search_bar('/search/search.php'); } ?>
+            <?php if (function_exists('render_search_bar')) { render_search_bar('/mobile/search.php', '/mobile/search_autocomplete.php', 'mobile'); } ?>
         </div>
 
         <?php if ($error_message): ?>
