@@ -709,7 +709,7 @@ if (!empty($search_query)) {
         .mobile-shell {
             max-width: 900px;
             margin: 0 auto;
-            padding: 16px;
+            padding: 16px 16px 90px;
         }
         .mobile-header {
             display: flex;
@@ -780,7 +780,7 @@ if (!empty($search_query)) {
             font-weight: 700;
         }
         @media (max-width: 640px) {
-            .mobile-shell { padding: 12px; }
+            .mobile-shell { padding: 12px 12px 90px; }
         }
     </style>
 </head>
@@ -859,5 +859,6 @@ if (!empty($search_query)) {
         </div>
     <?php endif; ?>
 </div>
+<?php require __DIR__ . '/mobile_nav.php'; ?>
 </body>
 </html>
