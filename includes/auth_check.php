@@ -1,25 +1,20 @@
 <?php
-// Load configuration only if SESSION_TIMEOUT isn't defined yet so we avoid
-// touching global state multiple times while still guaranteeing a timeout.
-if (!defined('SESSION_TIMEOUT')) {
-    $config_path = __DIR__ . '/../config.php';
-    $system_config_path = __DIR__ . '/../system/config.php';
+// Load configuration early so SESSION_TIMEOUT and other constants are available
+$config_path = __DIR__ . '/../config.php';
+$system_config_path = __DIR__ . '/../system/config.php';
 
-    if (file_exists($config_path)) {
-        require_once $config_path;
-    } elseif (file_exists($system_config_path)) {
-        // Fallback in case the top-level config.php is missing from deployment
-        require_once $system_config_path;
-    }
+if (file_exists($config_path)) {
+    require_once $config_path;
+} elseif (file_exists($system_config_path)) {
+    // Fallback in case the top-level config.php is missing from deployment
+    require_once $system_config_path;
+} else {
+    error_log('Configuration file missing at ' . $config_path . ' and ' . $system_config_path);
+    exit('Configuration error. Please contact support.');
 }
 
-// Always have a timeout value available even if the config file was missing
-// (helps keep styling/assets untouched in failure scenarios).
-if (!defined('SESSION_TIMEOUT')) {
-    define('SESSION_TIMEOUT', 7200);
-}
-
-$session_timeout = SESSION_TIMEOUT;
+// Always have a timeout value available even if the session is already active
+$session_timeout = defined('SESSION_TIMEOUT') ? SESSION_TIMEOUT : 7200;
 
 if (session_status() === PHP_SESSION_NONE) {
     $cookie_options = [
