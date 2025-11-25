@@ -542,6 +542,7 @@ $page_title = $post ? htmlspecialchars($post['title']) : 'Post';
                 const shell = entry.target;
                 const frame = shell.querySelector('.pdf-lazy-frame');
                 const skeleton = shell.querySelector('.pdf-skeleton');
+                loadPdfFrame(frame, skeleton);
                 if (frame && !frame.src) {
                     frame.src = frame.dataset.src;
                     frame.onload = () => { if (skeleton) skeleton.style.display = 'none'; };
@@ -559,6 +560,15 @@ $page_title = $post ? htmlspecialchars($post['title']) : 'Post';
             observer.observe(shell);
         }
         if (manualBtn) {
+            manualBtn.addEventListener('click', () => loadPdfFrame(frame, skeleton));
+        }
+    });
+
+    window.addEventListener('unload', () => {
+        document.querySelectorAll('.pdf-lazy-frame[data-blob-url]').forEach(frame => {
+            try { URL.revokeObjectURL(frame.dataset.blobUrl); } catch (e) {}
+        });
+    });
             manualBtn.addEventListener('click', () => {
                 if (frame && !frame.src) {
                     frame.src = frame.dataset.src;
