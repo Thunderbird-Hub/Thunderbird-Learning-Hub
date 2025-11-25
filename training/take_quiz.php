@@ -51,6 +51,7 @@ if ($quiz_id <= 0) {
 $page_title = 'Training Quiz';
 $error_message = '';
 $success_message = '';
+$is_mobile_mode = (isset($_GET['mobile']) && $_GET['mobile'] === '1');
 
 // Check if user is training user
 if (!function_exists('is_training_user') || !is_training_user()) {
@@ -622,6 +623,20 @@ include __DIR__ . '/../includes/header.php';
     padding: 20px;
 }
 
+.mobile-quiz-mode {
+    padding-bottom: 40px;
+}
+
+.offline-banner {
+    background: #fff4e5;
+    border: 1px solid #ffd7a8;
+    color: #8a5b00;
+    padding: 12px 14px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
 .quiz-header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -770,6 +785,52 @@ include __DIR__ . '/../includes/header.php';
     color: #333;
 }
 
+.mobile-quiz-mode .answer-choice,
+@media (max-width: 768px) {
+    .answer-choice {
+        padding: 18px;
+        border-width: 3px;
+    }
+
+    .answer-choice label {
+        font-size: 18px;
+    }
+}
+
+.mobile-step-controls {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 12px 0 18px;
+}
+
+.mobile-quiz-mode .mobile-step-controls {
+    display: flex;
+}
+
+.mobile-step-controls .step-button {
+    flex: 1;
+    padding: 14px 10px;
+    font-size: 16px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.mobile-step-controls .step-button.primary {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    border: none;
+}
+
+.mobile-step-label {
+    flex: 1;
+    text-align: center;
+    font-weight: 600;
+    font-size: 14px;
+}
+
 .quiz-navigation {
     display: flex;
     justify-content: space-between;
@@ -860,6 +921,14 @@ include __DIR__ . '/../includes/header.php';
     transform: scale(1.3);
 }
 
+.mobile-quiz-mode .question-card {
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+
+.mobile-hidden {
+    display: none !important;
+}
+
 .alert {
     padding: 15px 20px;
     border-radius: 8px;
@@ -913,7 +982,10 @@ include __DIR__ . '/../includes/header.php';
 }
 </style>
 
-<div class="quiz-container">
+<div class="quiz-container<?php echo $is_mobile_mode ? ' mobile-quiz-mode' : ''; ?>" data-mobile-mode="<?php echo $is_mobile_mode ? '1' : '0'; ?>">
+    <div id="offline-banner" class="offline-banner" style="display:none;">
+        <strong>Offline:</strong> Quiz is read-only until you're back online. Submit and navigation are disabled.
+    </div>
     <?php if ($error_message): ?>
         <div class="alert alert-danger">
             <strong>Error:</strong> <?php echo htmlspecialchars($error_message); ?>
@@ -991,8 +1063,14 @@ include __DIR__ . '/../includes/header.php';
             <form method="POST" id="quiz-form">
                 <input type="hidden" name="action" value="submit_quiz">
 
+                <div class="mobile-step-controls" id="mobile-step-controls-top">
+                    <button type="button" class="step-button" id="prev-question-btn">Previous</button>
+                    <div class="mobile-step-label" id="mobile-step-label">Question 1 of <?php echo count($questions); ?></div>
+                    <button type="button" class="step-button primary" id="next-question-btn">Next</button>
+                </div>
+
                 <?php foreach ($questions as $index => $question): ?>
-    <div class="question-card" data-question="<?php echo $index + 1; ?>">
+    <div class="question-card" data-question="<?php echo $index + 1; ?>" data-index="<?php echo $index; ?>">
 
         <?php if (!empty($question['question_image'])): ?>
             <div class="quiz-question-image" style="text-align:center;margin-bottom:12px;">
@@ -1025,6 +1103,12 @@ include __DIR__ . '/../includes/header.php';
                     </div>
                 <?php endforeach; ?>
 
+                <div class="mobile-step-controls" id="mobile-step-controls-bottom">
+                    <button type="button" class="step-button" id="prev-question-btn-bottom">Previous</button>
+                    <div class="mobile-step-label" id="mobile-step-label-bottom">Question 1 of <?php echo count($questions); ?></div>
+                    <button type="button" class="step-button primary" id="next-question-btn-bottom">Next</button>
+                </div>
+
                 <!-- Quiz Navigation -->
                 <div class="quiz-navigation">
                     <a href="training_dashboard.php" class="btn btn-secondary">← Back to Dashboard</a>
@@ -1046,6 +1130,95 @@ include __DIR__ . '/../includes/header.php';
 let timeLimit = <?php echo $quiz['time_limit_minutes'] ?? 0; ?>;
 let timeRemaining = timeLimit * 60; // Convert to seconds
 let timerInterval = null;
+const quizContainer = document.querySelector('.quiz-container');
+const isMobileMode = ((quizContainer && quizContainer.dataset.mobileMode === '1') || window.matchMedia('(max-width: 768px)').matches);
+const questionCards = Array.from(document.querySelectorAll('.question-card'));
+let currentQuestionIndex = 0;
+let offlineMode = !navigator.onLine;
+
+function syncStepLabels() {
+    const topLabel = document.getElementById('mobile-step-label');
+    const bottomLabel = document.getElementById('mobile-step-label-bottom');
+    const labelText = `Question ${currentQuestionIndex + 1} of ${questionCards.length}`;
+
+    if (topLabel) topLabel.textContent = labelText;
+    if (bottomLabel) bottomLabel.textContent = labelText;
+}
+
+function updateStepControls() {
+    const controls = document.querySelectorAll('.mobile-step-controls');
+    const prevButtons = [
+        document.getElementById('prev-question-btn'),
+        document.getElementById('prev-question-btn-bottom')
+    ];
+    const nextButtons = [
+        document.getElementById('next-question-btn'),
+        document.getElementById('next-question-btn-bottom')
+    ];
+
+    if (!isMobileMode || questionCards.length <= 1) {
+        controls.forEach(el => el.classList.add('mobile-hidden'));
+        questionCards.forEach(card => card.classList.remove('mobile-hidden'));
+        return;
+    }
+
+    controls.forEach(el => el.classList.remove('mobile-hidden'));
+
+    questionCards.forEach((card, idx) => {
+        card.classList.toggle('mobile-hidden', idx !== currentQuestionIndex);
+    });
+
+    const onFirst = currentQuestionIndex === 0;
+    const onLast = currentQuestionIndex === questionCards.length - 1;
+
+    prevButtons.forEach(btn => { if (btn) btn.disabled = onFirst || offlineMode; });
+    nextButtons.forEach(btn => {
+        if (btn) {
+            btn.disabled = offlineMode;
+            btn.textContent = onLast ? 'Go to Submit' : 'Next';
+        }
+    });
+
+    syncStepLabels();
+}
+
+function showQuestion(index) {
+    if (index < 0 || index >= questionCards.length) return;
+    currentQuestionIndex = index;
+    updateStepControls();
+    updateProgress();
+}
+
+function attachStepHandlers() {
+    const nextButtons = [
+        document.getElementById('next-question-btn'),
+        document.getElementById('next-question-btn-bottom')
+    ];
+    const prevButtons = [
+        document.getElementById('prev-question-btn'),
+        document.getElementById('prev-question-btn-bottom')
+    ];
+
+    nextButtons.forEach(btn => {
+        if (btn) {
+            btn.addEventListener('click', () => {
+                if (currentQuestionIndex < questionCards.length - 1) {
+                    showQuestion(currentQuestionIndex + 1);
+                } else {
+                    document.getElementById('submit-btn')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            });
+        }
+    });
+
+    prevButtons.forEach(btn => {
+        if (btn) {
+            btn.addEventListener('click', () => {
+                showQuestion(currentQuestionIndex - 1);
+            });
+        }
+    });
+}
 
 // Timer functionality
 if (timeLimit > 0) {
@@ -1077,8 +1250,36 @@ if (timeLimit > 0) {
     }, 1000);
 }
 
+function setOfflineState(isOffline) {
+    offlineMode = isOffline;
+    const offlineBanner = document.getElementById('offline-banner');
+    const submitBtn = document.getElementById('submit-btn');
+    const radios = document.querySelectorAll('.answer-choice input[type="radio"]');
+
+    if (offlineBanner) {
+        offlineBanner.style.display = isOffline ? 'block' : 'none';
+    }
+
+    radios.forEach(radio => {
+        radio.disabled = isOffline;
+    });
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+    }
+
+    updateStepControls();
+    updateProgress();
+}
+
+window.addEventListener('online', () => setOfflineState(false));
+window.addEventListener('offline', () => setOfflineState(true));
+
 // Answer selection
 function selectAnswer(element) {
+    if (offlineMode) {
+        return;
+    }
     // Restrict to this question block
     const questionCard = element.closest('.question-card');
 
@@ -1098,6 +1299,10 @@ function selectAnswer(element) {
 
     // Update progress
     updateProgress();
+
+    if (isMobileMode && currentQuestionIndex < questionCards.length - 1) {
+        showQuestion(currentQuestionIndex + 1);
+    }
 }
 
 // Update progress and submit button
@@ -1107,18 +1312,33 @@ function updateProgress() {
 
     // Update progress dots
     document.querySelectorAll('.progress-dot').forEach((dot, index) => {
+        const isCurrent = isMobileMode ? index === currentQuestionIndex : index === answeredQuestions;
+
         if (index < answeredQuestions) {
             dot.classList.add('completed');
-        } else if (index === answeredQuestions) {
+        } else {
+            dot.classList.remove('completed');
+        }
+
+        if (isCurrent) {
             dot.classList.add('current');
         } else {
-            dot.classList.remove('completed', 'current');
+            dot.classList.remove('current');
         }
     });
 
     // Update submit button
     const submitBtn = document.getElementById('submit-btn');
     const statusText = document.getElementById('completion-status');
+
+    if (offlineMode) {
+        if (submitBtn) submitBtn.disabled = true;
+        if (statusText) {
+            statusText.textContent = 'Offline mode - reconnect to submit';
+            statusText.style.color = '#b45309';
+        }
+        return;
+    }
 
     if (answeredQuestions === totalQuestions) {
         submitBtn.disabled = false;
@@ -1135,6 +1355,12 @@ function updateProgress() {
 document.getElementById('quiz-form').addEventListener('submit', function(e) {
     const answeredQuestions = document.querySelectorAll('input[type="radio"]:checked').length;
     const totalQuestions = <?php echo count($questions); ?>;
+
+    if (offlineMode) {
+        e.preventDefault();
+        alert('You are offline. Please reconnect before submitting the quiz.');
+        return false;
+    }
 
     if (answeredQuestions < totalQuestions) {
         e.preventDefault();
@@ -1161,6 +1387,9 @@ document.getElementById('quiz-form').addEventListener('submit', function(e) {
 });
 
 // Initialize progress on page load
+attachStepHandlers();
+updateStepControls();
+setOfflineState(offlineMode);
 updateProgress();
 
 // Clean up timer on page unload
