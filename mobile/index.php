@@ -176,7 +176,7 @@ $mobile_active_page = 'index';
             <div class="mobile-card">
                 <h2>Quick Search</h2>
                 <p>Find posts, categories, or training content fast.</p>
-                <?php if (function_exists('render_search_bar')) { render_search_bar('/search/search.php'); } ?>
+                <?php if (function_exists('render_search_bar')) { render_search_bar('/mobile/search.php', '/mobile/search_autocomplete.php'); } ?>
             </div>
         </div>
 
