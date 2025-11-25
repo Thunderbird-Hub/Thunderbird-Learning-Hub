@@ -94,6 +94,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $users_table_exists) {
                                     // Auto-assign user to department courses
                                     $courses_assigned = assign_user_to_department_courses($pdo, $user_id, $department_id, $_SESSION['user_id']);
                                     $department_assignments++;
+                                    if ($courses_assigned == 0) {
+                                        error_log("INFO: User $user_id was created and assigned to department $department_id but no courses were assigned");
+                                    }
                                 }
                             }
                         }
@@ -176,8 +179,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $users_table_exists) {
                             if (!in_array($dept_id, $current_dept_ids) && $dept_id > 0) {
                                 if (assign_user_to_department($pdo, $user_id, $dept_id, $_SESSION['user_id'])) {
                                     // Auto-assign user to department courses
-                                    assign_user_to_department_courses($pdo, $user_id, $dept_id, $_SESSION['user_id']);
+                                    $courses_assigned = assign_user_to_department_courses($pdo, $user_id, $dept_id, $_SESSION['user_id']);
                                     $department_changes++;
+                                    if ($courses_assigned == 0) {
+                                        error_log("INFO: User $user_id was edited and assigned to department $dept_id but no courses were assigned");
+                                    }
                                 }
                             }
                         }
