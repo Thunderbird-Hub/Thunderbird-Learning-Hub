@@ -388,6 +388,92 @@ include __DIR__ . '/../includes/header.php';
 ?>
 
 <div class="container">
+    <?php if (isset($is_mobile_layout) && $is_mobile_layout): ?>
+        <style>
+            .post-detail {
+                padding: 16px;
+                border: 1px solid #e2e8f0;
+                border-radius: 14px;
+                box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+                background: #ffffff;
+            }
+
+            .post-detail-header {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .post-detail-title {
+                font-size: 22px;
+                line-height: 1.3;
+            }
+
+            .post-content {
+                font-size: 16px;
+                line-height: 1.6;
+            }
+
+            .post-attachments,
+            .attachments-title {
+                gap: 10px;
+            }
+
+            .attachment-group,
+            .preview-file-container,
+            .attachment-item,
+            .reply-item {
+                border-radius: 12px;
+            }
+
+            .attachment-item {
+                padding: 12px;
+                border: 1px solid #e2e8f0;
+                background: #f8fafc;
+                box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+            }
+
+            .post-replies .reply-item {
+                padding: 12px;
+                border: 1px solid #e2e8f0;
+                box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+            }
+
+            .mobile-refresh-button {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 10px 12px;
+                border-radius: 12px;
+                border: 1px solid #cbd5e0;
+                background: #edf2f7;
+                color: #2d3748;
+                font-weight: 600;
+                font-size: 14px;
+            }
+
+            .mobile-refresh-button:hover {
+                background: #e2e8f0;
+            }
+
+            .attachment-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 10px;
+            }
+
+            .attachment-files,
+            .attachment-images {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 10px;
+            }
+
+            .preview-file-header {
+                flex-wrap: wrap;
+            }
+        </style>
+    <?php endif; ?>
+
     <?php
     require_once __DIR__ . '/../includes/search_widget.php';
     // Point to your known-good endpoint that works like index:
@@ -433,6 +519,9 @@ include __DIR__ . '/../includes/header.php';
         <div class="post-detail">
             <div class="post-detail-header">
                 <h1 class="post-detail-title"><?php echo htmlspecialchars($post['title']); ?></h1>
+                <?php if (isset($is_mobile_layout) && $is_mobile_layout): ?>
+                    <button type="button" class="mobile-refresh-button" onclick="window.location.reload()">🔄 Refresh</button>
+                <?php endif; ?>
                 <div class="post-timestamp">Posted <?php echo format_timestamp($post['created_at']); ?></div>
             </div>
 

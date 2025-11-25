@@ -280,6 +280,56 @@ include __DIR__ . '/../includes/header.php';
 ?>
 
 <div class="container">
+    <?php if (isset($is_mobile_layout) && $is_mobile_layout): ?>
+        <style>
+            .post-list {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                gap: 12px;
+            }
+
+            .post-item {
+                border: 1px solid #e2e8f0;
+                border-radius: 14px;
+                padding: 14px;
+                background: #ffffff;
+                box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+            }
+
+            .post-header {
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .post-title {
+                font-size: 16px;
+                line-height: 1.4;
+            }
+
+            .post-meta {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .mobile-refresh-button {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 10px 12px;
+                border-radius: 12px;
+                border: 1px solid #cbd5e0;
+                background: #edf2f7;
+                color: #2d3748;
+                font-weight: 600;
+                font-size: 14px;
+            }
+
+            .mobile-refresh-button:hover {
+                background: #e2e8f0;
+            }
+        </style>
+    <?php endif; ?>
+
     <?php
     require_once __DIR__ . '/../includes/search_widget.php';
     // Point to your known-good endpoint that works like index:
@@ -471,7 +521,12 @@ include __DIR__ . '/../includes/header.php';
                     <?php endif; ?>
                 </div>
             </div>
-            <a href="/posts/add_post.php?subcategory_id=<?php echo $subcategory_id; ?>" class="btn btn-success">+ Add Post</a>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end;">
+                <?php if (isset($is_mobile_layout) && $is_mobile_layout): ?>
+                    <button type="button" class="mobile-refresh-button" onclick="window.location.reload()">🔄 Refresh</button>
+                <?php endif; ?>
+                <a href="/posts/add_post.php?subcategory_id=<?php echo $subcategory_id; ?>" class="btn btn-success">+ Add Post</a>
+            </div>
         </div>
     <?php endif; ?>
 

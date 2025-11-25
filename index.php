@@ -582,6 +582,78 @@ include 'includes/header.php';
 ?>
 
 <div class="container">
+    <?php if (isset($is_mobile_layout) && $is_mobile_layout): ?>
+        <style>
+            .category-list {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                gap: 12px;
+            }
+
+            .category-item {
+                border-radius: 14px;
+                padding: 14px;
+                box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+                border: 1px solid #e2e8f0;
+                background: #ffffff;
+            }
+
+            .category-header {
+                align-items: flex-start;
+            }
+
+            .category-name {
+                gap: 10px;
+                line-height: 1.4;
+            }
+
+            .category-name span:first-child {
+                font-size: 18px;
+            }
+
+            .category-subcategories {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                gap: 10px;
+            }
+
+            .category-subcategories .subcategory-link {
+                padding: 12px;
+                border-radius: 12px;
+                border: 1px solid #e2e8f0;
+                background: #f8fafc;
+            }
+
+            .category-subcategories .subcategory-link a {
+                font-weight: 700;
+                font-size: 15px;
+            }
+
+            .post-count {
+                margin-top: 6px;
+                display: inline-block;
+                font-size: 12px;
+            }
+
+            .mobile-refresh-button {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                padding: 10px 12px;
+                border-radius: 12px;
+                border: 1px solid #cbd5e0;
+                background: #edf2f7;
+                color: #2d3748;
+                font-weight: 600;
+                font-size: 14px;
+            }
+
+            .mobile-refresh-button:hover {
+                background: #e2e8f0;
+            }
+        </style>
+    <?php endif; ?>
+
     <?php
         // One-liner search bar (same behavior everywhere).
         // Uses search_autocomplete.php and submits to /search/search.php
@@ -590,6 +662,9 @@ include 'includes/header.php';
 
     <div class="flex-between mb-20">
         <h2 style="font-size: 24px; color: #2d3748;">Knowledge Categories</h2>
+        <?php if (isset($is_mobile_layout) && $is_mobile_layout): ?>
+            <button type="button" class="mobile-refresh-button" onclick="window.location.reload()">🔄 Refresh</button>
+        <?php endif; ?>
         <?php if (can_create_categories()): ?>
             <a href="/categories/add_category.php" class="btn btn-success">+ Add Category</a>
         <?php endif; ?>
