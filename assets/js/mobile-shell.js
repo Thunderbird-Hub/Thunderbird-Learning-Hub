@@ -1,13 +1,14 @@
 (function() {
     const initTabNavigation = () => {
         const tabLinks = document.querySelectorAll('.mobile-tab-bar a');
-        const sectionIds = Array.from(tabLinks).map((link) => link.dataset.target);
+        const scrollLinks = Array.from(tabLinks).filter((link) => Boolean(link.dataset.target));
+        const sectionIds = scrollLinks.map((link) => link.dataset.target);
 
         if (!tabLinks.length || !sectionIds.length) {
             return;
         }
 
-        tabLinks.forEach((link) => {
+        scrollLinks.forEach((link) => {
             link.addEventListener('click', (event) => {
                 const targetId = link.dataset.target;
                 if (!targetId) {
@@ -15,7 +16,9 @@
                 }
 
                 const targetEl = document.getElementById(targetId);
-                if (targetEl) {
+                const linkUrl = new URL(link.href, window.location.href);
+
+                if (targetEl && linkUrl.pathname === window.location.pathname) {
                     event.preventDefault();
                     targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
