@@ -535,37 +535,6 @@ $page_title = $post ? htmlspecialchars($post['title']) : 'Post';
         arrow.textContent = isHidden ? '▲' : '▼';
     }
 
-    function loadPdfFrame(frame, skeleton) {
-        if (!frame || frame.dataset.loaded === '1') return;
-
-        const src = frame.dataset.src;
-        if (!src) return;
-
-        const isPdf = src.toLowerCase().includes('.pdf');
-        const finish = (finalSrc) => {
-            frame.src = finalSrc;
-            frame.dataset.loaded = '1';
-            frame.onload = () => { if (skeleton) skeleton.style.display = 'none'; };
-        };
-
-        // On some devices the file path forces download; fetching to a Blob lets us embed inline safely.
-        if (isPdf && window.fetch && window.URL && URL.createObjectURL) {
-            fetch(src)
-                .then(resp => {
-                    if (!resp.ok) throw new Error('Fetch failed');
-                    return resp.blob();
-                })
-                .then(blob => {
-                    const blobUrl = URL.createObjectURL(blob);
-                    frame.dataset.blobUrl = blobUrl;
-                    finish(blobUrl);
-                })
-                .catch(() => finish(src));
-        } else {
-            finish(src);
-        }
-    }
-
     const shells = document.querySelectorAll('.pdf-lazy-shell');
     const observer = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => {
         entries.forEach(entry => {
@@ -574,6 +543,10 @@ $page_title = $post ? htmlspecialchars($post['title']) : 'Post';
                 const frame = shell.querySelector('.pdf-lazy-frame');
                 const skeleton = shell.querySelector('.pdf-skeleton');
                 loadPdfFrame(frame, skeleton);
+                if (frame && !frame.src) {
+                    frame.src = frame.dataset.src;
+                    frame.onload = () => { if (skeleton) skeleton.style.display = 'none'; };
+                }
                 observer.unobserve(shell);
             }
         });
@@ -595,6 +568,14 @@ $page_title = $post ? htmlspecialchars($post['title']) : 'Post';
         document.querySelectorAll('.pdf-lazy-frame[data-blob-url]').forEach(frame => {
             try { URL.revokeObjectURL(frame.dataset.blobUrl); } catch (e) {}
         });
+    });
+            manualBtn.addEventListener('click', () => {
+                if (frame && !frame.src) {
+                    frame.src = frame.dataset.src;
+                    frame.onload = () => { if (skeleton) skeleton.style.display = 'none'; };
+                }
+            });
+        }
     });
     </script>
 </body>
