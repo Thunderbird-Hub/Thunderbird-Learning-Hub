@@ -14,6 +14,7 @@ if (file_exists(__DIR__ . '/../includes/training_helpers.php')) {
 enforce_mobile_beta_access();
 
 $page_title = 'Mobile Categories';
+$mobile_active_page = 'categories';
 $error_message = '';
 $categories = [];
 $assigned_categories = [];
@@ -334,5 +335,7 @@ try {
             </div>
         <?php endif; ?>
     </div>
+
+    <?php require __DIR__ . '/mobile_nav.php'; ?>
 </body>
 </html>

@@ -12,6 +12,7 @@ if (file_exists(__DIR__ . '/../includes/training_helpers.php')) {
 enforce_mobile_beta_access();
 
 $page_title = 'Mobile Posts';
+$mobile_active_page = 'categories';
 $error_message = '';
 $subcategory = null;
 $posts = [];
@@ -222,5 +223,7 @@ function mobile_excerpt($html_content, $length = 180) {
             <?php endforeach; ?>
         <?php endif; ?>
     </div>
+
+    <?php require __DIR__ . '/mobile_nav.php'; ?>
 </body>
 </html>

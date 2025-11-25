@@ -17,6 +17,7 @@ $page_title = 'Mobile Hub';
 $display_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'User';
 $role_display = function_exists('get_user_role_display') ? get_user_role_display() : 'User';
 $is_training_user = function_exists('is_training_user') ? is_training_user() : false;
+$mobile_active_page = 'index';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -112,40 +113,6 @@ $is_training_user = function_exists('is_training_user') ? is_training_user() : f
         }
         .mobile-section .card {
             margin-bottom: 12px;
-        }
-        .mobile-tab-bar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: #ffffff;
-            border-top: 1px solid #e2e8f0;
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            padding: 8px 6px 10px;
-            box-shadow: 0 -6px 24px rgba(15, 23, 42, 0.1);
-            z-index: 2000;
-        }
-        .mobile-tab-bar a {
-            text-decoration: none;
-            color: #718096;
-            font-size: 12px;
-            text-align: center;
-            display: inline-flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-            padding: 6px 4px;
-            border-radius: 10px;
-            transition: all 0.15s ease-in-out;
-        }
-        .mobile-tab-bar a span.icon {
-            font-size: 18px;
-        }
-        .mobile-tab-bar a.active {
-            background: #ebf4ff;
-            color: #4c51bf;
-            font-weight: 700;
         }
         @media (max-width: 640px) {
             .mobile-shell {
@@ -254,13 +221,7 @@ $is_training_user = function_exists('is_training_user') ? is_training_user() : f
         </div>
     </div>
 
-    <nav class="mobile-tab-bar" aria-label="Mobile navigation">
-        <a href="#home" data-target="home" class="active"><span class="icon">🏠</span><span>Home</span></a>
-        <a href="#categories" data-target="categories"><span class="icon">📂</span><span>Categories</span></a>
-        <a href="#training" data-target="training"><span class="icon">🎓</span><span>Training</span></a>
-        <a href="#quizzes" data-target="quizzes"><span class="icon">📝</span><span>Quizzes</span></a>
-        <a href="#profile" data-target="profile"><span class="icon">👤</span><span>Profile</span></a>
-    </nav>
+    <?php require __DIR__ . '/mobile_nav.php'; ?>
 
     <script src="/assets/js/mobile-shell.js" defer></script>
 </body>
