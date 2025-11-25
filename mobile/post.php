@@ -331,6 +331,7 @@ function normalize_file_path($path) {
 }
 
 $page_title = $post ? htmlspecialchars($post['title']) : 'Post';
+$mobile_active_page = 'categories';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -568,5 +569,7 @@ $page_title = $post ? htmlspecialchars($post['title']) : 'Post';
         }
     });
     </script>
+
+    <?php require __DIR__ . '/mobile_nav.php'; ?>
 </body>
 </html>
