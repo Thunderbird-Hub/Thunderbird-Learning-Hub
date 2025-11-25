@@ -561,10 +561,64 @@ $mobile_active_page = 'categories';
         if (skeleton) skeleton.style.display = 'none';
     }
 
-    let pdfJsPromise;
-    function ensurePdfJs() {
-        if (window.pdfjsLib) {
-            return Promise.resolve(window.pdfjsLib);
+    function loadPdfFrame(frame, skeleton, shell) {
+        if (!frame || frame.dataset.loaded === '1') return;
+
+        const src = frame.dataset.src;
+        if (!src) return;
+
+        const isPdf = /\.pdf(\?|#|$)/i.test(src);
+        const clearTimeoutGuard = () => {
+            if (frame._pdfLoadTimeout) {
+                clearTimeout(frame._pdfLoadTimeout);
+                frame._pdfLoadTimeout = null;
+            }
+        };
+        const markLoaded = () => {
+            if (skeleton) skeleton.style.display = 'none';
+            clearTimeoutGuard();
+        };
+        const handleFailure = () => {
+            clearTimeoutGuard();
+            showPdfFallback(shell, src);
+        };
+
+        frame.addEventListener('load', markLoaded, { once: true });
+        frame.addEventListener('error', handleFailure, { once: true });
+
+        frame._pdfLoadTimeout = setTimeout(() => {
+            if (skeleton && skeleton.style.display !== 'none') {
+                handleFailure();
+            }
+        }, 7000);
+
+        const finish = (finalSrc, isBaked = false) => {
+            frame.dataset.loaded = '1';
+            if (isBaked) {
+                frame.dataset.blobUrl = finalSrc;
+            }
+            frame.src = finalSrc;
+        };
+
+        const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+
+        // On some devices the file path forces download; fetching to a Blob and converting to a data URL bakes the PDF inline.
+        if (isPdf && window.fetch && window.FileReader) {
+            fetch(src, { credentials: 'same-origin' })
+                .then(resp => {
+                    if (!resp.ok) throw new Error('Fetch failed');
+                    return resp.blob();
+                })
+                .then(blob => blobToDataUrl(blob))
+                .then(dataUrl => finish(dataUrl, true))
+                .catch(() => finish(src));
+        } else {
+            finish(src);
         }
         if (!pdfJsPromise) {
             pdfJsPromise = new Promise((resolve, reject) => {
@@ -638,8 +692,15 @@ $mobile_active_page = 'categories';
     const observer = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
-                renderPdfToImages(entry.target);
-                observer.unobserve(entry.target);
+                const shell = entry.target;
+                const frame = shell.querySelector('.pdf-lazy-frame');
+                const skeleton = shell.querySelector('.pdf-skeleton');
+                loadPdfFrame(frame, skeleton, shell);
+                if (frame && !frame.src) {
+                    frame.src = frame.dataset.src;
+                    frame.onload = () => { if (skeleton) skeleton.style.display = 'none'; };
+                }
+                observer.unobserve(shell);
             }
         });
     }, { rootMargin: '200px 0px' }) : null;
@@ -652,11 +713,14 @@ $mobile_active_page = 'categories';
             renderPdfToImages(shell);
         }
         if (manualBtn) {
-            manualBtn.addEventListener('click', () => {
-                shell.dataset.loaded = '0';
-                renderPdfToImages(shell);
-            });
+            manualBtn.addEventListener('click', () => loadPdfFrame(frame, skeleton, shell));
         }
+    });
+
+    window.addEventListener('unload', () => {
+        document.querySelectorAll('.pdf-lazy-frame[data-blob-url]').forEach(frame => {
+            try { URL.revokeObjectURL(frame.dataset.blobUrl); } catch (e) {}
+        });
     });
     </script>
 

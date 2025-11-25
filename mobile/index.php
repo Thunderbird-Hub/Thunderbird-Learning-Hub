@@ -211,6 +211,7 @@ $mobile_active_page = 'index';
                 <h2>Profile</h2>
                 <p>View your role, training status, and manage your session.</p>
                 <div class="mobile-links">
+                    <a class="primary-link" href="/mobile/profile.php">👤 View Profile</a>
                     <span style="background: #edf2f7; padding: 10px 12px; border-radius: 12px; font-weight: 600; color: #2d3748;">👤 <?php echo htmlspecialchars($role_display); ?></span>
                     <?php if ($is_training_user): ?>
                         <span style="background: #ebf4ff; padding: 10px 12px; border-radius: 12px; font-weight: 600; color: #4c51bf;">🎯 Training Active</span>
