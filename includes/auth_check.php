@@ -1,4 +1,9 @@
 <?php
+// Allow callers to override the login redirect target (e.g., mobile experience)
+if (!isset($login_path) || !is_string($login_path) || strpos($login_path, '/') !== 0) {
+    $login_path = '/login.php';
+}
+
 // Load configuration early so SESSION_TIMEOUT and other constants are available
 $config_path = __DIR__ . '/../config.php';
 $system_config_path = __DIR__ . '/../system/config.php';
@@ -34,13 +39,14 @@ if (session_status() === PHP_SESSION_NONE) {
 
 if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
     session_destroy();
-    header('Location: /login.php');
+    header('Location: ' . $login_path);
     exit;
 }
 
 if (!isset($_SESSION['login_time']) || (time() - $_SESSION['login_time'] > $session_timeout)) {
     session_destroy();
-    header('Location: /login.php?expired=1');
+    $separator = strpos($login_path, '?') === false ? '?' : '&';
+    header('Location: ' . $login_path . $separator . 'expired=1');
     exit;
 }
 
