@@ -178,6 +178,7 @@ $is_training_user = function_exists('is_training_user') ? is_training_user() : f
                 <h2>Training</h2>
                 <p>Stay on top of your training assignments and progress.</p>
                 <div class="mobile-links">
+                    <a class="primary-link" href="/mobile/training.php">📱 Mobile Training</a>
                     <a class="primary-link" href="/training/training_dashboard.php">🎓 Training Dashboard</a>
                 </div>
             </div>

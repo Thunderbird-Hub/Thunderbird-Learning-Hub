@@ -604,7 +604,7 @@ function get_user_assigned_courses($pdo, $user_id) {
     try {
         $stmt = $pdo->prepare("
             SELECT tc.*, uta.status as assignment_status, uta.assigned_date, uta.completion_date,
-                   uta.assignment_source, d.name as department_name,
+                   uta.assignment_source, d.name as department_name, uta.due_date,
                    0 as progress_percentage
             FROM training_courses tc
             JOIN user_training_assignments uta ON tc.id = uta.course_id
