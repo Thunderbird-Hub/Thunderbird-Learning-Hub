@@ -117,7 +117,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $departments_table_exists) {
                         if ($courses_assigned > 0) {
                             $success_message = "User added to department and assigned to $courses_assigned course(s)!";
                         } else {
-                            $success_message = 'User added to department successfully!';
+                            $success_message = 'User added to department successfully! (No courses were assigned - check error logs for details)';
+                            error_log("INFO: No courses were assigned to user $user_id from department $dept_id");
                         }
                     } else {
                         $error_message = 'Error adding user to department.';
@@ -148,7 +149,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $departments_table_exists) {
                     try {
                         if (assign_user_to_department($pdo, $user_id, $dept_id, $_SESSION['user_id'])) {
                             $added_count++;
-                            $assigned_courses += assign_user_to_department_courses($pdo, $user_id, $dept_id, $_SESSION['user_id']);
+                            $courses_for_this_user = assign_user_to_department_courses($pdo, $user_id, $dept_id, $_SESSION['user_id']);
+                            $assigned_courses += $courses_for_this_user;
+                            if ($courses_for_this_user == 0) {
+                                error_log("INFO: User $user_id was added to department $dept_id but no courses were assigned");
+                            }
                         }
                     } catch (PDOException $e) {
                         error_log('Error adding user to department: ' . $e->getMessage());

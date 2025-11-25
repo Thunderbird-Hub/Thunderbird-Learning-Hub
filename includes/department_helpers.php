@@ -490,6 +490,26 @@ function get_department_users_for_courses($pdo, $department_id) {
  */
 function assign_user_to_department_courses($pdo, $user_id, $department_id, $assigned_by) {
     try {
+        // Enhanced debug logging
+        error_log("DEBUG: Starting department course assignment - User ID: $user_id, Department ID: $department_id, Assigned by: $assigned_by");
+
+        // Verify inputs
+        if (empty($user_id) || empty($department_id) || empty($assigned_by)) {
+            error_log("ERROR: Invalid parameters for department course assignment");
+            return 0;
+        }
+
+        // Check if required tables exist
+        $tables_to_check = ['course_departments', 'training_courses', 'user_training_assignments', 'users'];
+        foreach ($tables_to_check as $table) {
+            try {
+                $pdo->query("SELECT 1 FROM $table LIMIT 1");
+            } catch (PDOException $e) {
+                error_log("ERROR: Required table '$table' does not exist");
+                return 0;
+            }
+        }
+
         $pdo->beginTransaction();
 
         // Get all courses in this department (modern mapping table)
@@ -499,6 +519,7 @@ function assign_user_to_department_courses($pdo, $user_id, $department_id, $assi
         ");
         $course_stmt->execute([$department_id]);
         $courses = $course_stmt->fetchAll(PDO::FETCH_COLUMN);
+        error_log("DEBUG: Found " . count($courses) . " courses in course_departments table");
 
         // Fallback: also include legacy training_courses.department matches
         $legacy_courses = [];
@@ -514,6 +535,7 @@ function assign_user_to_department_courses($pdo, $user_id, $department_id, $assi
             ");
             $legacy_stmt->execute([$department_name]);
             $legacy_courses = $legacy_stmt->fetchAll(PDO::FETCH_COLUMN);
+            error_log("DEBUG: Found " . count($legacy_courses) . " courses via legacy department name '$department_name'");
         }
 
         if (!empty($legacy_courses)) {
@@ -521,14 +543,41 @@ function assign_user_to_department_courses($pdo, $user_id, $department_id, $assi
             $courses = array_values(array_unique(array_merge($courses, $legacy_courses)));
         }
 
+        error_log("DEBUG: Total unique courses to assign: " . count($courses));
+
+        if (empty($courses)) {
+            error_log("DEBUG: No courses found for department $department_id");
+            $pdo->commit();
+            return 0;
+        }
+
         $assigned_count = 0;
+        $failed_assignments = [];
 
         // Assign each course to the user using the training helper function with department context
         foreach ($courses as $course_id) {
-            // Use the updated assign_course_to_users function with department_id parameter
-            $result = assign_course_to_users($pdo, $course_id, [$user_id], $assigned_by, $department_id);
-            if ($result > 0) {
-                $assigned_count++;
+            try {
+                error_log("DEBUG: Attempting to assign course $course_id to user $user_id");
+
+                // Check if training helper function exists
+                if (!function_exists('assign_course_to_users')) {
+                    error_log("ERROR: assign_course_to_users function not found");
+                    throw new Exception("Training helper function not available");
+                }
+
+                // Use the updated assign_course_to_users function with department_id parameter
+                $result = assign_course_to_users($pdo, $course_id, [$user_id], $assigned_by, $department_id);
+
+                if ($result > 0) {
+                    $assigned_count++;
+                    error_log("DEBUG: Successfully assigned course $course_id to user $user_id");
+                } else {
+                    error_log("WARNING: assign_course_to_users returned 0 for course $course_id, user $user_id");
+                    $failed_assignments[] = $course_id;
+                }
+            } catch (Exception $course_error) {
+                error_log("ERROR: Failed to assign course $course_id to user $user_id: " . $course_error->getMessage());
+                $failed_assignments[] = $course_id;
             }
         }
 
@@ -541,8 +590,12 @@ function assign_user_to_department_courses($pdo, $user_id, $department_id, $assi
             ");
             $result = $flag_stmt->execute([$user_id]);
 
-            // Debug logging
-            error_log("DEBUG: Department course assignment - User ID: $user_id, Assigned Count: $assigned_count, Flag Update Result: " . ($result ? 'SUCCESS' : 'FAILED'));
+            // Enhanced debug logging
+            error_log("DEBUG: Department course assignment SUMMARY - User ID: $user_id, Department ID: $department_id, Assigned Count: $assigned_count, Failed Count: " . count($failed_assignments) . ", Flag Update Result: " . ($result ? 'SUCCESS' : 'FAILED'));
+
+            if (!empty($failed_assignments)) {
+                error_log("DEBUG: Failed course assignments: " . implode(', ', $failed_assignments));
+            }
 
             // Update session if this is the current user
             if (isset($_SESSION['user_id']) && $_SESSION['user_id'] == $user_id) {
@@ -550,14 +603,22 @@ function assign_user_to_department_courses($pdo, $user_id, $department_id, $assi
                 error_log("DEBUG: Updated session training flag for user $user_id");
             }
         } else {
-            error_log("DEBUG: No courses assigned to user $user_id from department $department_id");
+            error_log("DEBUG: No courses assigned to user $user_id from department $department_id. All assignments failed or no courses found.");
         }
 
         $pdo->commit();
+        error_log("DEBUG: Department course assignment transaction committed successfully");
         return $assigned_count;
+
     } catch (PDOException $e) {
         $pdo->rollBack();
-        error_log("Error assigning user to department courses: " . $e->getMessage());
+        error_log("ERROR: PDO Exception in department course assignment: " . $e->getMessage() . " Trace: " . $e->getTraceAsString());
+        return 0;
+    } catch (Exception $e) {
+        if (isset($pdo) && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log("ERROR: General Exception in department course assignment: " . $e->getMessage() . " Trace: " . $e->getTraceAsString());
         return 0;
     }
 }

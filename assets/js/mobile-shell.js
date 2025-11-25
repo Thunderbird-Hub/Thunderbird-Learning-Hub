@@ -15,20 +15,25 @@
                     return;
                 }
 
-                const targetEl = document.getElementById(targetId);
                 const linkUrl = new URL(link.href, window.location.href);
+                const hasHash = linkUrl.hash !== '';
 
-                if (targetEl && linkUrl.pathname === window.location.pathname) {
-                    event.preventDefault();
-                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // Only intercept clicks for anchor links (same page with hash)
+                if (hasHash && linkUrl.pathname === window.location.pathname) {
+                    const targetEl = document.getElementById(targetId);
+                    if (targetEl) {
+                        event.preventDefault();
+                        targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-                    // Keep the hash in sync for browsers that rely on it
-                    if (typeof history !== 'undefined' && history.replaceState) {
-                        history.replaceState(null, '', `#${targetId}`);
-                    } else {
-                        window.location.hash = targetId;
+                        // Keep the hash in sync for browsers that rely on it
+                        if (typeof history !== 'undefined' && history.replaceState) {
+                            history.replaceState(null, '', `#${targetId}`);
+                        } else {
+                            window.location.hash = targetId;
+                        }
                     }
                 }
+                // For regular navigation to different pages, let the browser handle it naturally
             });
         });
 

@@ -3,6 +3,7 @@ $login_path = '/mobile/login.php';
 require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../includes/db_connect.php';
 require_once __DIR__ . '/../includes/user_helpers.php';
+require_once __DIR__ . '/../includes/search_widget.php';
 require_once __DIR__ . '/../includes/mobile_beta_gate.php';
 
 // Load training helpers for progress + auto role management
@@ -219,6 +220,12 @@ function format_mobile_date($date_value) {
             </div>
         </div>
 
+        <div class="mobile-card">
+            <h2 class="section-title">Search</h2>
+            <p>Search for training content and posts.</p>
+            <?php if (function_exists('render_search_bar')) { render_search_bar('/mobile/search.php', '/mobile/search_autocomplete.php', 'mobile'); } ?>
+        </div>
+
         <h2 class="section-title" id="assignments">Assigned courses</h2>
         <?php if (empty($courses)) : ?>
             <div class="empty">No training assignments yet.</div>
@@ -311,7 +318,7 @@ function format_mobile_date($date_value) {
                                 <div class="content-main">
                                     <span class="status-dot <?php echo $status_class; ?>"></span>
                                     <div>
-                                        <p class="content-title"><a href="/posts/post.php?id=<?php echo (int) $item['post_id']; ?>" style="text-decoration:none;color:#1a202c;"><?php echo htmlspecialchars($item['post_title'] ?? 'Post'); ?></a></p>
+                                        <p class="content-title"><a href="/mobile/post.php?id=<?php echo (int) $item['post_id']; ?>" style="text-decoration:none;color:#1a202c;"><?php echo htmlspecialchars($item['post_title'] ?? 'Post'); ?></a></p>
                                         <div class="content-meta"><?php echo htmlspecialchars($status_label); ?> · <?php echo htmlspecialchars($quiz_text); ?></div>
                                     </div>
                                 </div>

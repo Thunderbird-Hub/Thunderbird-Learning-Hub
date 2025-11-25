@@ -195,7 +195,6 @@ $mobile_active_page = 'index';
                 <p>Stay on top of your training assignments and progress.</p>
                 <div class="mobile-links">
                     <a class="primary-link" href="/mobile/training.php">📱 Mobile Training</a>
-                    <a class="primary-link" href="/training/training_dashboard.php">🎓 Training Dashboard</a>
                 </div>
             </div>
 
@@ -203,7 +202,7 @@ $mobile_active_page = 'index';
                 <h2>Quizzes</h2>
                 <p>Jump straight into your assigned quizzes from training.</p>
                 <div class="mobile-links">
-                    <a class="primary-link" href="/training/training_dashboard.php#quizzes">📝 View Quizzes</a>
+                    <a class="primary-link" href="/mobile/training.php#quizzes">📝 View Quizzes</a>
                 </div>
             </div>
 
