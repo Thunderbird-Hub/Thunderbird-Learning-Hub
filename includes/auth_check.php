@@ -1,7 +1,24 @@
 <?php
+// Load configuration early so SESSION_TIMEOUT and other constants are available
+$config_path = __DIR__ . '/../config.php';
+$system_config_path = __DIR__ . '/../system/config.php';
+
+if (file_exists($config_path)) {
+    require_once $config_path;
+} elseif (file_exists($system_config_path)) {
+    // Fallback in case the top-level config.php is missing from deployment
+    require_once $system_config_path;
+} else {
+    error_log('Configuration file missing at ' . $config_path . ' and ' . $system_config_path);
+    exit('Configuration error. Please contact support.');
+}
+
+// Always have a timeout value available even if the session is already active
+$session_timeout = defined('SESSION_TIMEOUT') ? SESSION_TIMEOUT : 7200;
+
 if (session_status() === PHP_SESSION_NONE) {
     $cookie_options = [
-        'lifetime' => SESSION_TIMEOUT,
+        'lifetime' => $session_timeout,
         'path' => '/',
         'httponly' => true,
         'samesite' => 'Lax'
@@ -15,15 +32,13 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once __DIR__ . '/../config.php';
-
 if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
     session_destroy();
     header('Location: /login.php');
     exit;
 }
 
-if (!isset($_SESSION['login_time']) || (time() - $_SESSION['login_time'] > SESSION_TIMEOUT)) {
+if (!isset($_SESSION['login_time']) || (time() - $_SESSION['login_time'] > $session_timeout)) {
     session_destroy();
     header('Location: /login.php?expired=1');
     exit;
