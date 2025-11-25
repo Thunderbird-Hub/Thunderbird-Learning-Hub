@@ -23,18 +23,24 @@ $post_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 // Add test debug log entry
 if (function_exists('log_debug')) {
     log_debug("mobile/post.php accessed - Post ID: $post_id, User ID: " . ($_SESSION['user_id'] ?? 'none') . ", Time: " . date('Y-m-d H:i:s'));
+} else {
+    error_log("mobile/post.php accessed - Post ID: $post_id, User ID: " . ($_SESSION['user_id'] ?? 'none') . ", Time: " . date('Y-m-d H:i:s'));
 }
 
 // Check for quiz availability and store result for later display
 $quiz_banner_html = '';
 if (function_exists('is_training_user') && is_training_user() && $post_id > 0) {
     try {
-        log_debug("Quiz detection (mobile) - Post ID: $post_id, User ID: " . $_SESSION['user_id']);
+        if (function_exists('log_debug')) {
+            log_debug("Quiz detection (mobile) - Post ID: $post_id, User ID: " . $_SESSION['user_id']);
+        }
 
         $quiz_check = $pdo->prepare("SELECT id, quiz_title, content_type FROM training_quizzes WHERE content_id = ? AND is_active = TRUE AND (content_type = 'post' OR content_type = '' OR content_type IS NULL)");
         $quiz_check->execute([$post_id]);
         $available_quizzes = $quiz_check->fetchAll(PDO::FETCH_ASSOC);
-        log_debug("Available quizzes for post $post_id: " . json_encode($available_quizzes));
+        if (function_exists('log_debug')) {
+            log_debug("Available quizzes for post $post_id: " . json_encode($available_quizzes));
+        }
 
         $assignment_check = $pdo->prepare(
             "SELECT uta.id, uta.course_id, tc.name as course_name
@@ -49,7 +55,9 @@ if (function_exists('is_training_user') && is_training_user() && $post_id > 0) {
         );
         $assignment_check->execute([$_SESSION['user_id'], $post_id]);
         $user_assignments = $assignment_check->fetchAll(PDO::FETCH_ASSOC);
-        log_debug("User assignments for post $post_id: " . json_encode($user_assignments));
+        if (function_exists('log_debug')) {
+            log_debug("User assignments for post $post_id: " . json_encode($user_assignments));
+        }
 
         $stmt = $pdo->prepare(
             "SELECT tq.id as quiz_id, tq.quiz_title, tp.quiz_completed, tp.last_quiz_attempt_id,
@@ -67,7 +75,9 @@ if (function_exists('is_training_user') && is_training_user() && $post_id > 0) {
         );
         $stmt->execute([$post_id, $_SESSION['user_id'], $post_id, $post_id, $_SESSION['user_id'], $post_id]);
         $training_data = $stmt->fetch(PDO::FETCH_ASSOC);
-        log_debug("Final training data result: " . json_encode($training_data));
+        if (function_exists('log_debug')) {
+            log_debug("Final training data result: " . json_encode($training_data));
+        }
 
         if ($training_data && $training_data['quiz_id']) {
             $stmt = $pdo->prepare(
@@ -665,47 +675,6 @@ $mobile_active_page = 'categories';
         } else {
             finish(src);
         }
-        if (!pdfJsPromise) {
-            pdfJsPromise = new Promise((resolve, reject) => {
-                // Enhanced loading with timeout for better mobile experience
-                const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js';
-                script.crossOrigin = 'anonymous';
-
-                const timeout = setTimeout(() => {
-                    reject(new Error('PDF.js loading timed out'));
-                }, 15000); // 15 second timeout for mobile
-
-                script.onload = () => {
-                    clearTimeout(timeout);
-                    if (window.pdfjsLib) {
-                        resolve(window.pdfjsLib);
-                    } else {
-                        reject(new Error('PDF.js library not available'));
-                    }
-                };
-
-                script.onerror = () => {
-                    clearTimeout(timeout);
-                    reject(new Error('PDF.js failed to load'));
-                };
-
-                document.head.appendChild(script);
-            }).then(lib => {
-                // Configure PDF.js for mobile performance
-                if (lib && lib.GlobalWorkerOptions) {
-                    lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
-                    // Mobile optimizations
-                    lib.disableAutoFetch = true;
-                    lib.disableStream = false;
-                }
-                return lib;
-            }).catch(error => {
-                console.error('PDF.js initialization failed:', error);
-                throw error;
-            });
-        }
-        return pdfJsPromise;
     }
 
     function renderPdfToImages(shell) {
@@ -721,7 +690,7 @@ $mobile_active_page = 'categories';
         let renderInProgress = false;
 
         // Enhanced mobile PDF rendering with memory management
-        ensurePdfJs()
+        initPdfJs()
             .then(lib => {
                 pdfLib = lib;
                 return fetch(src, { credentials: 'same-origin' });
@@ -822,41 +791,71 @@ $mobile_active_page = 'categories';
             });
     }
 
-    const shells = document.querySelectorAll('.pdf-lazy-shell');
-    const observer = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const shell = entry.target;
-                const frame = shell.querySelector('.pdf-lazy-frame');
-                const skeleton = shell.querySelector('.pdf-skeleton');
-                loadPdfFrame(frame, skeleton, shell);
-                if (frame && !frame.src) {
-                    frame.src = frame.dataset.src;
-                    frame.onload = () => { if (skeleton) skeleton.style.display = 'none'; };
+    function initPdfJs() {
+        if (!pdfJsPromise) {
+            pdfJsPromise = new Promise((resolve, reject) => {
+                // Enhanced loading with timeout for better mobile experience
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js';
+                script.crossOrigin = 'anonymous';
+
+                const timeout = setTimeout(() => {
+                    reject(new Error('PDF.js loading timed out'));
+                }, 15000); // 15 second timeout for mobile
+
+                script.onload = () => {
+                    clearTimeout(timeout);
+                    if (window.pdfjsLib) {
+                        resolve(window.pdfjsLib);
+                    } else {
+                        reject(new Error('PDF.js library not available'));
+                    }
+                };
+
+                script.onerror = () => {
+                    clearTimeout(timeout);
+                    reject(new Error('PDF.js failed to load'));
+                };
+
+                document.head.appendChild(script);
+            }).then(lib => {
+                // Configure PDF.js for mobile performance
+                if (lib && lib.GlobalWorkerOptions) {
+                    lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
+                    // Mobile optimizations
+                    lib.disableAutoFetch = true;
+                    lib.disableStream = false;
                 }
-                observer.unobserve(shell);
-            }
-        });
-    }, { rootMargin: '200px 0px' }) : null;
+                return lib;
+            }).catch(error => {
+                console.error('PDF.js initialization failed:', error);
+                throw error;
+            });
+        }
+        return pdfJsPromise;
+    }
+
+    const shells = document.querySelectorAll('.pdf-lazy-shell');
 
     shells.forEach(shell => {
         const manualBtn = shell.querySelector('.pdf-manual-load');
-        if (observer) {
-            observer.observe(shell);
-        } else {
-            renderPdfToImages(shell);
-        }
         if (manualBtn) {
-            manualBtn.addEventListener('click', () => loadPdfFrame(frame, skeleton, shell));
+            manualBtn.addEventListener('click', () => {
+                // Initialize PDF rendering when manual button is clicked
+                if (!shell.dataset.loaded || shell.dataset.loaded === '0') {
+                    renderPdfToImages(shell);
+                }
+            });
+        }
+
+        // Auto-initialize for PDF previews
+        const src = shell.dataset.pdfSrc;
+        if (src && /\.pdf(\?|#|$)/i.test(src)) {
+            renderPdfToImages(shell);
         }
     });
 
-    window.addEventListener('unload', () => {
-        document.querySelectorAll('.pdf-lazy-frame[data-blob-url]').forEach(frame => {
-            try { URL.revokeObjectURL(frame.dataset.blobUrl); } catch (e) {}
-        });
-    });
-    </script>
+      </script>
 
     <?php require __DIR__ . '/mobile_nav.php'; ?>
 </body>
