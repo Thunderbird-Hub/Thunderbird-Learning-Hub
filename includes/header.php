@@ -405,10 +405,6 @@ elseif ($is_prod): ?>
             <span class="dev-file-icon">❓</span>
             <span class="dev-file-name">Manage Quiz Questions</span>
           </a>
-          <a href="/admin/manage_course_content.php" class="dev-file-item">
-            <span class="dev-file-icon">📖</span>
-            <span class="dev-file-name">Manage Course Content</span>
-          </a>
           <a href="/admin/manage_training_courses.php" class="dev-file-item">
             <span class="dev-file-icon">📚</span>
             <span class="dev-file-name">Training Courses</span>
