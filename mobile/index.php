@@ -168,6 +168,23 @@ $is_training_user = function_exists('is_training_user') ? is_training_user() : f
             box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
             font-weight: 600;
         }
+
+        @media (max-width: 768px) {
+            /* Keep the Quick Search input usable on mobile */
+            #searchForm {
+                align-items: stretch;
+            }
+
+            #searchForm .form-input {
+                flex: 1 1 auto;
+                min-width: 0;
+            }
+
+            #searchForm .btn {
+                width: auto;
+                flex: 0 0 auto;
+            }
+        }
     </style>
 </head>
 <body class="mobile-body">
