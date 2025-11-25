@@ -796,7 +796,7 @@ if (!empty($search_query)) {
         <p>Search categories, subcategories, posts, and replies.</p>
     </div>
 
-    <?php if (function_exists('render_search_bar')) { render_search_bar('/mobile/search.php', '/mobile/search_autocomplete.php'); } ?>
+    <?php if (function_exists('render_search_bar')) { render_search_bar('/mobile/search.php', '/mobile/search_autocomplete.php', 'mobile'); } ?>
 
     <?php if ($error_message): ?>
         <div class="result-card" style="border-left: 4px solid #f6ad55;"><?php echo htmlspecialchars($error_message); ?></div>
@@ -845,13 +845,13 @@ if (!empty($search_query)) {
                     </div>
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
                         <?php if ($result['type'] === 'category'): ?>
-                            <a class="btn btn-primary btn-small" href="/index.php">Open category</a>
+                            <a class="btn btn-primary btn-small" href="/mobile/categories.php">Open category</a>
                         <?php elseif ($result['type'] === 'subcategory'): ?>
-                            <a class="btn btn-primary btn-small" href="/categories/subcategory.php?id=<?php echo $result['id']; ?>">View subcategory</a>
+                            <a class="btn btn-primary btn-small" href="/mobile/subcategory.php?id=<?php echo $result['id']; ?>">View subcategory</a>
                         <?php elseif ($result['type'] === 'post'): ?>
-                            <a class="btn btn-primary btn-small" href="/posts/post.php?id=<?php echo $result['id']; ?>">Read post</a>
+                            <a class="btn btn-primary btn-small" href="/mobile/post.php?id=<?php echo $result['id']; ?>">Read post</a>
                         <?php else: ?>
-                            <a class="btn btn-primary btn-small" href="/posts/post.php?id=<?php echo $result['post_id']; ?>#reply-<?php echo $result['id']; ?>">View reply</a>
+                            <a class="btn btn-primary btn-small" href="/mobile/post.php?id=<?php echo $result['post_id']; ?>#reply-<?php echo $result['id']; ?>">View reply</a>
                         <?php endif; ?>
                     </div>
                 </div>
