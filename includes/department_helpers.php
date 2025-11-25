@@ -492,13 +492,34 @@ function assign_user_to_department_courses($pdo, $user_id, $department_id, $assi
     try {
         $pdo->beginTransaction();
 
-        // Get all courses in this department
+        // Get all courses in this department (modern mapping table)
         $course_stmt = $pdo->prepare("
-            SELECT course_id FROM course_departments
+            SELECT DISTINCT course_id FROM course_departments
             WHERE department_id = ?
         ");
         $course_stmt->execute([$department_id]);
         $courses = $course_stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        // Fallback: also include legacy training_courses.department matches
+        $legacy_courses = [];
+        $dept_name_stmt = $pdo->prepare("SELECT name FROM departments WHERE id = ?");
+        $dept_name_stmt->execute([$department_id]);
+        $department_name = $dept_name_stmt->fetchColumn();
+
+        if (!empty($department_name)) {
+            $legacy_stmt = $pdo->prepare("
+                SELECT id
+                FROM training_courses
+                WHERE department = ?
+            ");
+            $legacy_stmt->execute([$department_name]);
+            $legacy_courses = $legacy_stmt->fetchAll(PDO::FETCH_COLUMN);
+        }
+
+        if (!empty($legacy_courses)) {
+            // Merge and de-duplicate courses from both mapping methods
+            $courses = array_values(array_unique(array_merge($courses, $legacy_courses)));
+        }
 
         $assigned_count = 0;
 
