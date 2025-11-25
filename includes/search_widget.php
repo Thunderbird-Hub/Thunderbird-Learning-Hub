@@ -6,14 +6,14 @@
  */
 
 if (!function_exists('render_search_bar')) {
-    function render_search_bar($actionPath = '/search/search.php') {
+    function render_search_bar($actionPath = '/search/search.php', $autocompletePath = '/search/search_autocomplete.php') {
         // Guard to only print JS/CSS once per request
         static $SVS_SEARCH_WIDGET_LOADED = false;
 
         // HTML (IDs are fixed so keyboard navigation works everywhere)
         $formHtml = <<<'HTML'
 <div class="card" style="margin-bottom: 20px; position: relative;">
-    <form id="searchForm" method="GET" action="HTML_ACTION_PATH" style="display: flex; gap: 10px;">
+    <form id="searchForm" method="GET" action="HTML_ACTION_PATH" data-autocomplete="HTML_AUTOCOMPLETE_PATH" style="display: flex; gap: 10px;">
         <input
             type="text"
             id="searchInput"
@@ -39,7 +39,18 @@ HTML;
             preg_match('#^https?://#', $actionPath)
         ) ? $actionPath : '/' . ltrim($actionPath, '/');
 
-        echo str_replace('HTML_ACTION_PATH', htmlspecialchars($normalizedActionPath, ENT_QUOTES, 'UTF-8'), $formHtml);
+        $normalizedAutocompletePath = (
+            strpos($autocompletePath, '/') === 0 ||
+            preg_match('#^https?://#', $autocompletePath)
+        ) ? $autocompletePath : '/' . ltrim($autocompletePath, '/');
+
+        $formHtml = str_replace(
+            ['HTML_ACTION_PATH', 'HTML_AUTOCOMPLETE_PATH'],
+            [htmlspecialchars($normalizedActionPath, ENT_QUOTES, 'UTF-8'), htmlspecialchars($normalizedAutocompletePath, ENT_QUOTES, 'UTF-8')],
+            $formHtml
+        );
+
+        echo $formHtml;
 
         // JS/CSS only once
         if ($SVS_SEARCH_WIDGET_LOADED) {
@@ -52,6 +63,7 @@ HTML;
 <script>
 let searchTimeout;
 let currentAutocompleteResults = [];
+let autocompleteEndpoint = '/search/search_autocomplete.php';
 
 document.addEventListener('DOMContentLoaded', function () {
     const inputEl = document.getElementById('searchInput');
@@ -59,6 +71,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const dropdown = document.getElementById('autocompleteDropdown');
 
     if (!inputEl || !formEl || !dropdown) return;
+
+    if (formEl.dataset && formEl.dataset.autocomplete) {
+        autocompleteEndpoint = formEl.dataset.autocomplete;
+    }
 
     // Debounced input
     inputEl.addEventListener('input', function(e) {
@@ -136,7 +152,8 @@ function updateSelectedAutocompleteItem(items, selectedIndex) {
 }
 
 function performAutocompleteSearch(query) {
-    fetch('/search/search_autocomplete.php?q=' + encodeURIComponent(query))
+    const endpoint = autocompleteEndpoint || '/search/search_autocomplete.php';
+    fetch(endpoint + '?q=' + encodeURIComponent(query))
         .then(response => response.json())
         .then(data => {
             currentAutocompleteResults = (data && Array.isArray(data.results)) ? data.results : [];

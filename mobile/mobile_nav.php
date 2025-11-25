@@ -23,7 +23,7 @@ $nav_items = [
         'target' => 'training',
     ],
     'profile' => [
-        'href' => '/mobile/profile.php',
+        'href' => '/mobile/index.php#profile',
         'icon' => '👤',
         'label' => 'Profile',
         'target' => 'profile',
