@@ -2,7 +2,7 @@
 /**
  * Reusable Search Widget
  * Usage: require_once __DIR__ . '/includes/search_widget.php'; render_search_bar();
- * Optional: render_search_bar($actionPath = 'search.php')
+ * Optional: render_search_bar($actionPath = 'search.php', $autocompletePath = '/search/search_autocomplete.php', $variant = 'desktop')
  */
 
 if (!function_exists('render_search_bar')) {
@@ -10,8 +10,33 @@ if (!function_exists('render_search_bar')) {
         // Guard to only print JS/CSS once per request
         static $SVS_SEARCH_WIDGET_LOADED = false;
 
+        $variant = strtolower((string)$variant);
+        $is_mobile_variant = $variant === 'mobile';
+
         // HTML (IDs are fixed so keyboard navigation works everywhere)
-        $formHtml = <<<'HTML'
+        $formHtml = $is_mobile_variant ? <<<'HTML'
+<div class="mobile-search-card" style="background:#ffffff; border-radius:14px; box-shadow:0 6px 20px rgba(0,0,0,0.06); padding:14px; margin-bottom:16px; border:1px solid #e2e8f0; position: relative;">
+    <form id="searchForm" method="GET" action="HTML_ACTION_PATH" data-autocomplete="HTML_AUTOCOMPLETE_PATH" style="display:flex; gap:10px; align-items:center;">
+        <div style="flex:1; display:flex; align-items:center; gap:8px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:10px 12px;">
+            <span aria-hidden="true" style="font-size:16px; color:#718096;">🔍</span>
+            <input
+                type="text"
+                id="searchInput"
+                name="q"
+                class="form-input"
+                placeholder="Search posts, categories, subcategories..."
+                style="flex: 1; margin: 0; border: none; background: transparent; padding: 0; font-size: 15px;"
+                autocomplete="off"
+            >
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin: 0; padding: 12px 16px; border-radius: 12px; white-space: nowrap;">Search</button>
+    </form>
+
+    <!-- Autocomplete Dropdown -->
+    <div id="autocompleteDropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); z-index: 1000; max-height: 320px; overflow-y: auto;"></div>
+</div>
+HTML
+: <<<'HTML'
 <div class="card" style="margin-bottom: 20px; position: relative;">
     <form id="searchForm" method="GET" action="HTML_ACTION_PATH" data-autocomplete="HTML_AUTOCOMPLETE_PATH" style="display: flex; gap: 10px;">
         <input

@@ -14,6 +14,7 @@ header('Content-Type: application/json');
 // Get search query
 $query = trim($_GET['q'] ?? '');
 $results = [];
+$is_mobile_autocomplete = defined('SVS_MOBILE_AUTOCOMPLETE') && SVS_MOBILE_AUTOCOMPLETE;
 
 if (strlen($query) < 2) {
     echo json_encode(['results' => []]);
@@ -435,15 +436,21 @@ try {
         switch ($result['type']) {
             case 'category':
                 // For categories, we'll use a simple search that matches the category name exactly
-                $formatted_result['url'] = '/search/search.php?q=' . urlencode($result['name']);
+                $formatted_result['url'] = $is_mobile_autocomplete
+                    ? '/mobile/search.php?q=' . urlencode($result['name'])
+                    : '/search/search.php?q=' . urlencode($result['name']);
                 $formatted_result['subtitle'] = 'Category';
                 break;
             case 'subcategory':
-                $formatted_result['url'] = '/categories/subcategory.php?id=' . $result['id'];
+                $formatted_result['url'] = $is_mobile_autocomplete
+                    ? '/mobile/subcategory.php?id=' . $result['id']
+                    : '/categories/subcategory.php?id=' . $result['id'];
                 $formatted_result['subtitle'] = 'In ' . htmlspecialchars($result['category_name']);
                 break;
             case 'post':
-                $formatted_result['url'] = '/posts/post.php?id=' . $result['id'];
+                $formatted_result['url'] = $is_mobile_autocomplete
+                    ? '/mobile/post.php?id=' . $result['id']
+                    : '/posts/post.php?id=' . $result['id'];
                 $formatted_result['subtitle'] = 'In ' . htmlspecialchars($result['category_name']) . ' / ' . htmlspecialchars($result['subcategory_name']);
                 break;
         }
