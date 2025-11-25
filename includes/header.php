@@ -25,9 +25,10 @@ if ($is_dev) {
 <title><?php echo $full_title; ?></title>
 
     <link rel="stylesheet" href="/assets/css/style.css?v=20251121">
-    <meta name="theme-color" content="#667eea">
-    <?php if ($is_mobile_layout): ?>
     <link rel="manifest" href="/assets/pwa/manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <script src="/assets/pwa/install-helper.js" defer></script>
+    <?php if ($is_mobile_layout): ?>
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">

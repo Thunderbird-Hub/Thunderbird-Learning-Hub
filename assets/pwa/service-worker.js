@@ -1,9 +1,11 @@
-const CACHE_NAME = 'svs-pwa-cache-v1';
+const CACHE_NAME = 'svs-pwa-cache-v2';
 const OFFLINE_URL = '/assets/pwa/offline.html';
+const STATIC_ASSET_REGEX = /\.(?:css|js|png|jpe?g|gif|svg|webp|ico|json|woff2?)$/i;
 const CORE_ASSETS = [
   '/assets/css/style.css?v=20251121',
   '/assets/images/dev-favicon.png',
   '/assets/images/prod-favicon.png',
+  '/assets/pwa/install-helper.js',
   '/assets/pwa/manifest.json',
   OFFLINE_URL
 ];
@@ -38,40 +40,40 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return response;
-        })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match(OFFLINE_URL)))
-    );
-    return;
-  }
-
   const requestURL = new URL(request.url);
   if (requestURL.origin === location.origin) {
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        if (cached) {
-          return cached;
-        }
+    if (request.mode === 'navigate') {
+      event.respondWith(
+        fetch(request)
+          .catch(() => caches.match(OFFLINE_URL))
+      );
+      return;
+    }
 
-        return fetch(request)
-          .then((response) => {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-            return response;
-          })
-          .catch(() => {
-            if (request.destination === 'document') {
-              return caches.match(OFFLINE_URL);
-            }
-            return new Response('', { status: 503, statusText: 'Offline' });
-          });
-      })
+    if (STATIC_ASSET_REGEX.test(requestURL.pathname)) {
+      event.respondWith(
+        caches.match(request).then((cached) => {
+          if (cached) {
+            return cached;
+          }
+
+          return fetch(request)
+            .then((response) => {
+              const clone = response.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+              return response;
+            })
+            .catch(() => new Response('', { status: 503, statusText: 'Offline' }));
+        })
+      );
+    }
+  }
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'CLEAR_AUTH_CACHE') {
+    event.waitUntil(
+      caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
     );
   }
 });

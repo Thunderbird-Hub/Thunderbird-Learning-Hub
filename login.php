@@ -23,7 +23,25 @@ if (file_exists($config_path)) {
     error_log('Configuration file missing at ' . $config_path . ' and ' . $system_config_path);
     exit('Configuration error. Please contact support.');
 }
-session_start();
+
+// Ensure the session cookie persists reliably in standalone/PWA contexts
+// while respecting the configured SESSION_TIMEOUT.
+if (session_status() === PHP_SESSION_NONE) {
+    $cookie_options = [
+        'lifetime' => SESSION_TIMEOUT,
+        'path' => '/',
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ];
+
+    if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+        $cookie_options['secure'] = true;
+    }
+
+    session_set_cookie_params($cookie_options);
+    session_start();
+}
+
 if (isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true) {
     if (time() - $_SESSION['login_time'] <= SESSION_TIMEOUT) {
         header('Location: /index.php');
@@ -31,6 +49,7 @@ if (isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true) {
     }
 }
 $error_message = '';
+$status_message = '';
 $attempts_remaining = 10; // Show warning at 3 attempts remaining
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -153,6 +172,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 if (isset($_GET['expired']) && $_GET['expired'] == '1') {
     $error_message = 'Your session has expired. Please log in again.';
 }
+$logged_out = isset($_GET['logged_out']) && $_GET['logged_out'] === '1';
+if ($logged_out) {
+    $status_message = 'You have been securely logged out.';
+}
 $page_title = 'Login';
 ?>
 <!DOCTYPE html>
@@ -162,22 +185,61 @@ $page_title = 'Login';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $page_title . ' - ' . SITE_NAME; ?></title>
     <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="manifest" href="/assets/pwa/manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <script src="/assets/pwa/install-helper.js" defer></script>
 </head>
 <body>
     <div class="login-container">
-        <div class="login-box">
-            <h1 class="login-title"><?php echo SITE_NAME; ?></h1>
+        <div class="auth-card">
+            <div class="auth-header">
+                <div>
+                    <p class="auth-kicker">Welcome back</p>
+                    <h1 class="login-title"><?php echo SITE_NAME; ?></h1>
+                </div>
+                <div class="auth-avatar" aria-hidden="true">🔒</div>
+            </div>
+
             <?php if (!empty($error_message)): ?>
-                <div class="error-message"><?php echo htmlspecialchars($error_message); ?></div>
+                <div class="error-message touch-alert"><?php echo htmlspecialchars($error_message); ?></div>
             <?php endif; ?>
-            <form method="POST" action="login.php">
+
+            <?php if (!empty($status_message)): ?>
+                <div class="success-message touch-alert"><?php echo htmlspecialchars($status_message); ?></div>
+            <?php endif; ?>
+
+            <form method="POST" action="login.php" class="auth-form">
                 <div class="form-group">
                     <label for="pin" class="form-label">Enter PIN</label>
-                    <input type="password" id="pin" name="pin" class="pin-input" maxlength="4" pattern="[0-9]{4}" placeholder="••••" required autofocus inputmode="numeric">
+                    <input type="password" id="pin" name="pin" class="pin-input auth-input" maxlength="4" pattern="[0-9]{4}" placeholder="••••" required autofocus inputmode="numeric" aria-describedby="pinHelp">
+                    <small id="pinHelp" class="auth-help">4-digit numeric PIN</small>
                 </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+                <div class="auth-actions">
+                    <a class="auth-link" href="/forgot_password.php">Forgot password?</a>
+                </div>
+                <button type="submit" class="btn btn-primary touch-button">Login</button>
             </form>
         </div>
     </div>
+
+    <script>
+        // Clear cached pages after logout to avoid stale sessions in standalone/PWA
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('logged_out') !== '1') {
+                return;
+            }
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.ready.then((registration) => {
+                    if (!registration.active || !navigator.serviceWorker.controller) {
+                        return;
+                    }
+                    navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_AUTH_CACHE' });
+                }).catch(() => {
+                    // Silent fail: cache cleanup is best-effort
+                });
+            }
+        })();
+    </script>
 </body>
 </html>
