@@ -13,6 +13,7 @@ if (file_exists(__DIR__ . '/../includes/training_helpers.php')) {
 enforce_mobile_beta_access();
 
 $page_title = 'Mobile Training';
+$mobile_active_page = 'training';
 $display_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'User';
 $user_id = isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : 0;
 
@@ -117,7 +118,7 @@ function format_mobile_date($date_value) {
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="<?php echo htmlspecialchars(SITE_NAME); ?>">
     <script src="/assets/pwa/install-helper.js" defer></script>
-    <link rel="stylesheet" href="/assets/css/style.css?v=20251121">
+    <link rel="stylesheet" href="/assets/css/style.css?v=20260205">
     <style>
         body.mobile-body {
             background: #f7fafc;
@@ -327,17 +328,7 @@ function format_mobile_date($date_value) {
         </div>
     </div>
 
-    <nav class="mobile-tab-bar" aria-label="Mobile navigation" style="position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid #e2e8f0; display:grid; grid-template-columns: repeat(3, 1fr); padding:8px 6px 10px; box-shadow:0 -6px 24px rgba(15,23,42,0.1);">
-        <a href="/mobile/index.php" style="text-decoration:none; color:#718096; font-size:12px; text-align:center; display:inline-flex; flex-direction:column; align-items:center; gap:4px; padding:6px 4px; border-radius:10px;">
-            <span class="icon">🏠</span><span>Home</span>
-        </a>
-        <a href="#assignments" style="text-decoration:none; color:#4c51bf; font-size:12px; text-align:center; display:inline-flex; flex-direction:column; align-items:center; gap:4px; padding:6px 4px; border-radius:10px; background:#ebf4ff; font-weight:700;">
-            <span class="icon">🎓</span><span>Training</span>
-        </a>
-        <a href="#course-detail" style="text-decoration:none; color:#718096; font-size:12px; text-align:center; display:inline-flex; flex-direction:column; align-items:center; gap:4px; padding:6px 4px; border-radius:10px;">
-            <span class="icon">📚</span><span>Detail</span>
-        </a>
-    </nav>
+    <?php require __DIR__ . '/mobile_nav.php'; ?>
 
     <script>
         document.querySelectorAll('.toggle-btn').forEach(button => {

@@ -191,7 +191,7 @@ if (!isset($page_title)) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $page_title . ' - ' . SITE_NAME; ?></title>
-    <link rel="stylesheet" href="/assets/css/style.css?v=20251121">
+    <link rel="stylesheet" href="/assets/css/style.css?v=20260205">
     <link rel="manifest" href="/assets/pwa/manifest.json">
     <meta name="theme-color" content="#667eea">
     <script src="/assets/pwa/install-helper.js" defer></script>
