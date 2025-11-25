@@ -1,4 +1,4 @@
-const STATIC_CACHE = 'svs-pwa-static-v3';
+const STATIC_CACHE = 'svs-pwa-static-v4';
 const RUNTIME_CACHE = 'svs-pwa-runtime-v1';
 const API_CACHE = 'svs-pwa-api-v1';
 const OFFLINE_URL = '/assets/pwa/offline.html';
@@ -7,7 +7,7 @@ const STATIC_ASSET_REGEX = /\.(?:css|js|png|jpe?g|gif|svg|webp|ico|json|woff2?)$
 const API_PATH_REGEX = /\/api\//i;
 
 const CORE_ASSETS = [
-  '/assets/css/style.css?v=20251121',
+  '/assets/css/style.css?v=20260205',
   '/assets/images/dev-favicon.png',
   '/assets/images/prod-favicon.png',
   '/assets/pwa/install-helper.js',

@@ -14,6 +14,7 @@ if (file_exists(__DIR__ . '/../includes/training_helpers.php')) {
 enforce_mobile_beta_access();
 
 $page_title = 'Mobile Categories';
+$mobile_active_page = 'categories';
 $error_message = '';
 $categories = [];
 $assigned_categories = [];
@@ -243,7 +244,7 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($page_title) . ' - ' . htmlspecialchars(SITE_NAME); ?></title>
-    <link rel="stylesheet" href="/assets/css/style.css?v=20251121">
+    <link rel="stylesheet" href="/assets/css/style.css?v=20260205">
     <style>
         body.mobile-body { background: #f7fafc; padding: 0; margin: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         .mobile-shell { max-width: 960px; margin: 0 auto; padding: 16px 16px 90px; }
@@ -334,5 +335,7 @@ try {
             </div>
         <?php endif; ?>
     </div>
+
+    <?php require __DIR__ . '/mobile_nav.php'; ?>
 </body>
 </html>
