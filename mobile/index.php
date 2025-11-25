@@ -3,11 +3,14 @@ require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../includes/db_connect.php';
 require_once __DIR__ . '/../includes/user_helpers.php';
 require_once __DIR__ . '/../includes/search_widget.php';
+require_once __DIR__ . '/../includes/mobile_beta_gate.php';
 
 // Load training helpers when available without duplicating logic
 if (file_exists(__DIR__ . '/../includes/training_helpers.php')) {
     require_once __DIR__ . '/../includes/training_helpers.php';
 }
+
+enforce_mobile_beta_access();
 
 $page_title = 'Mobile Hub';
 $display_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'User';
@@ -20,6 +23,9 @@ $is_training_user = function_exists('is_training_user') ? is_training_user() : f
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($page_title) . ' - ' . htmlspecialchars(SITE_NAME); ?></title>
+    <link rel="manifest" href="/assets/pwa/manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <script src="/assets/pwa/install-helper.js" defer></script>
     <link rel="preload" href="/assets/css/style.css?v=20251121" as="style">
     <link rel="stylesheet" href="/assets/css/style.css?v=20251121" media="print" onload="this.media='all'">
     <noscript><link rel="stylesheet" href="/assets/css/style.css?v=20251121"></noscript>
@@ -144,10 +150,29 @@ $is_training_user = function_exists('is_training_user') ? is_training_user() : f
                 padding: 14px;
             }
         }
+        .mobile-beta-banner {
+            background: #fff7ed;
+            color: #9c4221;
+            border: 1px solid #fbd38d;
+            border-radius: 12px;
+            padding: 10px 12px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+            font-weight: 600;
+        }
     </style>
 </head>
 <body class="mobile-body">
     <div class="mobile-shell">
+        <?php if (defined('MOBILE_BETA_BANNER') && MOBILE_BETA_BANNER): ?>
+            <div class="mobile-beta-banner" role="alert" aria-live="polite">
+                <span>🧪</span>
+                <span><?php echo htmlspecialchars(MOBILE_BETA_BANNER); ?></span>
+            </div>
+        <?php endif; ?>
         <div class="mobile-hero" id="home">
             <h1>Hi <?php echo htmlspecialchars($display_name); ?> 👋</h1>
             <p>
