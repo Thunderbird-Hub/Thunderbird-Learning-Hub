@@ -218,8 +218,8 @@ $is_training_user = function_exists('is_training_user') ? is_training_user() : f
                 <h2>Categories</h2>
                 <p>Browse the knowledge base categories and subcategories.</p>
                 <div class="mobile-links">
-                    <a class="primary-link" href="/index.php">🏠 Main Home</a>
-                    <a href="/index.php#categories">📂 Browse Categories</a>
+                    <a class="primary-link" href="/mobile/categories.php">📱 Mobile Categories</a>
+                    <a href="/mobile/categories.php#all">📂 Browse Categories</a>
                 </div>
             </div>
 
