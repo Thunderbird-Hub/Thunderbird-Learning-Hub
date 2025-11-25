@@ -32,9 +32,9 @@ $mobile_active_page = 'index';
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="<?php echo htmlspecialchars(SITE_NAME); ?>">
     <script src="/assets/pwa/install-helper.js" defer></script>
-    <link rel="preload" href="/assets/css/style.css?v=20251121" as="style">
-    <link rel="stylesheet" href="/assets/css/style.css?v=20251121" media="print" onload="this.media='all'">
-    <noscript><link rel="stylesheet" href="/assets/css/style.css?v=20251121"></noscript>
+    <link rel="preload" href="/assets/css/style.css?v=20260205" as="style">
+    <link rel="stylesheet" href="/assets/css/style.css?v=20260205" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="/assets/css/style.css?v=20260205"></noscript>
     <style id="mobile-critical-style">
         body.mobile-body {
             background: #f7fafc;

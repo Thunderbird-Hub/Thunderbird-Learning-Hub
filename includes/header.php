@@ -24,7 +24,7 @@ if ($is_dev) {
 ?>
 <title><?php echo $full_title; ?></title>
 
-    <link rel="stylesheet" href="/assets/css/style.css?v=20251121">
+    <link rel="stylesheet" href="/assets/css/style.css?v=20260205">
     <link rel="manifest" href="/assets/pwa/manifest.json">
     <meta name="theme-color" content="#667eea">
     <script src="/assets/pwa/install-helper.js" defer></script>

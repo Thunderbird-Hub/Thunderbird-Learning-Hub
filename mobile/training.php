@@ -118,7 +118,7 @@ function format_mobile_date($date_value) {
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="<?php echo htmlspecialchars(SITE_NAME); ?>">
     <script src="/assets/pwa/install-helper.js" defer></script>
-    <link rel="stylesheet" href="/assets/css/style.css?v=20251121">
+    <link rel="stylesheet" href="/assets/css/style.css?v=20260205">
     <style>
         body.mobile-body {
             background: #f7fafc;

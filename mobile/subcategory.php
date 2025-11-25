@@ -174,7 +174,7 @@ function mobile_excerpt($html_content, $length = 180) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($page_title) . ' - ' . htmlspecialchars(SITE_NAME); ?></title>
-    <link rel="stylesheet" href="/assets/css/style.css?v=20251121">
+    <link rel="stylesheet" href="/assets/css/style.css?v=20260205">
     <style>
         body.mobile-body { background: #f7fafc; padding: 0; margin: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         .mobile-shell { max-width: 960px; margin: 0 auto; padding: 16px 16px 90px; }
