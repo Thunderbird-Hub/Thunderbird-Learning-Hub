@@ -1,5 +1,17 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) {
+    $cookie_options = [
+        'lifetime' => SESSION_TIMEOUT,
+        'path' => '/',
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ];
+
+    if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+        $cookie_options['secure'] = true;
+    }
+
+    session_set_cookie_params($cookie_options);
     session_start();
 }
 
