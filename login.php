@@ -10,6 +10,11 @@
  * - Proper session management and brute force protection
  */
 
+// Determine where to send the user after a successful login (supports mobile login entrypoint)
+if (!isset($post_login_redirect) || !is_string($post_login_redirect) || strpos($post_login_redirect, '/') !== 0) {
+    $post_login_redirect = '/index.php';
+}
+
 // Load application configuration with robust path handling and fallback
 $config_path = __DIR__ . '/config.php';
 $system_config_path = __DIR__ . '/system/config.php';
@@ -44,7 +49,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 if (isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true) {
     if (time() - $_SESSION['login_time'] <= SESSION_TIMEOUT) {
-        header('Location: /index.php');
+        header('Location: ' . $post_login_redirect);
         exit;
     }
 }
@@ -83,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($error_message)) {
         // Try database authentication
         try {
-            require_once 'includes/db_connect.php';
+            require_once __DIR__ . '/includes/db_connect.php';
 
             $stmt = $pdo->prepare("SELECT * FROM users WHERE is_active = 1");
             $stmt->execute();
@@ -131,7 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['user_color'] = $user['color'];
                 $_SESSION['user_role'] = $user['role'];
 
-                header('Location: /index.php');
+                header('Location: ' . $post_login_redirect);
                 exit;
             } else {
                 // FAILED: Login failed
@@ -176,7 +181,9 @@ $logged_out = isset($_GET['logged_out']) && $_GET['logged_out'] === '1';
 if ($logged_out) {
     $status_message = 'You have been securely logged out.';
 }
-$page_title = 'Login';
+if (!isset($page_title)) {
+    $page_title = 'Login';
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
