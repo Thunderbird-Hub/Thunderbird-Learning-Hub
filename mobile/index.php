@@ -25,6 +25,10 @@ $is_training_user = function_exists('is_training_user') ? is_training_user() : f
     <title><?php echo htmlspecialchars($page_title) . ' - ' . htmlspecialchars(SITE_NAME); ?></title>
     <link rel="manifest" href="/assets/pwa/manifest.json">
     <meta name="theme-color" content="#667eea">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="<?php echo htmlspecialchars(SITE_NAME); ?>">
     <script src="/assets/pwa/install-helper.js" defer></script>
     <link rel="preload" href="/assets/css/style.css?v=20251121" as="style">
     <link rel="stylesheet" href="/assets/css/style.css?v=20251121" media="print" onload="this.media='all'">
