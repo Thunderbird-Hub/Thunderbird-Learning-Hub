@@ -9,11 +9,22 @@
 
         tabLinks.forEach((link) => {
             link.addEventListener('click', (event) => {
-                event.preventDefault();
                 const targetId = link.dataset.target;
+                if (!targetId) {
+                    return;
+                }
+
                 const targetEl = document.getElementById(targetId);
                 if (targetEl) {
+                    event.preventDefault();
                     targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                    // Keep the hash in sync for browsers that rely on it
+                    if (typeof history !== 'undefined' && history.replaceState) {
+                        history.replaceState(null, '', `#${targetId}`);
+                    } else {
+                        window.location.hash = targetId;
+                    }
                 }
             });
         });
