@@ -1,0 +1,9 @@
+{
+  "name": "SVS Knowledge Base",
+  "short_name": "SVS KB",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#667eea",
+  "background_color": "#f0f4f8"
+}
