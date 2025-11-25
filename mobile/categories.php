@@ -244,6 +244,7 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($page_title) . ' - ' . htmlspecialchars(SITE_NAME); ?></title>
+    <link rel="stylesheet" href="/assets/css/style.css?v=20251121">
     <link rel="stylesheet" href="/assets/css/style.css?v=20260205">
     <style>
         body.mobile-body { background: #f7fafc; padding: 0; margin: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
@@ -273,6 +274,7 @@ try {
                 <h2 class="section-title" style="margin:0;">Search</h2>
                 <a href="/mobile/index.php" style="color:#e2e8f0; font-size:12px; text-decoration:none;">Back to mobile home</a>
             </div>
+            <?php if (function_exists('render_search_bar')) { render_search_bar('/search/search.php'); } ?>
             <?php if (function_exists('render_search_bar')) { render_search_bar('/mobile/search.php', '/mobile/search_autocomplete.php'); } ?>
         </div>
 

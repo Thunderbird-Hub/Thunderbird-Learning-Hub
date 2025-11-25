@@ -339,6 +339,7 @@ $mobile_active_page = 'categories';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($page_title) . ' - ' . htmlspecialchars(SITE_NAME); ?></title>
+    <link rel="stylesheet" href="/assets/css/style.css?v=20251121">
     <link rel="stylesheet" href="/assets/css/style.css?v=20260205">
     <style>
         body.mobile-body { background: #f7fafc; padding: 0; margin: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
@@ -356,6 +357,8 @@ $mobile_active_page = 'categories';
         .reply-meta { font-size: 12px; color: #718096; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
         .empty-state { padding: 20px; text-align: center; color: #718096; background: #fff; border: 1px dashed #cbd5e0; border-radius: 12px; }
         .pdf-lazy-shell { position: relative; width: 100%; height: 1000px; background: #f3f4f6; border-top: 1px solid #eee; }
+        .pdf-fallback { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 16px; background: linear-gradient(135deg, rgba(102,126,234,0.08), rgba(118,75,162,0.08)); color: #4a5568; font-size: 14px; }
+        .pdf-fallback a { color: #4c51bf; font-weight: 700; }
     </style>
 </head>
 <body class="mobile-body">
@@ -432,6 +435,12 @@ $mobile_active_page = 'categories';
                                         </div>
                                         <iframe class="pdf-lazy-frame" data-src="<?php echo htmlspecialchars($iframe_src); ?>" title="<?php echo htmlspecialchars($file['original_filename']); ?>" style="width:100%; height:100%; border:none; display:block;" loading="lazy" fetchpriority="low"></iframe>
                                         <button type="button" class="pdf-manual-load" style="position:absolute; right:12px; bottom:12px; font-size:12px; padding:6px 10px; background:#fff; border:1px solid #ddd; border-radius:6px; cursor:pointer;">Load PDF now</button>
+                                        <div class="pdf-fallback">
+                                            <div>
+                                                <div style="margin-bottom:8px; font-weight:700;">Inline preview is taking longer than usual.</div>
+                                                <div style="font-size:13px;">If it doesn't appear, <a class="pdf-open-link" href="<?php echo htmlspecialchars($iframe_src); ?>" target="_blank" rel="noopener">open the PDF in a new tab</a>.</div>
+                                            </div>
+                                        </div>
                                     </div>
                                 <?php else: ?>
                                     <div style="padding: 12px; background:#fff; border:1px solid #e2e8f0; border-radius:10px;">This file type cannot be previewed inline. Please download to view.</div>
@@ -536,6 +545,76 @@ $mobile_active_page = 'categories';
         arrow.textContent = isHidden ? '▲' : '▼';
     }
 
+    function showPdfFallback(shell, src) {
+        if (!shell) return;
+        const fallback = shell.querySelector('.pdf-fallback');
+        const link = shell.querySelector('.pdf-open-link');
+        if (link && src) {
+            link.href = src;
+        }
+        if (fallback) {
+            fallback.style.display = 'flex';
+        }
+        const skeleton = shell.querySelector('.pdf-skeleton');
+        if (skeleton) skeleton.style.display = 'none';
+    }
+
+    function loadPdfFrame(frame, skeleton, shell) {
+        if (!frame || frame.dataset.loaded === '1') return;
+
+        const src = frame.dataset.src;
+        if (!src) return;
+
+        const isPdf = /\.pdf(\?|#|$)/i.test(src);
+        const clearTimeoutGuard = () => {
+            if (frame._pdfLoadTimeout) {
+                clearTimeout(frame._pdfLoadTimeout);
+                frame._pdfLoadTimeout = null;
+            }
+        };
+        const markLoaded = () => {
+            if (skeleton) skeleton.style.display = 'none';
+            clearTimeoutGuard();
+        };
+        const handleFailure = () => {
+            clearTimeoutGuard();
+            showPdfFallback(shell, src);
+        };
+
+        frame.addEventListener('load', markLoaded, { once: true });
+        frame.addEventListener('error', handleFailure, { once: true });
+
+        frame._pdfLoadTimeout = setTimeout(() => {
+            if (skeleton && skeleton.style.display !== 'none') {
+                handleFailure();
+            }
+        }, 7000);
+
+        const finish = (finalSrc, isBlob = false) => {
+            frame.dataset.loaded = '1';
+            if (isBlob) {
+                frame.dataset.blobUrl = finalSrc;
+            }
+            frame.src = finalSrc;
+        };
+
+        // On some devices the file path forces download; fetching to a Blob lets us embed inline safely.
+        if (isPdf && window.fetch && window.URL && URL.createObjectURL) {
+            fetch(src, { credentials: 'same-origin' })
+                .then(resp => {
+                    if (!resp.ok) throw new Error('Fetch failed');
+                    return resp.blob();
+                })
+                .then(blob => {
+                    const blobUrl = URL.createObjectURL(blob);
+                    finish(blobUrl, true);
+                })
+                .catch(() => finish(src));
+        } else {
+            finish(src);
+        }
+    }
+
     const shells = document.querySelectorAll('.pdf-lazy-shell');
     const observer = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => {
         entries.forEach(entry => {
@@ -543,6 +622,7 @@ $mobile_active_page = 'categories';
                 const shell = entry.target;
                 const frame = shell.querySelector('.pdf-lazy-frame');
                 const skeleton = shell.querySelector('.pdf-skeleton');
+                loadPdfFrame(frame, skeleton, shell);
                 loadPdfFrame(frame, skeleton);
                 if (frame && !frame.src) {
                     frame.src = frame.dataset.src;
@@ -561,6 +641,7 @@ $mobile_active_page = 'categories';
             observer.observe(shell);
         }
         if (manualBtn) {
+            manualBtn.addEventListener('click', () => loadPdfFrame(frame, skeleton, shell));
             manualBtn.addEventListener('click', () => loadPdfFrame(frame, skeleton));
         }
     });
@@ -570,6 +651,7 @@ $mobile_active_page = 'categories';
             try { URL.revokeObjectURL(frame.dataset.blobUrl); } catch (e) {}
         });
     });
+    </script>
             manualBtn.addEventListener('click', () => {
                 if (frame && !frame.src) {
                     frame.src = frame.dataset.src;
