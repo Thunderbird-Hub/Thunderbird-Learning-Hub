@@ -8,7 +8,10 @@
     require_once __DIR__ . '/file_usage_logger.php';
 
 $host = $_SERVER['HTTP_HOST'] ?? '';
+$user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
 $is_dev = stripos($host, 'devknowledgebase.xo.je') === 0;
+$is_prod = stripos($host, 'svsknowledgebase.xo.je') === 0;
+$is_mobile_layout = (bool) preg_match('/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i', $user_agent);
 
 $full_title = isset($page_title)
     ? htmlspecialchars($page_title) . ' - ' . SITE_NAME
@@ -22,13 +25,16 @@ if ($is_dev) {
 <title><?php echo $full_title; ?></title>
 
     <link rel="stylesheet" href="/assets/css/style.css?v=20251121">
+    <meta name="theme-color" content="#667eea">
+    <?php if ($is_mobile_layout): ?>
+    <link rel="manifest" href="/assets/pwa/manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="<?php echo htmlspecialchars(SITE_NAME); ?>">
+    <?php endif; ?>
 
 <?php
-$host = $_SERVER['HTTP_HOST'] ?? '';
-
-$is_dev  = stripos($host, 'devknowledgebase.xo.je') === 0;
-$is_prod = stripos($host, 'svsknowledgebase.xo.je') === 0;
-
 // DEV FAVICON
 if ($is_dev): ?>
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/images/dev-favicon.png?v=2">
@@ -42,6 +48,18 @@ elseif ($is_prod): ?>
     <link rel="icon" type="image/png" sizes="16x16" href="/assets/images/prod-favicon.png?v=1">
     <link rel="shortcut icon" href="/assets/images/prod-favicon.png?v=1">
 <?php endif; ?>
+
+    <?php if ($is_mobile_layout): ?>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/assets/pwa/service-worker.js').catch((error) => {
+                    console.error('Service worker registration failed:', error);
+                });
+            });
+        }
+    </script>
+    <?php endif; ?>
 </head>
 <body>
     <header class="header">
