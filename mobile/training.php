@@ -2,11 +2,14 @@
 require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../includes/db_connect.php';
 require_once __DIR__ . '/../includes/user_helpers.php';
+require_once __DIR__ . '/../includes/mobile_beta_gate.php';
 
 // Load training helpers for progress + auto role management
 if (file_exists(__DIR__ . '/../includes/training_helpers.php')) {
     require_once __DIR__ . '/../includes/training_helpers.php';
 }
+
+enforce_mobile_beta_access();
 
 $page_title = 'Mobile Training';
 $display_name = isset($_SESSION['user_name']) ? $_SESSION['user_name'] : 'User';
@@ -106,6 +109,9 @@ function format_mobile_date($date_value) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($page_title) . ' - ' . htmlspecialchars(SITE_NAME); ?></title>
+    <link rel="manifest" href="/assets/pwa/manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <script src="/assets/pwa/install-helper.js" defer></script>
     <link rel="stylesheet" href="/assets/css/style.css?v=20251121">
     <style>
         body.mobile-body {
@@ -174,6 +180,12 @@ function format_mobile_date($date_value) {
 </head>
 <body class="mobile-body">
     <div class="mobile-shell">
+        <?php if (defined('MOBILE_BETA_BANNER') && MOBILE_BETA_BANNER): ?>
+            <div style="background:#fff7ed;color:#9c4221;border:1px solid #fbd38d;border-radius:12px;padding:10px 12px;margin-bottom:14px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 18px rgba(15,23,42,0.08);font-weight:600;">
+                <span>🧪</span>
+                <span><?php echo htmlspecialchars(MOBILE_BETA_BANNER); ?></span>
+            </div>
+        <?php endif; ?>
         <div class="mobile-hero" id="home">
             <h1>Training, <?php echo htmlspecialchars($display_name); ?> 📱</h1>
             <p><?php echo htmlspecialchars(SITE_NAME); ?> · Mobile dashboard</p>

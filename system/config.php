@@ -21,6 +21,10 @@ define('UPLOAD_PATH_IMAGES', 'uploads/images/');
 define('UPLOAD_PATH_FILES', 'uploads/files/');
 define('IMAGE_EXTENSIONS', ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp']);
 define('SITE_NAME', 'Thunderbird Learning Hub');
+define('MOBILE_BETA_ENABLED', true);
+define('MOBILE_BETA_USER_IDS', []); // Populate with invited tester user IDs
+define('MOBILE_BETA_ROLES', ['admin', 'super_admin']);
+define('MOBILE_BETA_BANNER', 'Mobile beta is limited to invited testers. Share feedback in the beta thread.');
 
 // Hardcoded User Accounts - DISABLED - Using database only
 // $GLOBALS['USERS'] = [
