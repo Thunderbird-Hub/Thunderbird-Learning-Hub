@@ -62,7 +62,7 @@ if (function_exists('log_debug')) {
 // First try: tolerant join to course content (handles tq.content_type ''/NULL)
 // NOTE: we fetch by attempt id only; access control is enforced in PHP.
 $stmt = $pdo->prepare("
-    SELECT uqa.*, tq.quiz_title, tq.passing_score,
+    SELECT uqa.*, tq.quiz_title, tq.passing_score, tq.retest_period_months,
            tcc.content_id, tcc.content_type,
            CASE tcc.content_type
                WHEN 'category'   THEN c.name
@@ -103,7 +103,7 @@ if (!$attempt) {
     }
 
     $stmt = $pdo->prepare("
-        SELECT uqa.*, tq.quiz_title, tq.passing_score,
+        SELECT uqa.*, tq.quiz_title, tq.passing_score, tq.retest_period_months,
                tq.content_id,
                COALESCE(NULLIF(tq.content_type,''),'post') AS content_type,
                CASE COALESCE(NULLIF(tq.content_type,''),'post')
@@ -172,6 +172,53 @@ if (!$attempt) {
     $earned_points  = isset($attempt['earned_points']) ? floatval($attempt['earned_points']) : 0.0;
     $total_points   = isset($attempt['total_points'])  ? floatval($attempt['total_points'])  : 0.0;
     $display_score  = ($total_points > 0) ? round(($earned_points / $total_points) * 100) : 0;
+
+    $retry_available = false;
+    $retry_message = '';
+    $retry_url = '';
+    $retry_is_resume = false;
+
+    if (isset($_SESSION['user_id']) && (int)$attempt['user_id'] === (int)$_SESSION['user_id']) {
+        $retry_url = '/training/take_quiz.php?quiz_id=' . intval($attempt['quiz_id']) .
+            '&content_id=' . intval($quiz['content_id']) .
+            '&content_type=' . urlencode($quiz['content_type']) .
+            '&mobile=1';
+
+        // Respect the same retest logic as the quiz intake page
+        $in_progress_stmt = $pdo->prepare("SELECT id FROM user_quiz_attempts WHERE user_id = ? AND quiz_id = ? AND status = 'in_progress' ORDER BY started_at DESC LIMIT 1");
+        $in_progress_stmt->execute([$_SESSION['user_id'], $attempt['quiz_id']]);
+        $in_progress = $in_progress_stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($in_progress && intval($in_progress['id']) !== intval($attempt_id)) {
+            $retry_available = true;
+            $retry_message = 'Resume your in-progress attempt.';
+            $retry_is_resume = true;
+        } else {
+            $last_attempt_stmt = $pdo->prepare("SELECT completed_at FROM user_quiz_attempts WHERE user_id = ? AND quiz_id = ? AND status IN ('passed','failed') ORDER BY completed_at DESC LIMIT 1");
+            $last_attempt_stmt->execute([$_SESSION['user_id'], $attempt['quiz_id']]);
+            $last_completed_attempt = $last_attempt_stmt->fetch(PDO::FETCH_ASSOC);
+
+            $retest_months = intval($attempt['retest_period_months'] ?? 0);
+
+            if (!$last_completed_attempt) {
+                $retry_available = true;
+            } elseif ($retest_months <= 0) {
+                $retry_available = true;
+            } else {
+                $completed_at = new DateTime($last_completed_attempt['completed_at']);
+                $retest_available_at = clone $completed_at;
+                $retest_available_at->add(new DateInterval('P' . $retest_months . 'M'));
+                $now = new DateTime();
+
+                if ($now >= $retest_available_at) {
+                    $retry_available = true;
+                } else {
+                    $retry_available = false;
+                    $retry_message = 'Available to retry in ' . $now->diff($retest_available_at)->days . ' day(s).';
+                }
+            }
+        }
+    }
 
     $completed_at_display = 'Not completed yet';
     if (!empty($attempt['completed_at'])) {
@@ -614,6 +661,19 @@ include __DIR__ . '/../includes/header.php';
     color: #0c5460;
 }
 
+.mobile-result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0 0 20px;
+}
+
+.mobile-result-actions .btn {
+    flex: 1;
+    min-width: 160px;
+    text-align: center;
+}
+
 @media (max-width: 768px) {
     .results-container {
         padding: 10px;
@@ -631,6 +691,10 @@ include __DIR__ . '/../includes/header.php';
     .btn {
         width: 100%;
         text-align: center;
+    }
+
+    .mobile-result-actions {
+        flex-direction: column;
     }
 }
 </style>
@@ -663,6 +727,18 @@ include __DIR__ . '/../includes/header.php';
                     ? 'You passed the quiz!'
                     : 'You didn\'t meet the passing score.'; ?>
             </div>
+        </div>
+
+        <div class="mobile-result-actions">
+            <a href="training_dashboard.php" class="btn btn-secondary">← Back to Dashboard</a>
+            <a href="<?php echo htmlspecialchars($quiz['content_url'] . $quiz['content_id']); ?>" class="btn btn-light">📖 Review Content</a>
+            <?php if ($retry_available): ?>
+                <a href="<?php echo htmlspecialchars($retry_url); ?>" class="btn btn-primary">
+                    <?php echo $retry_is_resume ? 'Resume Quiz' : 'Retake Quiz'; ?>
+                </a>
+            <?php elseif ($retry_message): ?>
+                <div class="alert alert-warning" style="margin:0; flex:1;">⚠️ <?php echo htmlspecialchars($retry_message); ?></div>
+            <?php endif; ?>
         </div>
 
         <!-- Score Display -->
