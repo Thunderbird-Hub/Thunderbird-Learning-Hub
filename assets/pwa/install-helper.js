@@ -7,9 +7,11 @@
         if (!('serviceWorker' in navigator)) {
             return;
         }
-        navigator.serviceWorker.register('/assets/pwa/service-worker.js').catch(() => {
-            // Registration failure is non-blocking for install UI
-        });
+        navigator.serviceWorker
+            .register('/assets/pwa/service-worker.js', { scope: '/' })
+            .catch(() => {
+                // Registration failure is non-blocking for install UI
+            });
     }
 
     function hideBanner() {
