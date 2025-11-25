@@ -796,7 +796,7 @@ if (!empty($search_query)) {
         <p>Search categories, subcategories, posts, and replies.</p>
     </div>
 
-    <?php if (function_exists('render_search_bar')) { render_search_bar('/mobile/search.php', '/mobile/search_autocomplete.php', 'mobile'); } ?>
+    <?php if (function_exists('render_search_bar')) { render_search_bar('/mobile/search.php', '/mobile/search_autocomplete.php'); } ?>
 
     <?php if ($error_message): ?>
         <div class="result-card" style="border-left: 4px solid #f6ad55;"><?php echo htmlspecialchars($error_message); ?></div>

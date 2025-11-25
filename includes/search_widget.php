@@ -6,7 +6,7 @@
  */
 
 if (!function_exists('render_search_bar')) {
-    function render_search_bar($actionPath = '/search/search.php', $autocompletePath = '/search/search_autocomplete.php', $variant = 'desktop') {
+    function render_search_bar($actionPath = '/search/search.php', $autocompletePath = '/search/search_autocomplete.php') {
         // Guard to only print JS/CSS once per request
         static $SVS_SEARCH_WIDGET_LOADED = false;
 
