@@ -20,8 +20,10 @@ $is_training_user = function_exists('is_training_user') ? is_training_user() : f
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($page_title) . ' - ' . htmlspecialchars(SITE_NAME); ?></title>
-    <link rel="stylesheet" href="/assets/css/style.css?v=20251121">
-    <style>
+    <link rel="preload" href="/assets/css/style.css?v=20251121" as="style">
+    <link rel="stylesheet" href="/assets/css/style.css?v=20251121" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="/assets/css/style.css?v=20251121"></noscript>
+    <style id="mobile-critical-style">
         body.mobile-body {
             background: #f7fafc;
             padding: 0;
@@ -213,44 +215,6 @@ $is_training_user = function_exists('is_training_user') ? is_training_user() : f
         <a href="#profile" data-target="profile"><span class="icon">👤</span><span>Profile</span></a>
     </nav>
 
-    <script>
-        const tabLinks = document.querySelectorAll('.mobile-tab-bar a');
-        const sectionIds = Array.from(tabLinks).map(link => link.dataset.target);
-
-        tabLinks.forEach(link => {
-            link.addEventListener('click', (event) => {
-                event.preventDefault();
-                const targetId = link.dataset.target;
-                const targetEl = document.getElementById(targetId);
-                if (targetEl) {
-                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            });
-        });
-
-        const sectionMap = {};
-        sectionIds.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                sectionMap[id] = el;
-            }
-        });
-
-        const updateActiveTab = (activeId) => {
-            tabLinks.forEach(link => {
-                link.classList.toggle('active', link.dataset.target === activeId);
-            });
-        };
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    updateActiveTab(entry.target.id);
-                }
-            });
-        }, { threshold: 0.4 });
-
-        Object.values(sectionMap).forEach(section => observer.observe(section));
-    </script>
+    <script src="/assets/js/mobile-shell.js" defer></script>
 </body>
 </html>

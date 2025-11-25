@@ -1274,6 +1274,11 @@ function setOfflineState(isOffline) {
 
 window.addEventListener('online', () => setOfflineState(false));
 window.addEventListener('offline', () => setOfflineState(true));
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+        setOfflineState(!navigator.onLine);
+    }
+});
 
 // Answer selection
 function selectAnswer(element) {
