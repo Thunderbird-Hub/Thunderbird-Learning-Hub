@@ -378,13 +378,13 @@ elseif ($is_prod): ?>
       <div class="dev-dropdown-section">
         <div class="dev-section-title">👥 User & Team Management</div>
         <div class="dev-file-list">
-          <a href="/admin/manage_users.php" class="dev-file-item">
-            <span class="dev-file-icon">👤</span>
-            <span class="dev-file-name">User Management</span>
-          </a>
           <a href="/admin/manage_departments.php" class="dev-file-item">
             <span class="dev-file-icon">🏢</span>
             <span class="dev-file-name">Department Management</span>
+          </a>
+          <a href="/admin/manage_users.php" class="dev-file-item">
+            <span class="dev-file-icon">👤</span>
+            <span class="dev-file-name">User Management</span>
           </a>
         </div>
       </div>
@@ -393,9 +393,9 @@ elseif ($is_prod): ?>
       <div class="dev-dropdown-section">
         <div class="dev-section-title">🎓 Training & Education</div>
         <div class="dev-file-list">
-          <a href="/admin/manage_training_courses.php" class="dev-file-item">
-            <span class="dev-file-icon">📚</span>
-            <span class="dev-file-name">Training Courses</span>
+           <a href="/admin/training_admin_analytics.php" class="dev-file-item">
+            <span class="dev-file-icon">📊</span>
+            <span class="dev-file-name">Admin Training Dashboard</span>
           </a>
           <a href="/admin/manage_quizzes.php" class="dev-file-item">
             <span class="dev-file-icon">📋</span>
@@ -409,9 +409,9 @@ elseif ($is_prod): ?>
             <span class="dev-file-icon">📖</span>
             <span class="dev-file-name">Manage Course Content</span>
           </a>
-          <a href="/admin/training_admin_analytics.php" class="dev-file-item">
-            <span class="dev-file-icon">📊</span>
-            <span class="dev-file-name">Admin Training Dashboard</span>
+          <a href="/admin/manage_training_courses.php" class="dev-file-item">
+            <span class="dev-file-icon">📚</span>
+            <span class="dev-file-name">Training Courses</span>
           </a>
         </div>
       </div>
