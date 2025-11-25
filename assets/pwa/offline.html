@@ -5,10 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Offline - SVS Knowledge Base</title>
     <style>
+        :root { color-scheme: light dark; }
         body {
             font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #f0f4f8;
+            background: #0f172a;
+            color: #e2e8f0;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -18,27 +19,30 @@
             padding: 20px;
         }
         .card {
-            background: rgba(255, 255, 255, 0.08);
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid #1f2937;
             border-radius: 12px;
-            padding: 24px 20px;
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
-            max-width: 480px;
+            padding: 18px 16px;
+            max-width: 420px;
             width: 100%;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
         }
         h1 {
-            margin-bottom: 10px;
-            font-size: 24px;
+            margin-bottom: 8px;
+            font-size: 20px;
+            color: #cbd5e1;
         }
         p {
             margin: 0;
             line-height: 1.5;
+            color: #94a3b8;
         }
     </style>
 </head>
 <body>
     <div class="card">
         <h1>Offline Mode</h1>
-        <p>You’re currently offline. Content you’ve opened recently may still be available, and you can access this page once you’re back online.</p>
+        <p>A minimal offline shell is ready. Previously opened articles, icons, and quiz data cached on this device stay readable until you reconnect.</p>
     </div>
 </body>
 </html>
