@@ -590,25 +590,30 @@ $mobile_active_page = 'categories';
             }
         }, 7000);
 
-        const finish = (finalSrc, isBlob = false) => {
+        const finish = (finalSrc, isBaked = false) => {
             frame.dataset.loaded = '1';
-            if (isBlob) {
+            if (isBaked) {
                 frame.dataset.blobUrl = finalSrc;
             }
             frame.src = finalSrc;
         };
 
-        // On some devices the file path forces download; fetching to a Blob lets us embed inline safely.
-        if (isPdf && window.fetch && window.URL && URL.createObjectURL) {
+        const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+
+        // On some devices the file path forces download; fetching to a Blob and converting to a data URL bakes the PDF inline.
+        if (isPdf && window.fetch && window.FileReader) {
             fetch(src, { credentials: 'same-origin' })
                 .then(resp => {
                     if (!resp.ok) throw new Error('Fetch failed');
                     return resp.blob();
                 })
-                .then(blob => {
-                    const blobUrl = URL.createObjectURL(blob);
-                    finish(blobUrl, true);
-                })
+                .then(blob => blobToDataUrl(blob))
+                .then(dataUrl => finish(dataUrl, true))
                 .catch(() => finish(src));
         } else {
             finish(src);
@@ -623,7 +628,6 @@ $mobile_active_page = 'categories';
                 const frame = shell.querySelector('.pdf-lazy-frame');
                 const skeleton = shell.querySelector('.pdf-skeleton');
                 loadPdfFrame(frame, skeleton, shell);
-                loadPdfFrame(frame, skeleton);
                 if (frame && !frame.src) {
                     frame.src = frame.dataset.src;
                     frame.onload = () => { if (skeleton) skeleton.style.display = 'none'; };
@@ -642,7 +646,6 @@ $mobile_active_page = 'categories';
         }
         if (manualBtn) {
             manualBtn.addEventListener('click', () => loadPdfFrame(frame, skeleton, shell));
-            manualBtn.addEventListener('click', () => loadPdfFrame(frame, skeleton));
         }
     });
 
@@ -650,15 +653,6 @@ $mobile_active_page = 'categories';
         document.querySelectorAll('.pdf-lazy-frame[data-blob-url]').forEach(frame => {
             try { URL.revokeObjectURL(frame.dataset.blobUrl); } catch (e) {}
         });
-    });
-    </script>
-            manualBtn.addEventListener('click', () => {
-                if (frame && !frame.src) {
-                    frame.src = frame.dataset.src;
-                    frame.onload = () => { if (skeleton) skeleton.style.display = 'none'; };
-                }
-            });
-        }
     });
     </script>
 
