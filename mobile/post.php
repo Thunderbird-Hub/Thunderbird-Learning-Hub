@@ -356,8 +356,10 @@ $mobile_active_page = 'categories';
         .reply-bubble { border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; background: #fff; margin-bottom: 10px; }
         .reply-meta { font-size: 12px; color: #718096; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
         .empty-state { padding: 20px; text-align: center; color: #718096; background: #fff; border: 1px dashed #cbd5e0; border-radius: 12px; }
-        .pdf-lazy-shell { position: relative; width: 100%; height: 1000px; background: #f3f4f6; border-top: 1px solid #eee; }
-        .pdf-fallback { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 16px; background: linear-gradient(135deg, rgba(102,126,234,0.08), rgba(118,75,162,0.08)); color: #4a5568; font-size: 14px; }
+        .pdf-lazy-shell { position: relative; width: 100%; min-height: 180px; background: #f3f4f6; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+        .pdf-page-stack img { display: block; width: 100%; margin: 0 0 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
+        .pdf-page-stack { padding: 12px; }
+        .pdf-fallback { position: relative; display: none; align-items: center; justify-content: center; text-align: center; padding: 16px; background: linear-gradient(135deg, rgba(102,126,234,0.08), rgba(118,75,162,0.08)); color: #4a5568; font-size: 14px; }
         .pdf-fallback a { color: #4c51bf; font-weight: 700; }
     </style>
 </head>
@@ -426,15 +428,15 @@ $mobile_active_page = 'categories';
                             </div>
                             <div id="preview_<?php echo $file['id']; ?>_content" style="display: <?php echo $initial_display; ?>; margin-top:10px;">
                                 <?php if ($is_pdf): ?>
-                                    <div class="pdf-lazy-shell">
-                                        <div class="pdf-skeleton" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:14px; color:#666;">
+                                    <div class="pdf-lazy-shell" data-pdf-src="<?php echo htmlspecialchars($iframe_src); ?>">
+                                        <div class="pdf-skeleton" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:14px; color:#666; background:linear-gradient(135deg, #f7fafc, #edf2f7);">
                                             <div>
                                                 <div style="text-align:center; margin-bottom:8px;">Loading PDF preview…</div>
                                                 <div class="spinner" style="width:28px;height:28px;border:3px solid #ddd;border-top-color:#999;border-radius:50%;animation:spin 1s linear infinite;"></div>
                                             </div>
                                         </div>
-                                        <iframe class="pdf-lazy-frame" data-src="<?php echo htmlspecialchars($iframe_src); ?>" title="<?php echo htmlspecialchars($file['original_filename']); ?>" style="width:100%; height:100%; border:none; display:block;" loading="lazy" fetchpriority="low"></iframe>
-                                        <button type="button" class="pdf-manual-load" style="position:absolute; right:12px; bottom:12px; font-size:12px; padding:6px 10px; background:#fff; border:1px solid #ddd; border-radius:6px; cursor:pointer;">Load PDF now</button>
+                                        <div class="pdf-page-stack" aria-live="polite"></div>
+                                        <button type="button" class="pdf-manual-load" style="position:absolute; right:12px; bottom:12px; font-size:12px; padding:6px 10px; background:#fff; border:1px solid #ddd; border-radius:6px; cursor:pointer;">Reload preview</button>
                                         <div class="pdf-fallback">
                                             <div>
                                                 <div style="margin-bottom:8px; font-weight:700;">Inline preview is taking longer than usual.</div>
@@ -618,6 +620,72 @@ $mobile_active_page = 'categories';
         } else {
             finish(src);
         }
+        if (!pdfJsPromise) {
+            pdfJsPromise = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js';
+                script.onload = () => resolve(window.pdfjsLib);
+                script.onerror = () => reject(new Error('pdf.js failed to load'));
+                document.head.appendChild(script);
+            }).then(lib => {
+                if (lib && lib.GlobalWorkerOptions) {
+                    lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
+                }
+                return lib;
+            });
+        }
+        return pdfJsPromise;
+    }
+
+    function renderPdfToImages(shell) {
+        if (!shell || shell.dataset.loaded === '1') return;
+        const src = shell.dataset.pdfSrc;
+        const skeleton = shell.querySelector('.pdf-skeleton');
+        const stack = shell.querySelector('.pdf-page-stack');
+        if (!src || !stack) return;
+
+        const finishSkeleton = () => { if (skeleton) skeleton.style.display = 'none'; };
+
+        let pdfLib;
+        ensurePdfJs()
+            .then(lib => {
+                pdfLib = lib;
+                return fetch(src, { credentials: 'same-origin' });
+            })
+            .then(resp => {
+                if (!resp.ok) throw new Error('PDF fetch failed');
+                return resp.arrayBuffer();
+            })
+            .then(buffer => pdfLib.getDocument({ data: buffer }).promise)
+            .then(pdf => {
+                stack.innerHTML = '';
+                const renderPage = (pageNum) => {
+                    pdf.getPage(pageNum).then(page => {
+                        const viewport = page.getViewport({ scale: 1.35 });
+                        const canvas = document.createElement('canvas');
+                        canvas.width = viewport.width;
+                        canvas.height = viewport.height;
+                        const ctx = canvas.getContext('2d');
+                        page.render({ canvasContext: ctx, viewport }).promise.then(() => {
+                            const img = document.createElement('img');
+                            img.src = canvas.toDataURL('image/png');
+                            img.alt = `PDF page ${pageNum}`;
+                            stack.appendChild(img);
+                            if (pageNum < pdf.numPages) {
+                                renderPage(pageNum + 1);
+                            } else {
+                                shell.dataset.loaded = '1';
+                                finishSkeleton();
+                            }
+                        }).catch(() => showPdfFallback(shell, src));
+                    }).catch(() => showPdfFallback(shell, src));
+                };
+                renderPage(1);
+            })
+            .catch(() => {
+                finishSkeleton();
+                showPdfFallback(shell, src);
+            });
     }
 
     const shells = document.querySelectorAll('.pdf-lazy-shell');
@@ -637,12 +705,12 @@ $mobile_active_page = 'categories';
         });
     }, { rootMargin: '200px 0px' }) : null;
 
-    document.querySelectorAll('.pdf-lazy-shell').forEach(shell => {
+    shells.forEach(shell => {
         const manualBtn = shell.querySelector('.pdf-manual-load');
-        const frame = shell.querySelector('.pdf-lazy-frame');
-        const skeleton = shell.querySelector('.pdf-skeleton');
         if (observer) {
             observer.observe(shell);
+        } else {
+            renderPdfToImages(shell);
         }
         if (manualBtn) {
             manualBtn.addEventListener('click', () => loadPdfFrame(frame, skeleton, shell));
