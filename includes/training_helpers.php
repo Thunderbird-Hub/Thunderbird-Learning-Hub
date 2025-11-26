@@ -441,10 +441,16 @@ function add_content_to_course($pdo, $course_id, $content_type, $content_id, $ti
  * @return bool Success status
  */
 function assign_course_to_users($pdo, $course_id, $user_ids, $assigned_by, $department_id = null) {
+    $started_transaction = false;
+
     try {
         error_log("DEBUG: assign_course_to_users called with course_id=$course_id, user_ids=" . json_encode($user_ids) . ", assigned_by=$assigned_by, department_id=" . ($department_id ?? 'null'));
 
-        $pdo->beginTransaction();
+        if (!$pdo->inTransaction()) {
+            $pdo->beginTransaction();
+            $started_transaction = true;
+        }
+
         $assigned_count = 0;
 
         $stmt = $pdo->prepare("
@@ -517,13 +523,21 @@ function assign_course_to_users($pdo, $course_id, $user_ids, $assigned_by, $depa
             }
         }
 
-        $pdo->commit();
+        if ($started_transaction && $pdo->inTransaction()) {
+            $pdo->commit();
+        }
+
         error_log("DEBUG: assign_course_to_users returning assigned_count=$assigned_count");
         return $assigned_count;
     } catch (PDOException $e) {
-        $pdo->rollBack();
-        error_log("DEBUG: assign_course_to_users ERROR: " . $e->getMessage());
-        return 0;
+        if ($started_transaction && $pdo->inTransaction()) {
+            $pdo->rollBack();
+            error_log("DEBUG: assign_course_to_users ERROR: " . $e->getMessage());
+            return 0;
+        }
+
+        error_log("DEBUG: assign_course_to_users ERROR (propagating): " . $e->getMessage());
+        throw $e;
     }
 }
 
