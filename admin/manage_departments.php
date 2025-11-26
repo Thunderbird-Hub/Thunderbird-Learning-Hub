@@ -13,6 +13,7 @@ require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../includes/db_connect.php';
 require_once __DIR__ . '/../includes/user_helpers.php';
 require_once __DIR__ . '/../includes/department_helpers.php';
+require_once __DIR__ . '/../includes/department_assignment_enhanced.php';
 
 // Only allow admin users
 if (!is_admin()) {
@@ -112,13 +113,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $departments_table_exists) {
             } else {
                 try {
                     if (assign_user_to_department($pdo, $user_id, $dept_id, $_SESSION['user_id'])) {
-                        // Also assign user to existing department courses
-                        $courses_assigned = assign_user_to_department_courses($pdo, $user_id, $dept_id, $_SESSION['user_id']);
-                        if ($courses_assigned > 0) {
-                            $success_message = "User added to department and assigned to $courses_assigned course(s)!";
+                        // Use enhanced assignment function for better feedback
+                        $assignment_result = assign_user_to_department_courses_enhanced($pdo, $user_id, $dept_id, $_SESSION['user_id']);
+
+                        // Generate user-friendly feedback message
+                        $feedback_message = generate_assignment_feedback_message($assignment_result);
+
+                        if ($assignment_result['success'] && $assignment_result['courses_assigned'] > 0) {
+                            $success_message = $feedback_message;
+
+                            // Include debug info for administrators if there were issues
+                            if (!empty($assignment_result['errors'])) {
+                                $success_message .= "<br><small>📋 Debug info logged - check system logs if needed.</small>";
+                            }
+                        } elseif ($assignment_result['success']) {
+                            $success_message = $feedback_message;
                         } else {
-                            $success_message = 'User added to department successfully! (No courses were assigned - check error logs for details)';
-                            error_log("INFO: No courses were assigned to user $user_id from department $dept_id");
+                            // Handle case where assignment failed
+                            $error_message = $feedback_message;
+                            if (!empty($assignment_result['errors'])) {
+                                $error_message .= "<br><small>Details: " . htmlspecialchars($assignment_result['errors'][0]) . "</small>";
+                            }
                         }
                     } else {
                         $error_message = 'Error adding user to department.';
@@ -149,10 +164,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $departments_table_exists) {
                     try {
                         if (assign_user_to_department($pdo, $user_id, $dept_id, $_SESSION['user_id'])) {
                             $added_count++;
-                            $courses_for_this_user = assign_user_to_department_courses($pdo, $user_id, $dept_id, $_SESSION['user_id']);
-                            $assigned_courses += $courses_for_this_user;
-                            if ($courses_for_this_user == 0) {
-                                error_log("INFO: User $user_id was added to department $dept_id but no courses were assigned");
+                            // Use enhanced assignment function
+                            $assignment_result = assign_user_to_department_courses_enhanced($pdo, $user_id, $dept_id, $_SESSION['user_id']);
+                            $assigned_courses += $assignment_result['courses_assigned'];
+
+                            if ($assignment_result['courses_assigned'] == 0) {
+                                $debug_info = "User $user_id was added to department $dept_id but no courses were assigned";
+                                if (!empty($assignment_result['errors'])) {
+                                    $debug_info .= ". Errors: " . implode(', ', $assignment_result['errors']);
+                                }
+                                error_log("INFO: $debug_info");
                             }
                         }
                     } catch (PDOException $e) {
@@ -231,6 +252,12 @@ if ($departments_table_exists) {
     $departments = get_all_departments($pdo);
 }
 
+// Check system health if we have the enhanced functions
+$system_health = null;
+if ($departments_table_exists && function_exists('check_department_assignment_system_health')) {
+    $system_health = check_department_assignment_system_health($pdo);
+}
+
 // Fetch all active users
 $all_users = [];
 try {
@@ -260,6 +287,34 @@ include __DIR__ . '/../includes/header.php';
                 <a href="/admin/manage_users.php" class="btn btn-secondary">← Back to Admin</a>
             </div>
         </div>
+
+        <?php if ($system_health): ?>
+            <div style="margin: 20px; padding: 12px; border-radius: 6px; background: <?php echo $system_health['status'] === 'healthy' ? '#d4edda' : '#fff3cd'; ?>; border: 1px solid <?php echo $system_health['status'] === 'healthy' ? '#c3e6cb' : '#ffeaa7'; ?>;">
+                <h4 style="margin: 0 0 8px 0; color: <?php echo $system_health['status'] === 'healthy' ? '#155724' : '#856404'; ?>;">
+                    🏥 Department Assignment System Health: <?php echo ucfirst($system_health['status']); ?>
+                </h4>
+                <?php if (!empty($system_health['issues'])): ?>
+                    <ul style="margin: 8px 0; padding-left: 20px; color: #856404;">
+                        <?php foreach ($system_health['issues'] as $issue): ?>
+                            <li><?php echo htmlspecialchars($issue); ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+                <?php if (!empty($system_health['recommendations'])): ?>
+                    <div style="margin-top: 8px; font-size: 12px; color: #856404;">
+                        <strong>Recommendations:</strong>
+                        <ul style="margin: 4px 0; padding-left: 20px;">
+                            <?php foreach ($system_health['recommendations'] as $recommendation): ?>
+                                <li><?php echo htmlspecialchars($recommendation); ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                <?php endif; ?>
+                <div style="margin-top: 8px; font-size: 11px;">
+                    <a href="../debug_department_assignment.php" target="_blank" style="color: #0066cc;">🔍 Run Diagnostic Script</a>
+                </div>
+            </div>
+        <?php endif; ?>
 
         <?php if (!empty($success_message)): ?>
             <div class="success-message" style="margin: 20px; padding: 12px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 6px; color: #155724;">
