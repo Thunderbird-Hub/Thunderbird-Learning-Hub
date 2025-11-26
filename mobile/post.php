@@ -470,15 +470,28 @@ $mobile_active_page = 'categories';
                 }
                 return !is_image($f['file_path']);
             });
+            $download_files = array_filter($download_files, function($f) {
+                if (function_exists('is_training_user') && is_training_user()) {
+                    $ext = strtolower(pathinfo($f['original_filename'] ?? '', PATHINFO_EXTENSION));
+                    if ($ext === 'pdf') {
+                        return false;
+                    }
+                }
+                return true;
+            });
             ?>
             <?php if (!empty($download_files)): ?>
                 <div class="mobile-card">
                     <h3 class="attachments-title">📎 Files for Download</h3>
                     <?php foreach ($download_files as $file): ?>
+                        <?php
+                            $download_ext = strtolower(pathinfo($file['original_filename'] ?? '', PATHINFO_EXTENSION));
+                            $force_download = $download_ext !== 'pdf';
+                        ?>
                         <div class="attachment-file">
                             <span>📄</span>
                             <div class="file-info">
-                                <a href="<?php echo htmlspecialchars($file['file_path']); ?>" download><?php echo htmlspecialchars($file['original_filename']); ?></a>
+                                <a href="<?php echo htmlspecialchars($file['file_path']); ?>" <?php echo $force_download ? 'download' : ''; ?>><?php echo htmlspecialchars($file['original_filename']); ?></a>
                                 <small style="color:#718096;"><?php echo format_filesize($file['file_size']); ?></small>
                             </div>
                         </div>
@@ -529,8 +542,12 @@ $mobile_active_page = 'categories';
                                                 <img src="<?php echo htmlspecialchars($file['file_path']); ?>" alt="<?php echo htmlspecialchars($file['original_filename']); ?>" style="max-width: 150px; border-radius: 6px; margin: 5px;">
                                             </a>
                                         <?php else: ?>
+                                            <?php
+                                                $reply_ext = strtolower(pathinfo($file['original_filename'] ?? '', PATHINFO_EXTENSION));
+                                                $reply_force_download = $reply_ext !== 'pdf';
+                                            ?>
                                             <div style="font-size: 12px; margin: 5px 0;">
-                                                📎 <a href="<?php echo htmlspecialchars($file['file_path']); ?>" download><?php echo htmlspecialchars($file['original_filename']); ?></a>
+                                                📎 <a href="<?php echo htmlspecialchars($file['file_path']); ?>" <?php echo $reply_force_download ? 'download' : ''; ?>><?php echo htmlspecialchars($file['original_filename']); ?></a>
                                                 (<?php echo format_filesize($file['file_size']); ?>)
                                             </div>
                                         <?php endif; ?>
@@ -564,6 +581,7 @@ $mobile_active_page = 'categories';
             const shell = content.querySelector('.pdf-lazy-shell');
             if (shell && shell.dataset.loaded !== '1') {
                 initializePdfPreview(shell);
+                renderPdfToImages(shell);
             }
         }
     }
@@ -677,6 +695,52 @@ $mobile_active_page = 'categories';
         }
     }
 
+    function renderInlinePdfFrame(shell, src, skeleton) {
+        const stack = shell.querySelector('.pdf-page-stack');
+        if (!stack || !src) return;
+
+        stack.innerHTML = '';
+
+        const iframe = document.createElement('iframe');
+        iframe.title = 'PDF preview';
+        iframe.style.cssText = 'width: 100%; min-height: 520px; border: none; background: #f9fafb;';
+        let revokeUrl = null;
+
+        iframe.addEventListener('load', () => {
+            if (skeleton) skeleton.style.display = 'none';
+            shell.dataset.loaded = '1';
+            if (revokeUrl) {
+                setTimeout(() => URL.revokeObjectURL(revokeUrl), 1000);
+                revokeUrl = null;
+            }
+        }, { once: true });
+
+        const finish = (finalSrc) => {
+            iframe.src = finalSrc;
+        };
+
+        if (window.fetch && window.URL && URL.createObjectURL) {
+            fetch(src, { credentials: 'same-origin' })
+                .then(resp => {
+                    if (!resp.ok) throw new Error('PDF fetch failed');
+                    return resp.blob();
+                })
+                .then(blob => {
+                    revokeUrl = URL.createObjectURL(blob);
+                    finish(revokeUrl);
+                })
+                .catch(() => finish(src));
+        } else {
+            finish(src);
+        }
+
+        iframe.addEventListener('error', () => {
+            showPdfFallback(shell, src);
+        }, { once: true });
+
+        stack.appendChild(iframe);
+    }
+
     function renderPdfToImages(shell) {
         if (!shell || shell.dataset.loaded === '1') return;
         const src = shell.dataset.pdfSrc;
@@ -685,6 +749,10 @@ $mobile_active_page = 'categories';
         if (!src || !stack) return;
 
         const finishSkeleton = () => { if (skeleton) skeleton.style.display = 'none'; };
+        const fallbackInline = () => {
+            renderInlinePdfFrame(shell, src, skeleton);
+            finishSkeleton();
+        };
 
         let pdfLib;
         let renderInProgress = false;
@@ -692,6 +760,9 @@ $mobile_active_page = 'categories';
         // Enhanced mobile PDF rendering with memory management
         initPdfJs()
             .then(lib => {
+                if (!lib || typeof lib.getDocument !== 'function') {
+                    throw new Error('PDF.js library unavailable');
+                }
                 pdfLib = lib;
                 return fetch(src, { credentials: 'same-origin' });
             })
@@ -764,12 +835,12 @@ $mobile_active_page = 'categories';
                                 setTimeout(() => renderPage(pageNum + 1), 100);
                             } else {
                                 // Remove loading message
-                                const loadingMsg = stack.querySelector('div[style*="text-align: center"]');
-                                if (loadingMsg) loadingMsg.remove();
+                        const loadingMsg = stack.querySelector('div[style*="text-align: center"]');
+                        if (loadingMsg) loadingMsg.remove();
 
-                                shell.dataset.loaded = '1';
-                                finishSkeleton();
-                            }
+                        shell.dataset.loaded = '1';
+                        finishSkeleton();
+                    }
                         }).catch(error => {
                             renderInProgress = false;
                             console.error('PDF render error:', error);
@@ -786,8 +857,7 @@ $mobile_active_page = 'categories';
             })
             .catch(error => {
                 console.error('PDF loading error:', error);
-                finishSkeleton();
-                showPdfFallback(shell, src);
+                fallbackInline();
             });
     }
 
@@ -796,7 +866,7 @@ $mobile_active_page = 'categories';
             pdfJsPromise = new Promise((resolve, reject) => {
                 // Enhanced loading with timeout for better mobile experience
                 const script = document.createElement('script');
-                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.js';
+                script.src = '/assets/js/pdf.min.js';
                 script.crossOrigin = 'anonymous';
 
                 const timeout = setTimeout(() => {
@@ -821,7 +891,7 @@ $mobile_active_page = 'categories';
             }).then(lib => {
                 // Configure PDF.js for mobile performance
                 if (lib && lib.GlobalWorkerOptions) {
-                    lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js';
+                    lib.GlobalWorkerOptions.workerSrc = '/assets/js/pdf.worker.min.js';
                     // Mobile optimizations
                     lib.disableAutoFetch = true;
                     lib.disableStream = false;
@@ -843,15 +913,10 @@ $mobile_active_page = 'categories';
             manualBtn.addEventListener('click', () => {
                 // Initialize PDF rendering when manual button is clicked
                 if (!shell.dataset.loaded || shell.dataset.loaded === '0') {
+                    initializePdfPreview(shell);
                     renderPdfToImages(shell);
                 }
             });
-        }
-
-        // Auto-initialize for PDF previews
-        const src = shell.dataset.pdfSrc;
-        if (src && /\.pdf(\?|#|$)/i.test(src)) {
-            renderPdfToImages(shell);
         }
     });
 

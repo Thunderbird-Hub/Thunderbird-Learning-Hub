@@ -709,16 +709,31 @@ include __DIR__ . '/../includes/header.php';
                         return !is_image($f['file_path']);
                     });
 
+                    // Hide PDFs from download list for training users so they only use the inline preview
+                    $download_files = array_filter($download_files, function($f) {
+                        if (function_exists('is_training_user') && is_training_user()) {
+                            $ext = strtolower(pathinfo($f['original_filename'] ?? '', PATHINFO_EXTENSION));
+                            if ($ext === 'pdf') {
+                                return false;
+                            }
+                        }
+                        return true;
+                    });
+
                     if (!empty($download_files)):
                     ?>
                         <div class="download-files-section">
                             <h3 class="attachments-title">📎 Files for Download</h3>
                             <div class="attachment-files">
                                 <?php foreach ($download_files as $file): ?>
+                                    <?php
+                                        $download_ext = strtolower(pathinfo($file['original_filename'] ?? '', PATHINFO_EXTENSION));
+                                        $force_download = $download_ext !== 'pdf';
+                                    ?>
                                     <div class="attachment-file">
                                         <span class="file-icon">📄</span>
                                         <div class="file-info">
-                                            <a href="<?php echo htmlspecialchars($file['file_path']); ?>" download class="file-name">
+                                            <a href="<?php echo htmlspecialchars($file['file_path']); ?>" <?php echo $force_download ? 'download' : ''; ?> class="file-name">
                                                 <?php echo htmlspecialchars($file['original_filename']); ?>
                                             </a>
                                             <div class="file-size"><?php echo format_filesize($file['file_size']); ?></div>
@@ -795,8 +810,12 @@ include __DIR__ . '/../includes/header.php';
                                                              style="max-width: 150px; border-radius: 6px; margin: 5px;">
                                                     </a>
                                                 <?php else: ?>
+                                                    <?php
+                                                        $reply_ext = strtolower(pathinfo($file['original_filename'] ?? '', PATHINFO_EXTENSION));
+                                                        $reply_force_download = $reply_ext !== 'pdf';
+                                                    ?>
                                                     <div style="font-size: 12px; margin: 5px 0;">
-                                                        📎 <a href="<?php echo htmlspecialchars($file['file_path']); ?>" download>
+                                                        📎 <a href="<?php echo htmlspecialchars($file['file_path']); ?>" <?php echo $reply_force_download ? 'download' : ''; ?>>
                                                             <?php echo htmlspecialchars($file['original_filename']); ?>
                                                         </a>
                                                         (<?php echo format_filesize($file['file_size']); ?>)
