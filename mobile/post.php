@@ -664,7 +664,7 @@ $mobile_active_page = 'categories';
             const shell = content.querySelector('.pdf-lazy-shell');
             if (shell && shell.dataset.loaded !== '1') {
                 initializePdfPreview(shell);
-                renderPdfToImages(shell);
+                renderPdfToStack(shell);
             }
         }
     }
@@ -717,125 +717,44 @@ $mobile_active_page = 'categories';
         shell.dataset.initialized = '0';
     }
 
-    function loadPdfFrame(frame, skeleton, shell) {
-        if (!frame || frame.dataset.loaded === '1') return;
-
-        const src = frame.dataset.src;
-        if (!src) return;
-
-        const isPdf = /\.pdf(\?|#|$)/i.test(src);
-        const clearTimeoutGuard = () => {
-            if (frame._pdfLoadTimeout) {
-                clearTimeout(frame._pdfLoadTimeout);
-                frame._pdfLoadTimeout = null;
-            }
-        };
-        const markLoaded = () => {
-            if (skeleton) skeleton.style.display = 'none';
-            clearTimeoutGuard();
-        };
-        const handleFailure = () => {
-            clearTimeoutGuard();
-            showPdfFallback(shell, src);
-        };
-
-        frame.addEventListener('load', markLoaded, { once: true });
-        frame.addEventListener('error', handleFailure, { once: true });
-
-        frame._pdfLoadTimeout = setTimeout(() => {
-            if (skeleton && skeleton.style.display !== 'none') {
-                handleFailure();
-            }
-        }, 7000);
-
-        const finish = (finalSrc, isBaked = false) => {
-            frame.dataset.loaded = '1';
-            if (isBaked) {
-                frame.dataset.blobUrl = finalSrc;
-            }
-            frame.src = finalSrc;
-        };
-
-        const blobToDataUrl = (blob) => new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-        });
-
-        // On some devices the file path forces download; fetching to a Blob and converting to a data URL bakes the PDF inline.
-        if (isPdf && window.fetch && window.FileReader) {
-            fetch(src, { credentials: 'same-origin' })
-                .then(resp => {
-                    if (!resp.ok) throw new Error('Fetch failed');
-                    return resp.blob();
-                })
-                .then(blob => blobToDataUrl(blob))
-                .then(dataUrl => finish(dataUrl, true))
-                .catch(() => finish(src));
-        } else {
-            finish(src);
-        }
+    function addCacheBuster(src) {
+        if (!src) return '';
+        const [base, hash = ''] = src.split('#');
+        const separator = base.includes('?') ? '&' : '?';
+        const finalBase = `${base}${separator}ts=${Date.now()}`;
+        return hash ? `${finalBase}#${hash}` : finalBase;
     }
 
-    function renderInlinePdfFrame(shell, src, skeleton) {
+    function resetPdfShell(shell, { keepInitialized = true } = {}) {
+        if (!shell) return;
         const stack = shell.querySelector('.pdf-page-stack');
-        if (!stack || !src) return;
-
-        stack.innerHTML = '';
-
-        const iframe = document.createElement('iframe');
-        iframe.title = 'PDF preview';
-        iframe.style.cssText = 'width: 100%; min-height: 520px; border: none; background: #f9fafb;';
-        let revokeUrl = null;
-
-        iframe.addEventListener('load', () => {
-            if (skeleton) skeleton.style.display = 'none';
-            shell.dataset.loaded = '1';
-            if (revokeUrl) {
-                setTimeout(() => URL.revokeObjectURL(revokeUrl), 1000);
-                revokeUrl = null;
-            }
-        }, { once: true });
-
-        const finish = (finalSrc) => {
-            iframe.src = finalSrc;
-        };
-
-        if (window.fetch && window.URL && URL.createObjectURL) {
-            fetch(src, { credentials: 'same-origin' })
-                .then(resp => {
-                    if (!resp.ok) throw new Error('PDF fetch failed');
-                    return resp.blob();
-                })
-                .then(blob => {
-                    revokeUrl = URL.createObjectURL(blob);
-                    finish(revokeUrl);
-                })
-                .catch(() => finish(src));
-        } else {
-            finish(src);
+        const skeleton = shell.querySelector('.pdf-skeleton');
+        const fallback = shell.querySelector('.pdf-fallback');
+        if (stack) stack.innerHTML = '';
+        if (skeleton) skeleton.style.display = 'flex';
+        if (fallback) fallback.style.display = 'none';
+        shell.dataset.loaded = '0';
+        shell.dataset.rendering = '0';
+        if (!keepInitialized) {
+            shell.dataset.initialized = '0';
         }
-
-        iframe.addEventListener('error', () => {
-            showPdfFallback(shell, src);
-        }, { once: true });
-
-        stack.appendChild(iframe);
     }
 
-    function renderPdfToImages(shell) {
-        if (!shell || shell.dataset.loaded === '1') return;
-        const src = shell.dataset.pdfSrc;
+    function renderPdfToStack(shell, { cacheBust = false } = {}) {
+        if (!shell || shell.dataset.rendering === '1') return;
+        const rawSrc = shell.dataset.pdfSrc;
+        const src = cacheBust ? addCacheBuster(rawSrc) : rawSrc;
         const skeleton = shell.querySelector('.pdf-skeleton');
         const stack = shell.querySelector('.pdf-page-stack');
+        const fallback = shell.querySelector('.pdf-fallback');
         if (!src || !stack) return;
 
+        shell.dataset.rendering = '1';
+        stack.innerHTML = '';
+        if (fallback) fallback.style.display = 'none';
+        if (skeleton) skeleton.style.display = 'flex';
+
         const finishSkeleton = () => { if (skeleton) skeleton.style.display = 'none'; };
-        const fallbackInline = () => {
-            renderInlinePdfFrame(shell, src, skeleton);
-            finishSkeleton();
-        };
 
         let pdfLib;
         let renderInProgress = false;
@@ -878,10 +797,8 @@ $mobile_active_page = 'categories';
                 return timedPromise();
             })
             .then(pdf => {
-                stack.innerHTML = '';
-
                 // Limit number of pages for mobile performance
-                const maxPages = Math.min(pdf.numPages, 10);
+                const maxPages = Math.min(pdf.numPages, 5);
                 let renderedPages = 0;
 
                 const renderPage = (pageNum) => {
@@ -896,6 +813,7 @@ $mobile_active_page = 'categories';
                         const canvas = document.createElement('canvas');
                         canvas.width = viewport.width;
                         canvas.height = viewport.height;
+                        canvas.style.cssText = 'display: block; width: 100%; margin: 0 0 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.08);';
 
                         // Use lower quality for better mobile performance
                         const ctx = canvas.getContext('2d', {
@@ -904,13 +822,7 @@ $mobile_active_page = 'categories';
                         });
 
                         page.render({ canvasContext: ctx, viewport }).promise.then(() => {
-                            // Convert to JPEG for better compression on mobile
-                            const img = document.createElement('img');
-                            img.src = canvas.toDataURL('image/jpeg', 0.8);
-                            img.alt = `PDF page ${pageNum}`;
-                            img.style.cssText = 'display: block; width: 100%; margin: 0 0 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.08);';
-
-                            stack.appendChild(img);
+                            stack.appendChild(canvas);
                             renderedPages++;
                             renderInProgress = false;
 
@@ -937,16 +849,21 @@ $mobile_active_page = 'categories';
                         if (loadingMsg) loadingMsg.remove();
 
                         shell.dataset.loaded = '1';
+                        shell.dataset.rendering = '0';
                         finishSkeleton();
                     }
                         }).catch(error => {
                             renderInProgress = false;
                             console.error('PDF render error:', error);
+                            shell.dataset.rendering = '0';
+                            finishSkeleton();
                             showPdfFallback(shell, src);
                         });
                     }).catch(error => {
                         renderInProgress = false;
                         console.error('PDF page error:', error);
+                        shell.dataset.rendering = '0';
+                        finishSkeleton();
                         showPdfFallback(shell, src);
                     });
                 };
@@ -955,12 +872,9 @@ $mobile_active_page = 'categories';
             })
             .catch(error => {
                 console.error('PDF loading error:', error);
-                if (String(error && error.message || '').toLowerCase().includes('timed out')) {
-                    showPdfFallback(shell, src);
-                    finishSkeleton();
-                } else {
-                    fallbackInline();
-                }
+                shell.dataset.rendering = '0';
+                finishSkeleton();
+                showPdfFallback(shell, src);
             });
     }
 
@@ -1017,11 +931,9 @@ $mobile_active_page = 'categories';
         const manualBtn = shell.querySelector('.pdf-manual-load');
         if (manualBtn) {
             manualBtn.addEventListener('click', () => {
-                // Initialize PDF rendering when manual button is clicked
-                if (!shell.dataset.loaded || shell.dataset.loaded === '0') {
-                    initializePdfPreview(shell);
-                    renderPdfToImages(shell);
-                }
+                resetPdfShell(shell);
+                initializePdfPreview(shell);
+                renderPdfToStack(shell, { cacheBust: true });
             });
         }
     });
