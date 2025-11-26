@@ -226,20 +226,36 @@ try {
         $stmt->execute([$post_id]);
         $post = $stmt->fetch();
     } elseif ($subcategory_visibility_columns_exist && $category_visibility_columns_exist) {
-        $params = [$post_id, '%"' . $current_user_id . '"%', '%"' . $current_user_id . '"%'];
+        $params = [$post_id];
 
-        $whereVisibility = "
-                (c.visibility = 'public'
-                     OR (c.visibility = 'restricted' AND (c.allowed_users LIKE ? OR c.allowed_users IS NULL))
-                     OR (c.visibility = 'restricted' AND c.allowed_departments IS NULL))
-                AND (s.visibility = 'public'
-                     OR (s.visibility = 'restricted' AND (s.allowed_users LIKE ? OR s.allowed_users IS NULL))
-                     OR (s.visibility = 'restricted' AND s.allowed_departments IS NULL))
-        ";
+        $categoryVisibilityClause = "(c.visibility = 'public'"
+            . " OR (c.visibility = 'restricted' AND (c.allowed_users LIKE ? OR c.allowed_users IS NULL))"
+            . " OR (c.visibility = 'restricted' AND c.allowed_departments IS NULL))";
+        $subcategoryVisibilityClause = "(s.visibility = 'public'"
+            . " OR (s.visibility = 'restricted' AND (s.allowed_users LIKE ? OR s.allowed_users IS NULL))"
+            . " OR (s.visibility = 'restricted' AND s.allowed_departments IS NULL))";
 
-        $trainingAccessClause = '';
+        $visibilityClause = "{$categoryVisibilityClause} AND {$subcategoryVisibilityClause}";
+
+        $privacyClause = "(p.privacy = 'public'"
+            . " OR p.user_id = ?"
+            . " OR (p.privacy = 'shared' AND p.shared_with LIKE ?)"
+            . " OR (p.privacy = 'shared' AND p.shared_with IS NULL AND p.shared_departments IS NULL)";
+        if ($shared_departments_supported) {
+            $privacyClause .= " OR (p.shared_departments IS NOT NULL AND p.shared_departments != '')";
+        }
+        $privacyClause .= ')';
+
+        $params[] = '%"' . $current_user_id . '"%';
+        $params[] = '%"' . $current_user_id . '"%';
+        $params[] = $current_user_id;
+        $params[] = '%"' . $current_user_id . '"%';
+
+        $orConditions = [];
+        $orConditions[] = "({$visibilityClause} AND {$privacyClause})";
+
         if ($has_training_access) {
-            $trainingAccessClause = " OR EXISTS (
+            $orConditions[] = "EXISTS (
                 SELECT 1
                 FROM training_course_content tcc
                 JOIN user_training_assignments uta ON tcc.course_id = uta.course_id
@@ -248,7 +264,12 @@ try {
                   AND tcc.content_type = 'post'
                   AND tcc.content_id = p.id
             )";
+            $params[] = $current_user_id;
         }
+
+        $combinedClause = implode(' OR ', array_map(function ($clause) {
+            return "({$clause})";
+        }, $orConditions));
 
         $stmt = $pdo->prepare(
             "SELECT
@@ -266,23 +287,8 @@ try {
             JOIN subcategories s ON p.subcategory_id = s.id
             JOIN categories c ON s.category_id = c.id
             WHERE p.id = ?
-            AND (
-                (
-                    {$whereVisibility}
-                    AND (p.privacy = 'public'
-                         OR p.user_id = ?
-                         OR (p.privacy = 'shared' AND p.shared_with LIKE ?)
-                         OR (p.privacy = 'shared' AND p.shared_with IS NULL AND p.shared_departments IS NULL)"
-            . ($shared_departments_supported ? " OR (p.shared_departments IS NOT NULL AND p.shared_departments != '')" : '') .
-            ")
-                ){$trainingAccessClause}
-            )"
+              AND ({$combinedClause})"
         );
-        $params[] = $current_user_id;
-        $params[] = '%"' . $current_user_id . '"%';
-        if ($has_training_access) {
-            $params[] = $current_user_id;
-        }
         $stmt->execute($params);
         $post = $stmt->fetch();
 
