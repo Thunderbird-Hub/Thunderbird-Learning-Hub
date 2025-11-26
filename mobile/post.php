@@ -174,6 +174,11 @@ try {
     $current_user_id = $_SESSION['user_id'];
     $is_super_user = is_super_admin();
     $is_admin = is_admin();
+    $has_training_access = false;
+
+    if (function_exists('is_in_training') && is_in_training() && function_exists('is_assigned_training_content')) {
+        $has_training_access = is_assigned_training_content($pdo, $current_user_id, $post_id, 'post');
+    }
 
     if ($is_super_user && $subcategory_visibility_columns_exist) {
         $stmt = $pdo->prepare(
@@ -229,6 +234,19 @@ try {
                  OR (s.visibility = 'restricted' AND s.allowed_departments IS NULL))
         ";
 
+        $trainingAccessClause = '';
+        if ($has_training_access) {
+            $trainingAccessClause = " OR EXISTS (
+                SELECT 1
+                FROM training_course_content tcc
+                JOIN user_training_assignments uta ON tcc.course_id = uta.course_id
+                WHERE uta.user_id = ?
+                  AND uta.status != 'completed'
+                  AND tcc.content_type = 'post'
+                  AND tcc.content_id = p.id
+            )";
+        }
+
         $stmt = $pdo->prepare(
             "SELECT
                 p.*,
@@ -245,16 +263,23 @@ try {
             JOIN subcategories s ON p.subcategory_id = s.id
             JOIN categories c ON s.category_id = c.id
             WHERE p.id = ?
-            {$whereVisibility}
-            AND (p.privacy = 'public'
-                 OR p.user_id = ?
-                 OR (p.privacy = 'shared' AND p.shared_with LIKE ?)
-                 OR (p.privacy = 'shared' AND p.shared_with IS NULL AND p.shared_departments IS NULL)"
+            AND (
+                (
+                    {$whereVisibility}
+                    AND (p.privacy = 'public'
+                         OR p.user_id = ?
+                         OR (p.privacy = 'shared' AND p.shared_with LIKE ?)
+                         OR (p.privacy = 'shared' AND p.shared_with IS NULL AND p.shared_departments IS NULL)"
             . ($shared_departments_supported ? " OR (p.shared_departments IS NOT NULL AND p.shared_departments != '')" : '') .
-            ")"
+            ")
+                ){$trainingAccessClause}
+            )"
         );
         $params[] = $current_user_id;
         $params[] = '%"' . $current_user_id . '"%';
+        if ($has_training_access) {
+            $params[] = $current_user_id;
+        }
         $stmt->execute($params);
         $post = $stmt->fetch();
 
@@ -267,6 +292,22 @@ try {
             }
         }
     } else {
+        $trainingAccessClause = '';
+        $params = [$post_id, $current_user_id, '%"' . $current_user_id . '"%'];
+
+        if ($has_training_access) {
+            $trainingAccessClause = " OR EXISTS (
+                SELECT 1
+                FROM training_course_content tcc
+                JOIN user_training_assignments uta ON tcc.course_id = uta.course_id
+                WHERE uta.user_id = ?
+                  AND uta.status != 'completed'
+                  AND tcc.content_type = 'post'
+                  AND tcc.content_id = p.id
+            )";
+            $params[] = $current_user_id;
+        }
+
         $stmt = $pdo->prepare(
             "SELECT
                 p.*,
@@ -277,11 +318,11 @@ try {
             JOIN subcategories s ON p.subcategory_id = s.id
             JOIN categories c ON s.category_id = c.id
             WHERE p.id = ?
-            AND (p.privacy = 'public'
+            AND ((p.privacy = 'public'
                  OR p.user_id = ?
-                 OR (p.privacy = 'shared' AND p.shared_with LIKE ?))"
+                 OR (p.privacy = 'shared' AND p.shared_with LIKE ?)){$trainingAccessClause})"
         );
-        $stmt->execute([$post_id, $current_user_id, '%"' . $current_user_id . '"%']);
+        $stmt->execute($params);
         $post = $stmt->fetch();
     }
 

@@ -149,7 +149,7 @@ try {
     }
 
     // Training users: restrict to assigned categories/subcategories containing posts
-    if ($is_training && function_exists('is_training_user') && is_training_user()) {
+    if ($is_training && function_exists('is_training_user') && is_training_user() && !is_admin() && !$is_super_user) {
         $pairStmt = $pdo->prepare(
             "SELECT DISTINCT c.id AS category_id, s.id AS subcategory_id
              FROM user_training_assignments uta
