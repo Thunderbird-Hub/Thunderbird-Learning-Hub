@@ -51,13 +51,32 @@
             });
         };
 
+        const visibleSections = new Map();
         const observer = new IntersectionObserver(
             (entries) => {
                 entries.forEach((entry) => {
+                    const sectionId = entry.target.id;
+
                     if (entry.isIntersecting) {
-                        updateActiveTab(entry.target.id);
+                        visibleSections.set(sectionId, entry.intersectionRatio);
+                    } else {
+                        visibleSections.delete(sectionId);
                     }
                 });
+
+                if (!visibleSections.size) {
+                    return;
+                }
+
+                const sortedVisibleSections = Array.from(visibleSections.entries()).sort(
+                    (a, b) =>
+                        b[1] - a[1] ||
+                        sectionMap[a[0]].getBoundingClientRect().top - sectionMap[b[0]].getBoundingClientRect().top
+                );
+
+                if (sortedVisibleSections.length) {
+                    updateActiveTab(sortedVisibleSections[0][0]);
+                }
             },
             { threshold: 0.4 }
         );
