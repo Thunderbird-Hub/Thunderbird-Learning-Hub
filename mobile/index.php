@@ -215,7 +215,7 @@ $mobile_active_page = 'index';
                     <?php if ($is_training_user): ?>
                         <span style="background: #ebf4ff; padding: 10px 12px; border-radius: 12px; font-weight: 600; color: #4c51bf;">🎯 Training Active</span>
                     <?php endif; ?>
-                    <a href="/logout.php">🚪 Logout</a>
+                    <a href="/logout.php?redirect=/mobile/login.php">🚪 Logout</a>
                 </div>
             </div>
         </div>
