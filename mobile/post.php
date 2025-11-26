@@ -103,7 +103,7 @@ if (function_exists('is_training_user') && is_training_user() && $post_id > 0) {
                     $quiz_banner_html .= "<div style='display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;'>";
                     $quiz_banner_html .= "<span style='font-size: 22px;'>✅</span>";
                     $quiz_banner_html .= "<div><h3 style='margin:0 0 4px 0; font-size:16px;'>Quiz Completed!</h3><p style='margin:0; opacity:0.9;'>You have successfully completed the quiz for this content.</p></div>";
-                    $quiz_banner_html .= "<a href='/training/quiz_results.php?attempt_id=" . ($training_data['last_quiz_attempt_id'] ?? '') . "' class='btn' style='background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding:8px 12px; border-radius:10px;'>View Results</a>";
+                    $quiz_banner_html .= "<a href='/mobile/quiz_results.php?attempt_id=" . ($training_data['last_quiz_attempt_id'] ?? '') . "' class='btn' style='background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding:8px 12px; border-radius:10px;'>View Results</a>";
                     $quiz_banner_html .= "</div></div>";
                 } else {
                     $quiz_banner_html .= "<div class='training-quiz-banner' style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px; border-radius: 12px; margin: 12px 0; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15);'>";
