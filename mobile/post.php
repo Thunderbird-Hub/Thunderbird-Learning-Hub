@@ -860,7 +860,22 @@ $mobile_active_page = 'categories';
                     disableAutoFetch: true,
                     disableStream: false
                 });
-                return loadingTask.promise;
+                const timedPromise = () => {
+                    let timeoutId;
+                    const taskPromise = loadingTask.promise;
+                    const racePromise = new Promise((resolve, reject) => {
+                        timeoutId = setTimeout(() => {
+                            if (loadingTask && typeof loadingTask.destroy === 'function') {
+                                loadingTask.destroy().catch(() => {});
+                            }
+                            reject(new Error('PDF render timed out'));
+                        }, 11000);
+                        taskPromise.then(resolve).catch(reject);
+                    });
+                    return racePromise.finally(() => clearTimeout(timeoutId));
+                };
+
+                return timedPromise();
             })
             .then(pdf => {
                 stack.innerHTML = '';
@@ -940,7 +955,12 @@ $mobile_active_page = 'categories';
             })
             .catch(error => {
                 console.error('PDF loading error:', error);
-                fallbackInline();
+                if (String(error && error.message || '').toLowerCase().includes('timed out')) {
+                    showPdfFallback(shell, src);
+                    finishSkeleton();
+                } else {
+                    fallbackInline();
+                }
             });
     }
 
@@ -967,6 +987,9 @@ $mobile_active_page = 'categories';
 
                 script.onerror = () => {
                     clearTimeout(timeout);
+                    document.querySelectorAll('.pdf-lazy-shell').forEach(shell => {
+                        showPdfFallback(shell, shell.dataset.pdfSrc || '');
+                    });
                     reject(new Error('PDF.js failed to load'));
                 };
 
