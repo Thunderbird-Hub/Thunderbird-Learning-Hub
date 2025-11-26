@@ -17,6 +17,18 @@ if (!isset($pdo) || !$pdo) {
     require_once __DIR__ . '/db_connect.php';
 }
 
+// Load training helpers for assignment utilities (used by several functions below)
+if (!function_exists('assign_course_to_users')) {
+    $here = __DIR__;
+    $root = realpath($here . '/..');
+
+    if (file_exists($here . '/training_helpers.php')) {
+        require_once $here . '/training_helpers.php';
+    } elseif (file_exists($root . '/includes/training_helpers.php')) {
+        require_once $root . '/includes/training_helpers.php';
+    }
+}
+
 /**
  * Check if a column exists on the current database
  */
