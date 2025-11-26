@@ -19,6 +19,11 @@ enforce_mobile_beta_access();
 
 // Get post ID first (needed for training progress tracking)
 $post_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+$current_user_id = $_SESSION['user_id'] ?? null;
+$current_user_role = $_SESSION['user_role'] ?? 'guest';
+$debug_reference = null;
+$debug_payload = [];
+$has_training_access = false;
 
 // Add test debug log entry
 if (function_exists('log_debug')) {
@@ -171,10 +176,8 @@ if ($subcategory_departments_supported || $category_departments_supported || $sh
 
 // Fetch post with subcategory and category info and visibility checks
 try {
-    $current_user_id = $_SESSION['user_id'];
     $is_super_user = is_super_admin();
     $is_admin = is_admin();
-    $has_training_access = false;
 
     if (function_exists('is_in_training') && is_in_training() && function_exists('is_assigned_training_content')) {
         $has_training_access = is_assigned_training_content($pdo, $current_user_id, $post_id, 'post');
@@ -223,15 +226,15 @@ try {
         $stmt->execute([$post_id]);
         $post = $stmt->fetch();
     } elseif ($subcategory_visibility_columns_exist && $category_visibility_columns_exist) {
-        $params = [$post_id, '%"' . $current_user_id . '"%', '%"' . $current_user_id . '"%', '%"' . $current_user_id . '"%'];
+        $params = [$post_id, '%"' . $current_user_id . '"%', '%"' . $current_user_id . '"%'];
 
         $whereVisibility = "
-            AND (c.visibility = 'public'
-                 OR (c.visibility = 'restricted' AND (c.allowed_users LIKE ? OR c.allowed_users IS NULL))
-                 OR (c.visibility = 'restricted' AND c.allowed_departments IS NULL))
-            AND (s.visibility = 'public'
-                 OR (s.visibility = 'restricted' AND (s.allowed_users LIKE ? OR s.allowed_users IS NULL))
-                 OR (s.visibility = 'restricted' AND s.allowed_departments IS NULL))
+                (c.visibility = 'public'
+                     OR (c.visibility = 'restricted' AND (c.allowed_users LIKE ? OR c.allowed_users IS NULL))
+                     OR (c.visibility = 'restricted' AND c.allowed_departments IS NULL))
+                AND (s.visibility = 'public'
+                     OR (s.visibility = 'restricted' AND (s.allowed_users LIKE ? OR s.allowed_users IS NULL))
+                     OR (s.visibility = 'restricted' AND s.allowed_departments IS NULL))
         ";
 
         $trainingAccessClause = '';
@@ -345,8 +348,31 @@ try {
     }
 
 } catch (PDOException $e) {
-    error_log("Mobile post DB Error: " . $e->getMessage());
-    $error_message = "Database error occurred. Please try again.";
+    $debug_reference = uniqid('mob_post_', true);
+    $debug_payload = [
+        'reference' => $debug_reference,
+        'post_id' => $post_id,
+        'user_id' => $current_user_id,
+        'user_role' => $current_user_role,
+        'has_training_access' => $has_training_access,
+        'visibility_columns' => [
+            'subcategory_visibility' => $subcategory_visibility_columns_exist,
+            'category_visibility' => $category_visibility_columns_exist,
+            'subcategory_departments' => $subcategory_departments_supported,
+            'category_departments' => $category_departments_supported,
+            'shared_departments' => $shared_departments_supported,
+        ],
+        'exception' => $e->getMessage(),
+        'timestamp' => date('c'),
+    ];
+
+    if (function_exists('log_debug')) {
+        log_debug('Mobile post DB Error [' . $debug_reference . ']: ' . json_encode($debug_payload));
+    } else {
+        error_log('Mobile post DB Error [' . $debug_reference . ']: ' . json_encode($debug_payload));
+    }
+
+    $error_message = "Database error occurred. Please try again. (Ref: {$debug_reference})";
 }
 
 function format_timestamp($timestamp) {
@@ -430,6 +456,16 @@ $mobile_active_page = 'categories';
             <div class="mobile-card" style="border-color:#fed7d7; background:#fff5f5; color:#c53030;">
                 <?php echo htmlspecialchars($error_message); ?>
             </div>
+            <?php if (!empty($debug_payload)): ?>
+                <div class="mobile-card" style="border-color:#fbd38d; background:#fffaf0; color:#744210;">
+                    <details>
+                        <summary style="font-weight:700; cursor:pointer;">Debug details (safe to share with support)</summary>
+                        <pre style="white-space:pre-wrap; word-break:break-word; margin-top:8px;">
+<?php echo htmlspecialchars(json_encode($debug_payload, JSON_PRETTY_PRINT)); ?>
+                        </pre>
+                    </details>
+                </div>
+            <?php endif; ?>
         <?php else: ?>
             <div class="mobile-card">
                 <div class="post-body"><?php echo $post['content']; ?></div>
