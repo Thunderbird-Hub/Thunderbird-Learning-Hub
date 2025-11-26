@@ -227,7 +227,7 @@ function format_mobile_datetime($value) {
             <h2 id="profile-actions-heading" style="margin: 0 0 8px; color: #1a202c;">Actions</h2>
             <div class="profile-actions">
                 <a class="primary" href="/mobile/index.php">Return to Home</a>
-                <a href="/logout.php">Sign out</a>
+                <a href="/logout.php?redirect=/mobile/login.php">Sign out</a>
             </div>
         </div>
     </div>
