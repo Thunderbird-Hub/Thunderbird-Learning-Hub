@@ -96,7 +96,7 @@ if (function_exists('is_training_user') && is_training_user() && $post_id > 0) {
                     $quiz_banner_html .= "<h3 style='margin: 0 0 5px 0; font-size: 18px;'>Quiz Completed!</h3>";
                     $quiz_banner_html .= "<p style='margin: 0; opacity: 0.9;'>You have successfully completed the quiz for this content.</p>";
                     $quiz_banner_html .= "</div>";
-                    $quiz_banner_html .= "<a href='/mobile/quiz_results.php?attempt_id=" . ($training_data['last_quiz_attempt_id'] ?? '') . "' class='btn' style='background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);'>View Results</a>";
+                    $quiz_banner_html .= "<a href='/training/quiz_results.php?attempt_id=" . ($training_data['last_quiz_attempt_id'] ?? '') . "' class='btn' style='background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);'>View Results</a>";
                 } else {
                     $quiz_banner_html .= "<span style='font-size: 24px;'>📝</span>";
                     $quiz_banner_html .= "<div>";
