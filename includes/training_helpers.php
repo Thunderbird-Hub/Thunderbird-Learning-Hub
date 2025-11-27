@@ -960,8 +960,12 @@ function update_course_completion_status($pdo, $user_id, $course_id) {
         // Check if all content is completed
 
 $stmt = $pdo->prepare("
-    SELECT COUNT(tcc.id) AS total_items,
-           COUNT(CASE WHEN tp.status = 'completed' THEN tcc.id END) AS completed_items
+    SELECT COUNT(DISTINCT tcc.id) AS total_items,
+           COUNT(DISTINCT CASE
+                WHEN tp.status = 'completed'
+                     OR tp.quiz_completed = 1
+                     OR uqa.passed = 1 THEN tcc.id
+           END) AS completed_items
     FROM training_course_content tcc
     LEFT JOIN training_progress tp
       ON tp.user_id     = ?
@@ -971,11 +975,22 @@ $stmt = $pdo->prepare("
          OR tp.content_type = ''
          OR tp.content_type IS NULL
          )
+    LEFT JOIN training_quizzes tq
+           ON tq.content_id = tcc.content_id
+          AND LOWER(COALESCE(tq.content_type,'')) IN ('post','')
+    LEFT JOIN (
+        SELECT quiz_id,
+               MAX(CASE WHEN status = 'passed' THEN 1 ELSE 0 END) AS passed
+        FROM user_quiz_attempts
+        WHERE user_id = ?
+        GROUP BY quiz_id
+    ) uqa
+           ON uqa.quiz_id = tq.id
     WHERE tcc.course_id = ?
       AND tcc.content_type = 'post'
 ");
 
-        $stmt->execute([$user_id, $course_id]);
+        $stmt->execute([$user_id, $user_id, $course_id]);
         $data = $stmt->fetch(PDO::FETCH_ASSOC);
 
         $total_items = (int)$data['total_items'];
@@ -989,6 +1004,10 @@ $stmt = $pdo->prepare("
                 WHERE user_id = ? AND course_id = ?
             ");
             $update_stmt->execute([$user_id, $course_id]);
+
+            if (function_exists('log_debug')) {
+                log_debug("Marked course {$course_id} as completed for user {$user_id}", 'INFO');
+            }
 
             // Update history with course completion date
             $history_stmt = $pdo->prepare("
