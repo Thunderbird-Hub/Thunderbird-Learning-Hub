@@ -244,10 +244,10 @@ function format_mobile_date($date_value) {
                     $status = strtolower((string) $course['assignment_status']);
                     $status_class = 'not-started';
                     $status_label = 'Not started';
-                    if ($status === 'completed') {
+                    if ($progress >= 100) {
                         $status_class = 'completed';
                         $status_label = 'Completed';
-                    } elseif ($status === 'in_progress') {
+                    } elseif ($progress > 0 || $status === 'in_progress') {
                         $status_class = 'in-progress';
                         $status_label = 'In progress';
                     }
@@ -284,10 +284,20 @@ function format_mobile_date($date_value) {
                 <div class="empty">Select a course to see its content and completion toggles.</div>
             <?php else :
                 $course_progress = isset($selected_course['progress_percentage']) ? (int) $selected_course['progress_percentage'] : 0;
+                $course_status = strtolower((string) $selected_course['assignment_status']);
+                $course_status_class = 'not-started';
+                $course_status_label = 'Not started';
+                if ($course_progress >= 100) {
+                    $course_status_class = 'completed';
+                    $course_status_label = 'Completed';
+                } elseif ($course_progress > 0 || $course_status === 'in_progress') {
+                    $course_status_class = 'in-progress';
+                    $course_status_label = 'In progress';
+                }
             ?>
                 <div class="course-card" style="margin-bottom: 10px;">
                     <div class="course-meta">
-                        <span class="badge in-progress"><?php echo htmlspecialchars($selected_course['assignment_status']); ?></span>
+                        <span class="badge <?php echo $course_status_class; ?>"><?php echo htmlspecialchars($course_status_label); ?></span>
                         <span class="pill">Progress <?php echo $course_progress; ?>%</span>
                     </div>
                     <p class="course-title" style="margin-bottom:4px;">Viewing: <?php echo htmlspecialchars($selected_course['name']); ?></p>
