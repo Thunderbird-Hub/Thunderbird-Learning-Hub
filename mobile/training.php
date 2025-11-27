@@ -284,10 +284,10 @@ function format_retest_countdown($next_date) {
             <?php if (function_exists('render_search_bar')) { render_search_bar('/mobile/search.php', '/mobile/search_autocomplete.php', 'mobile'); } ?>
         </div>
 
-        <div class="mobile-card" style="border:1px solid #fcd34d; background:#fffbeb;">
-            <h2 class="section-title" style="margin-top:0;">🔄 Retests available</h2>
-            <p style="color:#92400e; margin-top:0;">You can retake these quizzes now. Retaking will reset your quiz progress.</p>
-            <?php if (!empty($available_retests)) : ?>
+        <?php if (!empty($available_retests)) : ?>
+            <div class="mobile-card" style="border:1px solid #fcd34d; background:#fffbeb;">
+                <h2 class="section-title" style="margin-top:0;">🔄 Retests available</h2>
+                <p style="color:#92400e; margin-top:0;">You can retake these quizzes now. Retaking will reset your quiz progress.</p>
                 <div class="content-list">
                     <?php foreach ($available_retests as $quiz) :
                         $next_date = isset($quiz['next_retest_date']) ? $quiz['next_retest_date'] : null;
@@ -309,15 +309,13 @@ function format_retest_countdown($next_date) {
                         </div>
                     <?php endforeach; ?>
                 </div>
-            <?php else : ?>
-                <div class="empty">No retests available yet.</div>
-            <?php endif; ?>
-        </div>
+            </div>
+        <?php endif; ?>
 
-        <div class="mobile-card" style="border:1px solid #fcd34d; background:#fffbeb;">
-            <h2 class="section-title" style="margin-top:0;">⏳ Upcoming training</h2>
-            <p style="color:#92400e; margin-top:0;">These quizzes will reopen soon. Plan to retake them once available.</p>
-            <?php if (!empty($upcoming_retests)) : ?>
+        <?php if (!empty($upcoming_retests)) : ?>
+            <div class="mobile-card" style="border:1px solid #fcd34d; background:#fffbeb;">
+                <h2 class="section-title" style="margin-top:0;">⏳ Upcoming training</h2>
+                <p style="color:#92400e; margin-top:0;">These quizzes will reopen soon. Plan to retake them once available.</p>
                 <div class="content-list">
                     <?php foreach ($upcoming_retests as $quiz) :
                         $next_date = isset($quiz['next_retest_date']) ? $quiz['next_retest_date'] : null;
