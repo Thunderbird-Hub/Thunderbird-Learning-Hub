@@ -29,6 +29,7 @@ $courses = [];
 $selected_course = null;
 $course_items = [];
 $upcoming_retests = [];
+$available_retests = [];
 $show_progress = $user_id && function_exists('should_show_training_progress') ? should_show_training_progress($pdo, $user_id) : false;
 
 if ($user_id && function_exists('get_overall_training_progress')) {
@@ -54,12 +55,20 @@ if ($user_id && function_exists('get_retestable_quizzes')) {
         $retestable_quizzes = get_retestable_quizzes($pdo, $user_id);
         foreach ($retestable_quizzes as $quiz) {
             $days_until = isset($quiz['days_until_retest']) ? (int) $quiz['days_until_retest'] : 0;
-            if (!empty($quiz['retest_period_months']) && isset($quiz['retest_eligible']) && !$quiz['retest_eligible'] && $days_until > 0) {
+            $has_retest_period = !empty($quiz['retest_period_months']);
+            if (!$has_retest_period) {
+                continue;
+            }
+
+            if (!empty($quiz['retest_eligible'])) {
+                $available_retests[] = $quiz;
+            } elseif (isset($quiz['retest_eligible']) && !$quiz['retest_eligible'] && $days_until > 0) {
                 $upcoming_retests[] = $quiz;
             }
         }
     } catch (Exception $e) {
         $upcoming_retests = [];
+        $available_retests = [];
     }
 }
 
@@ -274,6 +283,34 @@ function format_retest_countdown($next_date) {
             <p>Search for training content and posts.</p>
             <?php if (function_exists('render_search_bar')) { render_search_bar('/mobile/search.php', '/mobile/search_autocomplete.php', 'mobile'); } ?>
         </div>
+
+        <?php if (!empty($available_retests)) : ?>
+            <div class="mobile-card" style="border:1px solid #fcd34d; background:#fffbeb;">
+                <h2 class="section-title" style="margin-top:0;">🔄 Retests available</h2>
+                <p style="color:#92400e; margin-top:0;">You can retake these quizzes now. Retaking will reset your quiz progress.</p>
+                <div class="content-list">
+                    <?php foreach ($available_retests as $quiz) :
+                        $next_date = isset($quiz['next_retest_date']) ? $quiz['next_retest_date'] : null;
+                        $reopen_date = $next_date ? format_mobile_date($next_date) : 'Available now';
+                        $last_attempt = isset($quiz['last_attempt_date']) ? format_mobile_date($quiz['last_attempt_date']) : 'Unknown';
+                    ?>
+                        <div class="content-item" style="align-items:flex-start;">
+                            <div>
+                                <p class="content-title" style="margin:0 0 4px;">
+                                    <?php echo htmlspecialchars($quiz['title'] ?? 'Quiz'); ?>
+                                </p>
+                                <div class="content-meta">
+                                    <span class="pill" style="background:#fef3c7; color:#92400e;">Retest every <?php echo (int) ($quiz['retest_period_months'] ?? 0); ?> month(s)</span>
+                                    <span class="pill">Last completed <?php echo htmlspecialchars($last_attempt); ?></span>
+                                    <span class="pill">Reopened <?php echo htmlspecialchars($reopen_date); ?></span>
+                                </div>
+                            </div>
+                            <div class="pill" style="background:#ecfccb; color:#15803d;">Ready to retake</div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        <?php endif; ?>
 
         <?php if (!empty($upcoming_retests)) : ?>
             <div class="mobile-card" style="border:1px solid #fcd34d; background:#fffbeb;">
