@@ -54,15 +54,22 @@ if ($user_id && function_exists('get_retestable_quizzes')) {
     try {
         $retestable_quizzes = get_retestable_quizzes($pdo, $user_id);
         foreach ($retestable_quizzes as $quiz) {
-            $days_until = isset($quiz['days_until_retest']) ? (int) $quiz['days_until_retest'] : 0;
             $has_retest_period = !empty($quiz['retest_period_months']);
             if (!$has_retest_period) {
                 continue;
             }
 
-            if (!empty($quiz['retest_eligible'])) {
+            $retest_eligible = !empty($quiz['retest_eligible']);
+            $days_until = isset($quiz['days_until_retest']) ? (int) $quiz['days_until_retest'] : null;
+
+            if ($days_until === null && !empty($quiz['next_retest_date'])) {
+                $diff_seconds = strtotime($quiz['next_retest_date']) - time();
+                $days_until = $diff_seconds > 0 ? (int) ceil($diff_seconds / 86400) : 0;
+            }
+
+            if ($retest_eligible) {
                 $available_retests[] = $quiz;
-            } elseif (isset($quiz['retest_eligible']) && !$quiz['retest_eligible'] && $days_until > 0) {
+            } elseif (!$retest_eligible && !empty($quiz['next_retest_date']) && $days_until !== null && $days_until >= 0) {
                 $upcoming_retests[] = $quiz;
             }
         }
