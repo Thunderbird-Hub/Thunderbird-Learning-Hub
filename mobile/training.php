@@ -28,6 +28,7 @@ $overall_progress = [
 $courses = [];
 $selected_course = null;
 $course_items = [];
+$upcoming_retests = [];
 $show_progress = $user_id && function_exists('should_show_training_progress') ? should_show_training_progress($pdo, $user_id) : false;
 
 if ($user_id && function_exists('get_overall_training_progress')) {
@@ -46,6 +47,20 @@ if ($user_id && function_exists('get_overall_training_progress')) {
 
 if ($user_id && function_exists('get_user_assigned_courses')) {
     $courses = get_user_assigned_courses($pdo, $user_id);
+}
+
+if ($user_id && function_exists('get_retestable_quizzes')) {
+    try {
+        $retestable_quizzes = get_retestable_quizzes($pdo, $user_id);
+        foreach ($retestable_quizzes as $quiz) {
+            $days_until = isset($quiz['days_until_retest']) ? (int) $quiz['days_until_retest'] : 0;
+            if (!empty($quiz['retest_period_months']) && isset($quiz['retest_eligible']) && !$quiz['retest_eligible'] && $days_until > 0) {
+                $upcoming_retests[] = $quiz;
+            }
+        }
+    } catch (Exception $e) {
+        $upcoming_retests = [];
+    }
 }
 
 $selected_course_id = isset($_GET['course_id']) ? (int) $_GET['course_id'] : null;
@@ -112,6 +127,32 @@ function format_mobile_date($date_value) {
     }
     $timestamp = strtotime($date_value);
     return $timestamp ? date('M j, Y', $timestamp) : null;
+}
+
+function format_retest_countdown($next_date) {
+    if (!$next_date) {
+        return 'Soon';
+    }
+    $diff = strtotime($next_date) - time();
+    if ($diff <= 0) {
+        return 'Available now';
+    }
+    $days = floor($diff / 86400);
+    $hours = floor(($diff % 86400) / 3600);
+
+    if ($days > 0) {
+        $label = $days . ' day' . ($days === 1 ? '' : 's');
+        if ($hours > 0) {
+            $label .= ' ' . $hours . ' hr' . ($hours === 1 ? '' : 's');
+        }
+        return $label;
+    }
+
+    if ($hours > 0) {
+        return $hours . ' hr' . ($hours === 1 ? '' : 's');
+    }
+
+    return 'Less than 1 hour';
 }
 ?>
 <!DOCTYPE html>
@@ -233,6 +274,35 @@ function format_mobile_date($date_value) {
             <p>Search for training content and posts.</p>
             <?php if (function_exists('render_search_bar')) { render_search_bar('/mobile/search.php', '/mobile/search_autocomplete.php', 'mobile'); } ?>
         </div>
+
+        <?php if (!empty($upcoming_retests)) : ?>
+            <div class="mobile-card" style="border:1px solid #fcd34d; background:#fffbeb;">
+                <h2 class="section-title" style="margin-top:0;">⏳ Upcoming training</h2>
+                <p style="color:#92400e; margin-top:0;">These quizzes will reopen soon. Plan to retake them once available.</p>
+                <div class="content-list">
+                    <?php foreach ($upcoming_retests as $quiz) :
+                        $next_date = isset($quiz['next_retest_date']) ? $quiz['next_retest_date'] : null;
+                        $countdown = format_retest_countdown($next_date);
+                        $reopen_date = $next_date ? format_mobile_date($next_date) : null;
+                    ?>
+                        <div class="content-item" style="align-items:flex-start;">
+                            <div>
+                                <p class="content-title" style="margin:0 0 4px;">
+                                    <?php echo htmlspecialchars($quiz['title'] ?? 'Quiz'); ?>
+                                </p>
+                                <div class="content-meta">
+                                    <span class="pill" style="background:#fef3c7; color:#92400e;">Retest every <?php echo (int) ($quiz['retest_period_months'] ?? 0); ?> month(s)</span>
+                                    <?php if ($reopen_date) : ?>
+                                        <span class="pill">Reopens <?php echo htmlspecialchars($reopen_date); ?></span>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <div class="pill" style="background:#fefcbf; color:#92400e;"><?php echo htmlspecialchars($countdown); ?></div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        <?php endif; ?>
 
         <h2 class="section-title" id="assignments">Assigned courses</h2>
         <?php if (empty($courses)) : ?>
