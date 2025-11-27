@@ -35,8 +35,31 @@ function is_pdf_upload(string $file_type, string $original_filename): bool
  */
 function pdf_absolute_path(string $relative_path): string
 {
-    $trimmed = ltrim($relative_path, '/');
-    return rtrim(APP_ROOT, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $trimmed;
+    if ($relative_path === '') {
+        return '';
+    }
+
+    $normalized_root = rtrim(str_replace('\\', '/', APP_ROOT), '/');
+    $normalized_path = str_replace('\\', '/', $relative_path);
+
+    $is_windows_absolute = preg_match('#^[A-Za-z]:[/\\]#', $relative_path) === 1;
+    $is_unix_absolute = substr($relative_path, 0, 1) === '/';
+    $already_rooted = strpos($normalized_path, $normalized_root . '/') === 0 || $normalized_path === $normalized_root;
+
+    // Paths that are already absolute
+    if ($already_rooted || $is_windows_absolute || $is_unix_absolute) {
+        if ($already_rooted || file_exists($relative_path)) {
+            return $normalized_path;
+        }
+
+        // For legacy root-relative inputs like "/uploads/file.pdf", try APP_ROOT first
+        $candidate = $normalized_root . $normalized_path;
+        return file_exists($candidate) ? $candidate : $relative_path;
+    }
+
+    // Remaining inputs are relative to APP_ROOT
+    $trimmed = ltrim($normalized_path, '/');
+    return $normalized_root . '/' . $trimmed;
 }
 
 /**
@@ -205,6 +228,9 @@ function extract_pdf_content(string $file_type, string $original_filename, strin
     ];
 
     if (!is_pdf_upload($file_type, $original_filename)) {
+        if (function_exists('log_debug')) {
+            log_debug('PDF extraction skipped - not a PDF upload for ' . $original_filename);
+        }
         return $result;
     }
 
@@ -220,11 +246,16 @@ function extract_pdf_content(string $file_type, string $original_filename, strin
     $html = pdf_text_to_html($text);
     if ($html !== null) {
         $result['extracted_html'] = $html;
+    } elseif (function_exists('log_debug')) {
+        $reason = $text === null ? 'text extraction returned null' : 'text extracted but rendered HTML was empty';
+        log_debug('PDF extraction missing HTML for ' . $absolute_path . ' - ' . $reason);
     }
 
     $images = extract_pdf_images($absolute_path, $stored_filename);
     if (!empty($images)) {
         $result['extracted_images_json'] = json_encode($images);
+    } elseif (function_exists('log_debug')) {
+        log_debug('PDF extraction generated 0 preview images for ' . $absolute_path);
     }
 
     return $result;
