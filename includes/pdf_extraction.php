@@ -35,8 +35,39 @@ function is_pdf_upload(string $file_type, string $original_filename): bool
  */
 function pdf_absolute_path(string $relative_path): string
 {
-    $trimmed = ltrim($relative_path, '/');
-    return rtrim(APP_ROOT, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $trimmed;
+    if ($relative_path === '') {
+        return '';
+    }
+
+    $normalized_root = rtrim(str_replace('\\', '/', APP_ROOT), '/');
+    $normalized_path = str_replace('\\', '/', $relative_path);
+
+    $is_windows_absolute = preg_match('~^[A-Za-z]:[\\/]~', $relative_path) === 1;
+    $is_unix_absolute = substr($normalized_path, 0, 1) === '/';
+    $already_rooted = strpos($normalized_path, $normalized_root . '/') === 0 || $normalized_path === $normalized_root;
+
+    if ($already_rooted) {
+        return $normalized_path;
+    }
+
+    // Keep genuine absolute paths intact (Windows or Unix)
+    if ($is_windows_absolute) {
+        return $normalized_path;
+    }
+
+    if ($is_unix_absolute) {
+        // Prefer app-root resolution for legacy root-relative inputs like "/uploads/file.pdf"
+        $candidate = $normalized_root . $normalized_path;
+        if (file_exists($candidate)) {
+            return $candidate;
+        }
+
+        return $normalized_path;
+    }
+
+    // Remaining inputs are relative to APP_ROOT
+    $trimmed = ltrim($normalized_path, '/');
+    return $normalized_root . '/' . $trimmed;
 }
 
 /**
@@ -205,6 +236,9 @@ function extract_pdf_content(string $file_type, string $original_filename, strin
     ];
 
     if (!is_pdf_upload($file_type, $original_filename)) {
+        if (function_exists('log_debug')) {
+            log_debug('PDF extraction skipped - not a PDF upload for ' . $original_filename);
+        }
         return $result;
     }
 
@@ -220,11 +254,16 @@ function extract_pdf_content(string $file_type, string $original_filename, strin
     $html = pdf_text_to_html($text);
     if ($html !== null) {
         $result['extracted_html'] = $html;
+    } elseif (function_exists('log_debug')) {
+        $reason = $text === null ? 'text extraction returned null' : 'text extracted but rendered HTML was empty';
+        log_debug('PDF extraction missing HTML for ' . $absolute_path . ' - ' . $reason);
     }
 
     $images = extract_pdf_images($absolute_path, $stored_filename);
     if (!empty($images)) {
         $result['extracted_images_json'] = json_encode($images);
+    } elseif (function_exists('log_debug')) {
+        log_debug('PDF extraction generated 0 preview images for ' . $absolute_path);
     }
 
     return $result;
