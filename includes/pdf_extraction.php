@@ -42,19 +42,24 @@ function pdf_absolute_path(string $relative_path): string
     $normalized_root = rtrim(str_replace('\\', '/', APP_ROOT), '/');
     $normalized_path = str_replace('\\', '/', $relative_path);
 
-    $is_windows_absolute = preg_match('#^[A-Za-z]:[/\\]#', $relative_path) === 1;
+    $is_windows_absolute = preg_match('~^[A-Za-z]:[\\/]~', $relative_path) === 1;
     $is_unix_absolute = substr($relative_path, 0, 1) === '/';
     $already_rooted = strpos($normalized_path, $normalized_root . '/') === 0 || $normalized_path === $normalized_root;
 
-    // Paths that are already absolute
-    if ($already_rooted || $is_windows_absolute || $is_unix_absolute) {
-        if ($already_rooted || file_exists($relative_path)) {
-            return $normalized_path;
-        }
+    // Paths that are already absolute to the project root
+    if ($already_rooted) {
+        return $normalized_path;
+    }
 
-        // For legacy root-relative inputs like "/uploads/file.pdf", try APP_ROOT first
+    // Windows absolute paths are returned as-is only if accessible to avoid open_basedir warnings
+    if ($is_windows_absolute) {
+        return file_exists($normalized_path) ? $normalized_path : '';
+    }
+
+    if ($is_unix_absolute) {
+        // Avoid probing paths outside APP_ROOT to honor open_basedir; treat leading slash as project-relative
         $candidate = $normalized_root . $normalized_path;
-        return file_exists($candidate) ? $candidate : $relative_path;
+        return $candidate;
     }
 
     // Remaining inputs are relative to APP_ROOT
