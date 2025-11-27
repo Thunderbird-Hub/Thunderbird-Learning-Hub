@@ -489,8 +489,9 @@ $mobile_active_page = 'categories';
         .empty-state { padding: 20px; text-align: center; color: #718096; background: #fff; border: 1px dashed #cbd5e0; border-radius: 12px; }
         .training-pdf-body { font-size: 15px; line-height: 1.6; color: #2d3748; }
         .training-pdf-body p { margin: 0 0 12px; }
-        .pdf-preview-images img { display: block; width: 100%; margin: 8px 0; border-radius: 10px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
-        .pdf-source-link { display: inline-block; margin-top: 8px; font-size: 13px; color: #4c51bf; font-weight: 700; text-decoration: none; }
+        .pdf-scroll-box { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; max-height: 420px; overflow-y: auto; padding: 10px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.04); }
+        .pdf-scroll-box img { display: block; width: 100%; margin-bottom: 10px; border-radius: 10px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
+        .pdf-scroll-hint { font-size: 12px; color: #718096; margin: 6px 0 10px; display: flex; align-items: center; gap: 6px; }
         .pdf-fallback-message { padding: 12px; background: #fff; border: 1px dashed #e2e8f0; border-radius: 10px; color: #4a5568; }
     </style>
 </head>
@@ -550,7 +551,6 @@ $mobile_active_page = 'categories';
                             $initial_display = $is_pdf ? 'block' : 'none';
                             $initial_arrow   = $is_pdf ? '▲' : '▼';
 
-                            $extracted_html = trim($file['extracted_html'] ?? '');
                             $image_urls = [];
                             if (!empty($file['extracted_images_json'])) {
                                 $decoded = json_decode($file['extracted_images_json'], true);
@@ -560,7 +560,7 @@ $mobile_active_page = 'categories';
                                     }, $decoded);
                                 }
                             }
-                            $has_extracted_content = ($extracted_html !== '' || !empty($image_urls));
+                            $has_extracted_images = !empty($image_urls);
                         ?>
                         <div class="attachment-group">
                             <div class="preview-file-header" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="togglePreview('preview_<?php echo $file['id']; ?>')">
@@ -575,23 +575,22 @@ $mobile_active_page = 'categories';
                             </div>
                             <div id="preview_<?php echo $file['id']; ?>_content" style="display: <?php echo $initial_display; ?>; margin-top:10px;">
                                 <?php if ($is_pdf): ?>
-                                    <?php if ($has_extracted_content): ?>
-                                        <?php if ($extracted_html): ?>
-                                            <div class="extracted-html" style="margin-bottom: 10px;">
-                                                <?php echo $extracted_html; ?>
-                                            </div>
-                                        <?php endif; ?>
-                                        <?php if (!empty($image_urls)): ?>
-                                            <div class="pdf-preview-images">
-                                                <?php foreach ($image_urls as $img): ?>
-                                                    <img src="<?php echo htmlspecialchars($img); ?>" alt="PDF page preview">
-                                                <?php endforeach; ?>
-                                            </div>
-                                        <?php endif; ?>
+                                    <?php if ($has_extracted_images): ?>
+                                        <div class="pdf-scroll-hint">⬆️⬇️ Scroll to view all pages</div>
+                                        <div class="pdf-scroll-box">
+                                            <?php foreach ($image_urls as $img): ?>
+                                                <img src="<?php echo htmlspecialchars($img); ?>" alt="PDF page preview">
+                                            <?php endforeach; ?>
+                                        </div>
+                                        <div style="margin-top:8px;">
+                                            <a href="<?php echo htmlspecialchars($file['file_path']); ?>" target="_blank" rel="noopener" style="font-weight:700; color:#4c51bf; text-decoration:none;">Open PDF</a>
+                                        </div>
                                     <?php else: ?>
-                                        <div class="pdf-fallback-message">Training content could not be extracted.</div>
+                                        <div class="pdf-fallback-message">Preview unavailable. Please download and open the PDF.</div>
+                                        <div style="margin-top:8px;">
+                                            <a href="<?php echo htmlspecialchars($file['file_path']); ?>" target="_blank" rel="noopener" style="font-weight:700; color:#4c51bf; text-decoration:none;">Download PDF</a>
+                                        </div>
                                     <?php endif; ?>
-                                    <a class="pdf-source-link" href="<?php echo htmlspecialchars($file['file_path']); ?>" target="_blank" rel="noopener">View original PDF</a>
                                 <?php else: ?>
                                     <div style="padding: 12px; background:#fff; border:1px solid #e2e8f0; border-radius:10px;">This file type cannot be previewed inline. Please download to view.</div>
                                 <?php endif; ?>
