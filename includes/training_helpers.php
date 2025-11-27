@@ -749,7 +749,10 @@ function get_overall_training_progress($pdo, $user_id) {
         $stmt = $pdo->prepare("
             SELECT
                 COUNT(DISTINCT tcc.id) as total_items,
-                COUNT(DISTINCT CASE WHEN tp.status = 'completed' THEN tcc.id END) as completed_items,
+                COUNT(DISTINCT CASE
+                    WHEN tp.status = 'completed'
+                      OR tp.quiz_completed = 1
+                      OR uqa.passed = 1 THEN tcc.id END) as completed_items,
                 COUNT(DISTINCT CASE WHEN tp.status = 'in_progress' THEN tcc.id END) as in_progress_items,
                 COUNT(DISTINCT uta.course_id) as total_courses,
                 COUNT(DISTINCT CASE WHEN uta.status = 'completed' THEN uta.course_id END) as completed_courses
@@ -758,12 +761,24 @@ function get_overall_training_progress($pdo, $user_id) {
             JOIN training_course_content tcc ON uta.course_id = tcc.course_id
             LEFT JOIN training_progress tp ON tcc.content_id = tp.content_id
                 AND tp.user_id = ?
-                AND (tcc.content_type = tp.content_type OR tp.content_type = '' OR tp.content_type IS NULL OR tp.content_type = '' OR tp.content_type IS NULL)
+                AND (tcc.content_type = tp.content_type OR tp.content_type = '' OR tp.content_type IS NULL OR tp.content_type ='' OR tp.content_type IS NULL)
+            LEFT JOIN training_quizzes tq
+                   ON tq.content_id = tcc.content_id
+                  AND LOWER(COALESCE(tq.content_type,'')) IN ('post','')
+            LEFT JOIN (
+                SELECT
+                    quiz_id,
+                    MAX(CASE WHEN status = 'passed' THEN 1 ELSE 0 END) AS passed
+                FROM user_quiz_attempts
+                WHERE user_id = ?
+                GROUP BY quiz_id
+            ) uqa
+                   ON uqa.quiz_id = tq.id
             WHERE uta.user_id = ?
             AND tc.is_active = 1
             AND tcc.content_type = 'post'  -- Only count posts
         ");
-        $stmt->execute([$user_id, $user_id]);
+        $stmt->execute([$user_id, $user_id, $user_id]);
         $data = $stmt->fetch(PDO::FETCH_ASSOC);
 
         $total_items = (int)$data['total_items'];
@@ -811,7 +826,7 @@ function calculate_course_progress($pdo, $user_id, $course_id) {
             SELECT
                 COUNT(DISTINCT tcc.id) as total_items,
                 COUNT(DISTINCT CASE
-                    WHEN tp.status = 'completed' OR tp.quiz_completed = 1 THEN tcc.id
+                    WHEN tp.status = 'completed' OR tp.quiz_completed = 1 OR uqa.passed = 1 THEN tcc.id
                 END) as completed_items,
                 COUNT(DISTINCT CASE WHEN tp.status = 'in_progress' THEN tcc.id END) as in_progress_items
             FROM training_course_content tcc
@@ -820,10 +835,22 @@ function calculate_course_progress($pdo, $user_id, $course_id) {
                 AND tp.course_id = tcc.course_id
                 AND tp.user_id = uta.user_id
                 AND (tcc.content_type = tp.content_type OR tp.content_type = '' OR tp.content_type IS NULL)
+            LEFT JOIN training_quizzes tq
+                   ON tq.content_id = tcc.content_id
+                  AND LOWER(COALESCE(tq.content_type,'')) IN ('post','')
+            LEFT JOIN (
+                SELECT
+                    quiz_id,
+                    MAX(CASE WHEN status = 'passed' THEN 1 ELSE 0 END) AS passed
+                FROM user_quiz_attempts
+                WHERE user_id = ?
+                GROUP BY quiz_id
+            ) uqa
+                   ON uqa.quiz_id = tq.id
             WHERE tcc.course_id = ?
               AND tcc.content_type = 'post'
         ");
-        $stmt->execute([$user_id, $course_id]);
+        $stmt->execute([$user_id, $user_id, $course_id]);
         $data = $stmt->fetch(PDO::FETCH_ASSOC);
 
         $total_items = (int)$data['total_items'];
