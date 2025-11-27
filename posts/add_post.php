@@ -66,11 +66,20 @@ try {
 
 // Check if posts table supports department sharing
 $shared_departments_supported = false;
+$post_visibility_supported = false;
 try {
     $pdo->query("SELECT shared_departments FROM posts LIMIT 1");
     $shared_departments_supported = true;
 } catch (PDOException $e) {
     $shared_departments_supported = false;
+}
+
+// Check if posts table supports desktop content visibility toggle
+try {
+    $pdo->query("SELECT hide_content_on_desktop FROM posts LIMIT 1");
+    $post_visibility_supported = true;
+} catch (PDOException $e) {
+    $post_visibility_supported = false;
 }
 
 $all_departments = $shared_departments_supported ? get_all_departments($pdo) : [];
@@ -109,6 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $subcategory) {
     $content = isset($_POST['content']) ? trim($_POST['content']) : '';
     $privacy = isset($_POST['privacy']) ? $_POST['privacy'] : 'public';
     $shared_departments = isset($_POST['shared_departments']) ? array_map('intval', $_POST['shared_departments']) : [];
+    $hide_content_on_desktop = $post_visibility_supported ? (isset($_POST['hide_content_on_desktop']) ? 1 : 0) : 0;
 
     // Check if files are being uploaded
     $has_files = (!empty($_FILES['files']['name'][0]) && $_FILES['files']['error'][0] == UPLOAD_ERR_OK) ||
@@ -138,14 +148,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $subcategory) {
                 $shared_departments_json = json_encode($shared_departments);
             }
 
-            // Insert post
+            // Insert post with optional desktop visibility flag
+            $insert_columns = ['subcategory_id', 'user_id', 'title', 'content', 'privacy', 'shared_with'];
+            $insert_values = [$subcategory_id, $_SESSION['user_id'], $title, $content, $privacy, $shared_with_json];
+
             if ($shared_departments_supported) {
-                $stmt = $pdo->prepare("INSERT INTO posts (subcategory_id, user_id, title, content, privacy, shared_with, shared_departments) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$subcategory_id, $_SESSION['user_id'], $title, $content, $privacy, $shared_with_json, $shared_departments_json]);
-            } else {
-                $stmt = $pdo->prepare("INSERT INTO posts (subcategory_id, user_id, title, content, privacy, shared_with) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->execute([$subcategory_id, $_SESSION['user_id'], $title, $content, $privacy, $shared_with_json]);
+                $insert_columns[] = 'shared_departments';
+                $insert_values[] = $shared_departments_json;
             }
+
+            if ($post_visibility_supported) {
+                $insert_columns[] = 'hide_content_on_desktop';
+                $insert_values[] = $hide_content_on_desktop;
+            }
+
+            $placeholders = implode(', ', array_fill(0, count($insert_columns), '?'));
+            $columns_sql = implode(', ', $insert_columns);
+
+            $stmt = $pdo->prepare("INSERT INTO posts ($columns_sql) VALUES ($placeholders)");
+            $stmt->execute($insert_values);
             $post_id = $pdo->lastInsertId();
 
             // Handle regular file uploads
@@ -411,6 +432,17 @@ include __DIR__ . '/../includes/header.php';
                         <?php endif; ?>
                     </div>
                 </div>
+
+                <?php if ($post_visibility_supported): ?>
+                    <div class="form-group">
+                        <label class="form-label">Desktop Content Display</label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" name="hide_content_on_desktop" value="1" <?php echo isset($_POST['hide_content_on_desktop']) ? 'checked' : ''; ?>>
+                            Hide the rich post content on desktop to prioritize inline PDF previews
+                        </label>
+                        <div class="form-hint">When enabled, desktop readers will see a toggle to reveal the post body while mobile users continue to see the content as usual.</div>
+                    </div>
+                <?php endif; ?>
 
                 <div class="form-group">
                     <label for="files" class="form-label">Attach Files for User Download (Optional)</label>
