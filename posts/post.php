@@ -644,7 +644,6 @@ include __DIR__ . '/../includes/header.php';
                         <div class="preview-files-section" style="margin-bottom: 30px;">
                             <h3 class="attachments-title" style="display: flex; align-items: center; gap: 8px;">
                                 📄 Document Preview
-                                <span style="font-size: 14px; font-weight: normal; color: #666;">(Click to expand/collapse)</span>
                             </h3>
                             <?php foreach ($preview_files as $file): ?>
                               
