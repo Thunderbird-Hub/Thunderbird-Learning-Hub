@@ -642,9 +642,6 @@ include __DIR__ . '/../includes/header.php';
                     if (!empty($preview_files) && !(isset($is_mobile_layout) && $is_mobile_layout)):
                     ?>
                         <div class="preview-files-section" style="margin-bottom: 30px;">
-                            <h3 class="attachments-title" style="display: flex; align-items: center; gap: 8px;">
-                                📄 Document Preview
-                            </h3>
                             <?php foreach ($preview_files as $file): ?>
                               
 <?php
