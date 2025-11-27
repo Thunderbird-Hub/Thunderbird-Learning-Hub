@@ -232,6 +232,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 $quiz_attempt['id']
             ]);
 
+            if ($status === 'passed' && function_exists('upsert_quiz_retest_tracking')) {
+                $completed_time_stmt = $pdo->prepare(
+                    "SELECT completed_at FROM user_quiz_attempts WHERE id = ? AND completed_at IS NOT NULL"
+                );
+                $completed_time_stmt->execute([$quiz_attempt['id']]);
+                $attempt_time = $completed_time_stmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($attempt_time) {
+                    $tracking_result = upsert_quiz_retest_tracking(
+                        $pdo,
+                        intval($_SESSION['user_id']),
+                        intval($quiz_id),
+                        $attempt_time['completed_at']
+                    );
+
+                    if (($tracking_result['status'] ?? '') !== 'success' && function_exists('log_debug')) {
+                        log_debug('Retest tracking update failed (mobile): ' . ($tracking_result['message'] ?? 'unknown error'));
+                    }
+                }
+            }
+
             $pdo->commit();
 
             if (function_exists('update_course_completion_status') && function_exists('promote_user_if_training_complete')) {

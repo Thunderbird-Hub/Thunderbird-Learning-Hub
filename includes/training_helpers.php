@@ -1563,6 +1563,82 @@ function check_quiz_retest_eligibility($pdo, $user_id, $quiz_id) {
 }
 
 /**
+ * Upsert retest tracking for a completed quiz attempt
+ *
+ * @param PDO $pdo Database connection
+ * @param int $user_id User ID
+ * @param int $quiz_id Quiz ID
+ * @param string|null $completed_at Completion datetime (falls back to latest passed/completed attempt)
+ * @return array Status payload
+ */
+function upsert_quiz_retest_tracking(PDO $pdo, int $user_id, int $quiz_id, ?string $completed_at = null): array
+{
+    try {
+        $quiz_stmt = $pdo->prepare("SELECT retest_period_months FROM training_quizzes WHERE id = ?");
+        $quiz_stmt->execute([$quiz_id]);
+        $quiz = $quiz_stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$quiz) {
+            return ['status' => 'error', 'message' => 'Quiz not found'];
+        }
+
+        $retest_months = (int) ($quiz['retest_period_months'] ?? 0);
+
+        if ($retest_months <= 0) {
+            return [
+                'status' => 'success',
+                'skipped' => true,
+                'reason' => 'no_retest_period'
+            ];
+        }
+
+        if ($completed_at === null) {
+            $attempt_stmt = $pdo->prepare("SELECT completed_at FROM user_quiz_attempts WHERE user_id = ? AND quiz_id = ? AND status IN ('passed', 'completed') AND completed_at IS NOT NULL ORDER BY completed_at DESC LIMIT 1");
+            $attempt_stmt->execute([$user_id, $quiz_id]);
+            $attempt = $attempt_stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$attempt) {
+                return ['status' => 'error', 'message' => 'No completed attempt found'];
+            }
+
+            $completed_at = $attempt['completed_at'];
+        }
+
+        $completed_date = new DateTime($completed_at);
+        $eligible_date = clone $completed_date;
+        $eligible_date->modify("+{$retest_months} months");
+
+        $retest_enabled = (time() >= $eligible_date->getTimestamp()) ? 1 : 0;
+
+        $tracking_stmt = $pdo->prepare("INSERT INTO quiz_retest_tracking (user_id, quiz_id, last_passed_date, retest_eligible_date, retest_enabled) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE last_passed_date = VALUES(last_passed_date), retest_eligible_date = VALUES(retest_eligible_date), retest_enabled = VALUES(retest_enabled), updated_at = CURRENT_TIMESTAMP");
+
+        $tracking_stmt->execute([
+            $user_id,
+            $quiz_id,
+            $completed_date->format('Y-m-d'),
+            $eligible_date->format('Y-m-d'),
+            $retest_enabled
+        ]);
+
+        if (function_exists('log_debug')) {
+            log_debug(
+                "Retest tracking updated - User {$user_id}, Quiz {$quiz_id}, Eligible {$eligible_date->format('Y-m-d')}, Enabled {$retest_enabled}",
+                'INFO'
+            );
+        }
+
+        return [
+            'status' => 'success',
+            'retest_eligible_date' => $eligible_date->format('Y-m-d'),
+            'retest_enabled' => $retest_enabled
+        ];
+    } catch (Exception $e) {
+        error_log('Error updating quiz retest tracking: ' . $e->getMessage());
+        return ['status' => 'error', 'message' => $e->getMessage()];
+    }
+}
+
+/**
  * Enable retests for user when retest period expires
  * Auto-sets is_in_training flag for users with eligible retests
  * @param PDO $pdo Database connection
