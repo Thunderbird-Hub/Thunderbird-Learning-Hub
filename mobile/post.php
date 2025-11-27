@@ -9,6 +9,7 @@ require_once __DIR__ . '/../includes/db_connect.php';
 require_once __DIR__ . '/../includes/user_helpers.php';
 require_once __DIR__ . '/../includes/department_helpers.php';
 require_once __DIR__ . '/../includes/mobile_beta_gate.php';
+require_once __DIR__ . '/../includes/pdf_extraction.php';
 
 // Load training helpers when available
 if (file_exists(__DIR__ . '/../includes/training_helpers.php')) {
@@ -16,6 +17,51 @@ if (file_exists(__DIR__ . '/../includes/training_helpers.php')) {
 }
 
 enforce_mobile_beta_access();
+
+/**
+ * Backfill extracted PDF content for legacy uploads missing HTML/images.
+ */
+function ensure_pdf_extracted(PDO $pdo, array $file): array
+{
+    $has_extracted_html = trim($file['extracted_html'] ?? '') !== '';
+    $has_extracted_images = !empty($file['extracted_images_json']);
+
+    if ($has_extracted_html || $has_extracted_images) {
+        return $file;
+    }
+
+    $file_type = $file['file_type'] ?? '';
+    $original_filename = $file['original_filename'] ?? '';
+
+    if (!is_pdf_upload($file_type, $original_filename)) {
+        return $file;
+    }
+
+    $relative_path = $file['file_path'] ?? '';
+    $stored_filename = $file['stored_filename'] ?? basename($relative_path);
+
+    $extracted = extract_pdf_content($file_type, $original_filename, $relative_path, $stored_filename);
+
+    if (empty($extracted['extracted_html']) && empty($extracted['extracted_images_json'])) {
+        return $file;
+    }
+
+    $file['extracted_html'] = $extracted['extracted_html'];
+    $file['extracted_images_json'] = $extracted['extracted_images_json'];
+
+    try {
+        $update = $pdo->prepare("UPDATE files SET extracted_html = ?, extracted_images_json = ? WHERE id = ?");
+        $update->execute([
+            $file['extracted_html'],
+            $file['extracted_images_json'],
+            intval($file['id'] ?? 0),
+        ]);
+    } catch (PDOException $e) {
+        error_log('Failed to backfill PDF extraction for file ID ' . ($file['id'] ?? 'unknown') . ': ' . $e->getMessage());
+    }
+
+    return $file;
+}
 
 // Get post ID first (needed for training progress tracking)
 $post_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -341,12 +387,14 @@ try {
         $stmt = $pdo->prepare("SELECT * FROM files WHERE post_id = ? ORDER BY uploaded_at ASC");
         $stmt->execute([$post_id]);
         $files = $stmt->fetchAll();
-        $files = array_map(function($file) {
+
+        foreach ($files as &$file) {
             if (isset($file['file_path'])) {
                 $file['file_path'] = normalize_file_path($file['file_path']);
             }
-            return $file;
-        }, $files);
+            $file = ensure_pdf_extracted($pdo, $file);
+        }
+        unset($file);
 
         $stmt = $pdo->prepare("SELECT * FROM replies WHERE post_id = ? ORDER BY created_at ASC");
         $stmt->execute([$post_id]);
@@ -615,12 +663,13 @@ $mobile_active_page = 'categories';
                             $stmt = $pdo->prepare("SELECT * FROM files WHERE reply_id = ? ORDER BY uploaded_at ASC");
                             $stmt->execute([$reply['id']]);
                             $reply_files = $stmt->fetchAll();
-                            $reply_files = array_map(function($file) {
+                            foreach ($reply_files as &$file) {
                                 if (isset($file['file_path'])) {
                                     $file['file_path'] = normalize_file_path($file['file_path']);
                                 }
-                                return $file;
-                            }, $reply_files);
+                                $file = ensure_pdf_extracted($pdo, $file);
+                            }
+                            unset($file);
                         ?>
                         <div class="reply-bubble">
                             <div class="post-body" style="font-size:15px;"><?php echo $reply['content']; ?></div>
