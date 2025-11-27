@@ -338,8 +338,10 @@ function format_retest_countdown($next_date) {
                         </div>
                     <?php endforeach; ?>
                 </div>
-            </div>
-        <?php endif; ?>
+            <?php else : ?>
+                <div class="empty">No upcoming retest windows yet.</div>
+            <?php endif; ?>
+        </div>
 
         <h2 class="section-title" id="assignments">Assigned courses</h2>
         <?php if (empty($courses)) : ?>
