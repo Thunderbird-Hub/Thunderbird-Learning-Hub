@@ -93,6 +93,14 @@ if ($selected_course) {
         ");
         $items_stmt->execute([$user_id, $user_id, $selected_course_id]);
         $course_items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Normalize status so quiz completions also show as completed
+        foreach ($course_items as &$item) {
+            if (!empty($item['quiz_id']) && (int) $item['quiz_done'] === 1) {
+                $item['progress_status'] = 'completed';
+            }
+        }
+        unset($item);
     } catch (Exception $e) {
         $course_items = [];
     }
@@ -313,6 +321,7 @@ function format_mobile_date($date_value) {
                             }
                             $button_state = $status_class === 'completed' ? 'completed' : '';
                             $button_label = $status_class === 'completed' ? 'Completed' : 'Mark complete';
+                            $show_button = empty($item['quiz_id']);
                         ?>
                             <div class="content-item">
                                 <div class="content-main">
@@ -322,7 +331,9 @@ function format_mobile_date($date_value) {
                                         <div class="content-meta"><?php echo htmlspecialchars($status_label); ?> · <?php echo htmlspecialchars($quiz_text); ?></div>
                                     </div>
                                 </div>
-                                <button class="toggle-btn <?php echo $button_state; ?>" data-content-id="<?php echo (int) $item['post_id']; ?>" data-status="<?php echo $status_class; ?>" <?php echo $button_state ? 'disabled' : ''; ?>><?php echo $button_label; ?></button>
+                                <?php if ($show_button) : ?>
+                                    <button class="toggle-btn <?php echo $button_state; ?>" data-content-id="<?php echo (int) $item['post_id']; ?>" data-status="<?php echo $status_class; ?>" <?php echo $button_state ? 'disabled' : ''; ?>><?php echo $button_label; ?></button>
+                                <?php endif; ?>
                             </div>
                         <?php endforeach; ?>
                     </div>
