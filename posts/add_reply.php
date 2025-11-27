@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../includes/db_connect.php';
+require_once __DIR__ . '/../includes/pdf_extraction.php';
 
 $error_message = '';
 
@@ -66,12 +67,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     // Move uploaded file
                     if (move_uploaded_file($tmp_name, $file_path)) {
+                        $extracted = extract_pdf_content($file_type, $original_filename, $file_path, $stored_filename);
                         // Insert file record
                         $stmt = $pdo->prepare("
-                            INSERT INTO files (reply_id, original_filename, stored_filename, file_path, file_size, file_type)
-                            VALUES (?, ?, ?, ?, ?, ?)
+                            INSERT INTO files (reply_id, original_filename, stored_filename, file_path, file_size, file_type, extracted_html, extracted_images_json)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         ");
-                        $stmt->execute([$reply_id, $original_filename, $stored_filename, $file_path, $file_size, $file_type]);
+                        $stmt->execute([
+                            $reply_id,
+                            $original_filename,
+                            $stored_filename,
+                            $file_path,
+                            $file_size,
+                            $file_type,
+                            $extracted['extracted_html'],
+                            $extracted['extracted_images_json']
+                        ]);
                     }
                 }
             }

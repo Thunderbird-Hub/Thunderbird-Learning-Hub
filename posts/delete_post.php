@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../includes/db_connect.php';
+require_once __DIR__ . '/../includes/pdf_extraction.php';
 require_once __DIR__ . '/../includes/user_helpers.php';
 
 // PERMISSION CHECK: Only admins and super admins can delete posts
@@ -43,7 +44,7 @@ try {
 
     // Fetch and delete all files associated with the post and its replies
     $stmt = $pdo->prepare("
-        SELECT file_path FROM files
+        SELECT file_path, extracted_images_json FROM files
         WHERE post_id = ? OR reply_id IN (
             SELECT id FROM replies WHERE post_id = ?
         )
@@ -56,6 +57,8 @@ try {
         if (file_exists($file['file_path'])) {
             unlink($file['file_path']);
         }
+
+        cleanup_pdf_extractions($file['extracted_images_json'] ?? null);
     }
 
     // Delete file records from database
