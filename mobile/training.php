@@ -312,10 +312,10 @@ function format_retest_countdown($next_date) {
             </div>
         <?php endif; ?>
 
-        <?php if (!empty($upcoming_retests)) : ?>
-            <div class="mobile-card" style="border:1px solid #fcd34d; background:#fffbeb;">
-                <h2 class="section-title" style="margin-top:0;">⏳ Upcoming training</h2>
-                <p style="color:#92400e; margin-top:0;">These quizzes will reopen soon. Plan to retake them once available.</p>
+        <div class="mobile-card" style="border:1px solid #fcd34d; background:#fffbeb;">
+            <h2 class="section-title" style="margin-top:0;">⏳ Upcoming training</h2>
+            <p style="color:#92400e; margin-top:0;">These quizzes will reopen soon. Plan to retake them once available.</p>
+            <?php if (!empty($upcoming_retests)) : ?>
                 <div class="content-list">
                     <?php foreach ($upcoming_retests as $quiz) :
                         $next_date = isset($quiz['next_retest_date']) ? $quiz['next_retest_date'] : null;
@@ -328,7 +328,7 @@ function format_retest_countdown($next_date) {
                                     <?php echo htmlspecialchars($quiz['title'] ?? 'Quiz'); ?>
                                 </p>
                                 <div class="content-meta">
-                                    <span class="pill" style="background:#fef3c7; color:#92400e;">Retest every <?php echo (int) ($quiz['retest_period_months'] ?? 0); ?> month(s)</span>
+                                    <span class="pill" style="background:#fef3c7; color:#92400e;">Retest every <?php echo (int)($quiz['retest_period_months'] ?? 0); ?> month(s)</span>
                                     <?php if ($reopen_date) : ?>
                                         <span class="pill">Reopens <?php echo htmlspecialchars($reopen_date); ?></span>
                                     <?php endif; ?>
@@ -338,8 +338,10 @@ function format_retest_countdown($next_date) {
                         </div>
                     <?php endforeach; ?>
                 </div>
-            </div>
-        <?php endif; ?>
+            <?php else : ?>
+                <div class="empty">No retests scheduled yet.</div>
+            <?php endif; ?>
+        </div>
 
         <h2 class="section-title" id="assignments">Assigned courses</h2>
         <?php if (empty($courses)) : ?>
