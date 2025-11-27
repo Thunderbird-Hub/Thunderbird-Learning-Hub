@@ -337,6 +337,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $can_attempt && $quiz_attempt) {
                     throw new PDOException('Failed to properly update quiz attempt record');
                 }
 
+                if ($status === 'passed' && function_exists('upsert_quiz_retest_tracking')) {
+                    $tracking_result = upsert_quiz_retest_tracking(
+                        $pdo,
+                        intval($_SESSION['user_id']),
+                        intval($quiz_id),
+                        $attempt_verified['completed_at']
+                    );
+
+                    if (($tracking_result['status'] ?? '') !== 'success' && function_exists('log_debug')) {
+                        log_debug('Retest tracking update failed: ' . ($tracking_result['message'] ?? 'unknown error'));
+                    }
+                }
+
                 // If passed, update training progress
                 if ($status === 'passed') {
                     if (function_exists('log_debug')) {
