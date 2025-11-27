@@ -127,7 +127,21 @@ function auto_manage_user_roles($pdo, $user_id = null) {
             $changes[] = "User {$user['name']} → {$retest_result['retests_enabled']} retest(s) now eligible";
         }
 
-        // Count active training assignments
+        // Refresh course completion to keep assignment statuses in sync with real progress
+        $course_stmt = $pdo->prepare("
+            SELECT DISTINCT uta.course_id
+            FROM user_training_assignments uta
+            JOIN training_courses tc ON uta.course_id = tc.id
+            WHERE uta.user_id = ?
+              AND tc.is_active = 1
+        ");
+        $course_stmt->execute([$user_id]);
+        $course_ids = array_map('intval', $course_stmt->fetchAll(PDO::FETCH_COLUMN));
+        foreach ($course_ids as $course_id) {
+            update_course_completion_status($pdo, $user_id, $course_id);
+        }
+
+        // Count active (incomplete) training assignments after refreshing completion
         $assignment_stmt = $pdo->prepare("
             SELECT COUNT(*) AS active_assignments
             FROM user_training_assignments uta
@@ -143,7 +157,12 @@ function auto_manage_user_roles($pdo, $user_id = null) {
         $retestable_quizzes = get_retestable_quizzes($pdo, $user_id);
         $has_retests = count($retestable_quizzes) > 0;
 
-        $new_flag_value = ($active_assignments > 0 || $has_retests) ? 1 : 0;
+        // Determine if the user has finished all assigned content
+        $progress = get_overall_training_progress($pdo, $user_id);
+        $all_training_complete = ($progress['total_items'] > 0 && $progress['percentage'] === 100);
+
+        $should_be_training = ($active_assignments > 0 && !$all_training_complete) || $has_retests;
+        $new_flag_value = $should_be_training ? 1 : 0;
 
         // Update the flag based on active assignments AND retests
         $flag_stmt = $pdo->prepare("
@@ -175,7 +194,9 @@ function auto_manage_user_roles($pdo, $user_id = null) {
         }
 
         $flag_name = $new_flag_value ? 'in training' : 'not in training';
-        if ($active_assignments > 0) {
+        if ($all_training_complete && !$has_retests) {
+            $changes[] = "User {$user['name']} → $flag_name (all assigned training completed)";
+        } elseif ($active_assignments > 0) {
             $changes[] = "User {$user['name']} → $flag_name ({$active_assignments} active assignment(s))";
         } elseif ($has_retests) {
             $changes[] = "User {$user['name']} → $flag_name (" . count($retestable_quizzes) . " retest(s) available)";
