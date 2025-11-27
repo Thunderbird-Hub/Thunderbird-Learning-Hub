@@ -129,6 +129,7 @@ $error_message = '';
 $post = null;
 $files = [];
 $replies = [];
+$should_hide_content_on_desktop = false;
 
 if ($post_id <= 0) {
     header('Location: /index.php');
@@ -337,6 +338,8 @@ try {
         $stmt = $pdo->prepare("SELECT * FROM replies WHERE post_id = ? ORDER BY created_at ASC");
         $stmt->execute([$post_id]);
         $replies = $stmt->fetchAll();
+
+        $should_hide_content_on_desktop = !empty($post['hide_content_on_desktop']) && (!isset($is_mobile_layout) || !$is_mobile_layout);
     }
 
 } catch (PDOException $e) {
@@ -474,6 +477,40 @@ include __DIR__ . '/../includes/header.php';
         </style>
     <?php endif; ?>
 
+    <style>
+        @media (max-width: 768px) {
+            .preview-files-section {
+                display: none !important;
+            }
+        }
+
+        .content-visibility-banner {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            color: #1f2937;
+        }
+
+        .content-visibility-banner button {
+            border: 1px solid #0ea5e9;
+            background: #0ea5e9;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .content-visibility-banner button:hover {
+            background: #0284c7;
+        }
+    </style>
+
     <?php
     require_once __DIR__ . '/../includes/search_widget.php';
     // Point to your known-good endpoint that works like index:
@@ -556,7 +593,14 @@ include __DIR__ . '/../includes/header.php';
                 <?php endif; ?>
             </div>
 
-            <div class="post-content">
+            <?php if (!empty($should_hide_content_on_desktop)): ?>
+                <div class="content-visibility-banner">
+                    <div style="flex:1;">Post content is hidden on desktop to keep space for the document preview.</div>
+                    <button type="button" id="desktop-content-toggle" onclick="toggleDesktopContent()">Show content</button>
+                </div>
+            <?php endif; ?>
+
+            <div class="post-content" id="post-content-body" style="<?php echo !empty($should_hide_content_on_desktop) ? 'display:none;' : ''; ?>">
                 <?php
                 $post_content = $post['content'] ?? '';
                 $has_html_tags = preg_match('/<[^>]+>/', $post_content);
@@ -595,7 +639,7 @@ include __DIR__ . '/../includes/header.php';
                         });
                     }
 
-                    if (!empty($preview_files)):
+                    if (!empty($preview_files) && !(isset($is_mobile_layout) && $is_mobile_layout)):
                     ?>
                         <div class="preview-files-section" style="margin-bottom: 30px;">
                             <h3 class="attachments-title" style="display: flex; align-items: center; gap: 8px;">
@@ -695,6 +739,10 @@ include __DIR__ . '/../includes/header.php';
     </div>
 </div>
                             <?php endforeach; ?>
+                        </div>
+                    <?php elseif (!empty($preview_files) && isset($is_mobile_layout) && $is_mobile_layout): ?>
+                        <div class="content-visibility-banner">
+                            <div style="flex:1;">Document previews are hidden on mobile. Please download the file or view this post on desktop to see the inline preview.</div>
                         </div>
                     <?php endif; ?>
 
@@ -915,6 +963,25 @@ include __DIR__ . '/../includes/header.php';
         } else {
             content.style.display = 'none';
             arrow.textContent = '▼';
+        }
+    }
+
+    function toggleDesktopContent() {
+        const content = document.getElementById('post-content-body');
+        const toggle = document.getElementById('desktop-content-toggle');
+
+        if (!content || !toggle) {
+            return;
+        }
+
+        const isHidden = content.style.display === 'none' || getComputedStyle(content).display === 'none';
+
+        if (isHidden) {
+            content.style.display = '';
+            toggle.textContent = 'Hide content';
+        } else {
+            content.style.display = 'none';
+            toggle.textContent = 'Show content';
         }
     }
 </script>

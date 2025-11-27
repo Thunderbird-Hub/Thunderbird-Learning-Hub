@@ -26,6 +26,7 @@ $error_message = '';
 $post_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $post = null;
 $shared_departments_supported = false;
+$post_visibility_supported = false;
 $all_departments = [];
 
 if ($post_id <= 0) {
@@ -44,6 +45,14 @@ try {
     $shared_departments_supported = true;
 } catch (PDOException $e) {
     $shared_departments_supported = false;
+}
+
+// Check if posts table supports desktop content visibility toggle
+try {
+    $pdo->query("SELECT hide_content_on_desktop FROM posts LIMIT 1");
+    $post_visibility_supported = true;
+} catch (PDOException $e) {
+    $post_visibility_supported = false;
 }
 
 if ($shared_departments_supported) {
@@ -82,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $post) {
     $shared_with = [];
     $shared_departments = isset($_POST['shared_departments']) ? array_map('intval', $_POST['shared_departments']) : ($shared_departments_supported ? (json_decode($post['shared_departments'] ?? '[]', true) ?: []) : []);
     $files_to_delete = isset($_POST['delete_files']) ? $_POST['delete_files'] : [];
+    $hide_content_on_desktop = $post_visibility_supported ? (isset($_POST['hide_content_on_desktop']) ? 1 : 0) : intval($post['hide_content_on_desktop'] ?? 0);
 
     // Only allow owner to edit privacy
     if ($post['user_id'] != $_SESSION['user_id']) {
@@ -116,14 +126,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $post) {
                 $shared_departments_json = json_encode($shared_departments);
             }
 
-            // Update post
+            // Update post with optional desktop visibility flag
+            $update_fields = [
+                'title = ?',
+                'content = ?',
+                'privacy = ?',
+                'shared_with = ?'
+            ];
+            $update_values = [$title, $content, $privacy, $shared_with_json];
+
             if ($shared_departments_supported) {
-                $stmt = $pdo->prepare("UPDATE posts SET title = ?, content = ?, privacy = ?, shared_with = ?, shared_departments = ?, edited = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-                $stmt->execute([$title, $content, $privacy, $shared_with_json, $shared_departments_json, $post_id]);
-            } else {
-                $stmt = $pdo->prepare("UPDATE posts SET title = ?, content = ?, privacy = ?, shared_with = ?, edited = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-                $stmt->execute([$title, $content, $privacy, $shared_with_json, $post_id]);
+                $update_fields[] = 'shared_departments = ?';
+                $update_values[] = $shared_departments_json;
             }
+
+            if ($post_visibility_supported) {
+                $update_fields[] = 'hide_content_on_desktop = ?';
+                $update_values[] = $hide_content_on_desktop;
+            }
+
+            $update_fields[] = 'edited = 1';
+            $update_fields[] = 'updated_at = CURRENT_TIMESTAMP';
+            $update_values[] = $post_id;
+
+            $stmt = $pdo->prepare('UPDATE posts SET ' . implode(', ', $update_fields) . ' WHERE id = ?');
+            $stmt->execute($update_values);
 
             // Handle file deletions
             if (!empty($files_to_delete)) {
@@ -448,6 +475,22 @@ include __DIR__ . '/../includes/header.php';
                             <?php endforeach; ?>
                         </div>
                         <div class="form-hint">Check to delete existing files</div>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ($post_visibility_supported): ?>
+                    <div class="form-group">
+                        <label class="form-label">Desktop Content Display</label>
+                        <label class="checkbox-label">
+                            <?php
+                            $desktop_visibility_checked = isset($_POST['hide_content_on_desktop'])
+                                ? true
+                                : (!empty($post['hide_content_on_desktop']));
+                            ?>
+                            <input type="checkbox" name="hide_content_on_desktop" value="1" <?php echo $desktop_visibility_checked ? 'checked' : ''; ?>>
+                            Hide the rich post content on desktop to prioritize inline PDF previews
+                        </label>
+                        <div class="form-hint">Desktop readers will see a toggle to reveal the post body if needed. Mobile users will continue to see the content.</div>
                     </div>
                 <?php endif; ?>
 
