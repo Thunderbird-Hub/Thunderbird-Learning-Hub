@@ -772,7 +772,7 @@ function get_overall_training_progress($pdo, $user_id) {
             JOIN training_course_content tcc ON uta.course_id = tcc.course_id
             LEFT JOIN training_progress tp ON tcc.content_id = tp.content_id
                 AND tp.user_id = ?
-                AND (tcc.content_type = tp.content_type OR tp.content_type = '' OR tp.content_type IS NULL OR tp.content_type = '' OR tp.content_type IS NULL)
+                AND (tcc.content_type = tp.content_type OR tp.content_type = '' OR tp.content_type IS NULL OR tp.content_type ='' OR tp.content_type IS NULL)
             LEFT JOIN training_quizzes tq
                    ON tq.content_id = tcc.content_id
                   AND LOWER(COALESCE(tq.content_type,'')) IN ('post','')
@@ -785,37 +785,11 @@ function get_overall_training_progress($pdo, $user_id) {
                 GROUP BY quiz_id
             ) uqa
                    ON uqa.quiz_id = tq.id
-            LEFT JOIN (
-                SELECT
-                    tcc.course_id,
-                    COUNT(DISTINCT tcc.id) AS total_items,
-                    COUNT(DISTINCT CASE
-                        WHEN tp.status = 'completed'
-                          OR tp.quiz_completed = 1
-                          OR uqa_inner.passed = 1 THEN tcc.id END) AS completed_items
-                FROM training_course_content tcc
-                JOIN user_training_assignments uta_inner ON uta_inner.course_id = tcc.course_id AND uta_inner.user_id = ?
-                LEFT JOIN training_progress tp
-                  ON tp.content_id = tcc.content_id
-                 AND tp.user_id = uta_inner.user_id
-                 AND (tcc.content_type = tp.content_type OR tp.content_type = '' OR tp.content_type IS NULL)
-                LEFT JOIN training_quizzes tq ON tq.content_id = tcc.content_id AND LOWER(COALESCE(tq.content_type,'')) IN ('post','')
-                LEFT JOIN (
-                    SELECT
-                        quiz_id,
-                        MAX(CASE WHEN status = 'passed' THEN 1 ELSE 0 END) AS passed
-                    FROM user_quiz_attempts
-                    WHERE user_id = ?
-                    GROUP BY quiz_id
-                ) uqa_inner ON uqa_inner.quiz_id = tq.id
-                WHERE tcc.content_type = 'post'
-                GROUP BY tcc.course_id
-            ) cp ON cp.course_id = uta.course_id
             WHERE uta.user_id = ?
             AND tc.is_active = 1
             AND tcc.content_type = 'post'  -- Only count posts
         ");
-        $stmt->execute([$user_id, $user_id, $user_id, $user_id, $user_id]);
+        $stmt->execute([$user_id, $user_id, $user_id]);
         $data = $stmt->fetch(PDO::FETCH_ASSOC);
 
         $total_items = (int)$data['total_items'];
