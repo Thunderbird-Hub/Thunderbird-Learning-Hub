@@ -1514,13 +1514,15 @@ function check_quiz_retest_eligibility($pdo, $user_id, $quiz_id) {
             ];
         }
 
-        // Get last completed attempt
+        // Get last completed attempt (allow legacy "completed" status too)
         $attempt_stmt = $pdo->prepare("
             SELECT id, completed_at, status
-            FROM user_quiz_attempts
-            WHERE user_id = ? AND quiz_id = ? AND status = 'passed'
-            ORDER BY completed_at DESC
-            LIMIT 1
+              FROM user_quiz_attempts
+             WHERE user_id = ?
+               AND quiz_id = ?
+               AND status IN ('passed', 'completed')
+          ORDER BY completed_at DESC
+             LIMIT 1
         ");
         $attempt_stmt->execute([$user_id, $quiz_id]);
         $last_attempt = $attempt_stmt->fetch(PDO::FETCH_ASSOC);
@@ -1665,14 +1667,20 @@ function get_retestable_quizzes($pdo, $user_id) {
     try {
         $retestable = [];
 
-        // Get all passed quizzes with retest periods
+        // Get all completed/passed quizzes with retest periods
         $stmt = $pdo->prepare("
-            SELECT DISTINCT tq.id, tq.title, tq.retest_period_months, uqa.completed_at
+            SELECT
+                tq.id,
+                tq.title,
+                tq.retest_period_months,
+                MAX(uqa.completed_at) AS completed_at
             FROM training_quizzes tq
-            JOIN user_quiz_attempts uqa ON tq.id = uqa.quiz_id
-            WHERE uqa.user_id = ?
-            AND uqa.status = 'passed'
-            AND tq.retest_period_months > 0
+            JOIN user_quiz_attempts uqa
+              ON tq.id = uqa.quiz_id
+             AND uqa.user_id = ?
+             AND uqa.status IN ('passed', 'completed')
+            WHERE tq.retest_period_months > 0
+            GROUP BY tq.id, tq.title, tq.retest_period_months
             ORDER BY tq.title
         ");
         $stmt->execute([$user_id]);
