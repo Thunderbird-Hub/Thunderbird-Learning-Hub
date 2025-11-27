@@ -809,14 +809,19 @@ function calculate_course_progress($pdo, $user_id, $course_id) {
     try {
         $stmt = $pdo->prepare("
             SELECT
-                COUNT(tcc.id) as total_items,
-                COUNT(CASE WHEN tp.quiz_completed = TRUE THEN tcc.id END) as completed_items,
-                COUNT(CASE WHEN tp.quiz_completed = FALSE AND tp.status = 'in_progress' THEN tcc.id END) as in_progress_items
+                COUNT(DISTINCT tcc.id) as total_items,
+                COUNT(DISTINCT CASE
+                    WHEN tp.status = 'completed' OR tp.quiz_completed = 1 THEN tcc.id
+                END) as completed_items,
+                COUNT(DISTINCT CASE WHEN tp.status = 'in_progress' THEN tcc.id END) as in_progress_items
             FROM training_course_content tcc
+            JOIN user_training_assignments uta ON uta.course_id = tcc.course_id AND uta.user_id = ?
             LEFT JOIN training_progress tp ON tcc.content_id = tp.content_id
-                AND tp.user_id = ?
-                AND (tcc.content_type = tp.content_type OR tp.content_type = '' OR tp.content_type IS NULL OR tp.content_type = '' OR tp.content_type IS NULL)
+                AND tp.course_id = tcc.course_id
+                AND tp.user_id = uta.user_id
+                AND (tcc.content_type = tp.content_type OR tp.content_type = '' OR tp.content_type IS NULL)
             WHERE tcc.course_id = ?
+              AND tcc.content_type = 'post'
         ");
         $stmt->execute([$user_id, $course_id]);
         $data = $stmt->fetch(PDO::FETCH_ASSOC);
