@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../includes/db_connect.php';
+require_once __DIR__ . '/../includes/pdf_extraction.php';
 
 $page_title = 'Edit Update';
 $error_message = '';
@@ -69,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $reply) {
             if (!empty($files_to_delete)) {
                 foreach ($files_to_delete as $file_id) {
                     // Get file info
-                    $stmt = $pdo->prepare("SELECT file_path FROM files WHERE id = ?");
+                    $stmt = $pdo->prepare("SELECT file_path, extracted_images_json FROM files WHERE id = ?");
                     $stmt->execute([$file_id]);
                     $file_info = $stmt->fetch();
 
@@ -78,6 +79,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $reply) {
                         if (file_exists($file_info['file_path'])) {
                             unlink($file_info['file_path']);
                         }
+
+                        cleanup_pdf_extractions($file_info['extracted_images_json'] ?? null);
 
                         // Delete file record
                         $stmt = $pdo->prepare("DELETE FROM files WHERE id = ?");
@@ -114,12 +117,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $reply) {
 
                         // Move uploaded file
                         if (move_uploaded_file($tmp_name, $file_path)) {
+                            $extracted = extract_pdf_content($file_type, $original_filename, $file_path, $stored_filename);
                             // Insert file record
                             $stmt = $pdo->prepare("
-                                INSERT INTO files (reply_id, original_filename, stored_filename, file_path, file_size, file_type)
-                                VALUES (?, ?, ?, ?, ?, ?)
+                                INSERT INTO files (reply_id, original_filename, stored_filename, file_path, file_size, file_type, extracted_html, extracted_images_json)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                             ");
-                            $stmt->execute([$reply_id, $original_filename, $stored_filename, $file_path, $file_size, $file_type]);
+                            $stmt->execute([
+                                $reply_id,
+                                $original_filename,
+                                $stored_filename,
+                                $file_path,
+                                $file_size,
+                                $file_type,
+                                $extracted['extracted_html'],
+                                $extracted['extracted_images_json']
+                            ]);
                         }
                     }
                 }

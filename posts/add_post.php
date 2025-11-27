@@ -14,6 +14,7 @@ require_once __DIR__ . '/../includes/db_connect.php';
 require_once __DIR__ . '/../includes/user_helpers.php';
 require_once __DIR__ . '/../includes/training_helpers.php';
 require_once __DIR__ . '/../includes/department_helpers.php';
+require_once __DIR__ . '/../includes/pdf_extraction.php';
 
 $page_title = 'Add Post';
 
@@ -177,12 +178,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $subcategory) {
 
                         // Move uploaded file
                         if (move_uploaded_file($tmp_name, $file_path)) {
+                            $extracted = extract_pdf_content($file_type, $original_filename, $file_path, $stored_filename);
                             // Insert file record as 'download' type
                             $stmt = $pdo->prepare("
-                                INSERT INTO files (post_id, original_filename, stored_filename, file_path, file_size, file_type, file_type_category)
-                                VALUES (?, ?, ?, ?, ?, ?, 'download')
+                                INSERT INTO files (post_id, original_filename, stored_filename, file_path, file_size, file_type, file_type_category, extracted_html, extracted_images_json)
+                                VALUES (?, ?, ?, ?, ?, ?, 'download', ?, ?)
                             ");
-                            $stmt->execute([$post_id, $original_filename, $stored_filename, $file_path, $file_size, $file_type]);
+                            $stmt->execute([
+                                $post_id,
+                                $original_filename,
+                                $stored_filename,
+                                $file_path,
+                                $file_size,
+                                $file_type,
+                                $extracted['extracted_html'],
+                                $extracted['extracted_images_json']
+                            ]);
                         } else {
                             $upload_errors[] = "Failed to upload '{$original_filename}'.";
                         }
@@ -232,12 +243,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $subcategory) {
 
                         // Move uploaded file
                         if (move_uploaded_file($tmp_name, $file_path)) {
+                            $extracted = extract_pdf_content($file_type, $original_filename, $file_path, $stored_filename);
                             // Insert file record as 'preview' type
                             $stmt = $pdo->prepare("
-                                INSERT INTO files (post_id, original_filename, stored_filename, file_path, file_size, file_type, file_type_category)
-                                VALUES (?, ?, ?, ?, ?, ?, 'preview')
+                                INSERT INTO files (post_id, original_filename, stored_filename, file_path, file_size, file_type, file_type_category, extracted_html, extracted_images_json)
+                                VALUES (?, ?, ?, ?, ?, ?, 'preview', ?, ?)
                             ");
-                            $stmt->execute([$post_id, $original_filename, $stored_filename, $file_path, $file_size, $file_type]);
+                            $stmt->execute([
+                                $post_id,
+                                $original_filename,
+                                $stored_filename,
+                                $file_path,
+                                $file_size,
+                                $file_type,
+                                $extracted['extracted_html'],
+                                $extracted['extracted_images_json']
+                            ]);
                         } else {
                             $preview_errors[] = "Failed to upload preview file '{$original_filename}'.";
                         }

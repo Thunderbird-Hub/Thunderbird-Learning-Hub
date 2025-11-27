@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../includes/auth_check.php';
 require_once __DIR__ . '/../includes/db_connect.php';
+require_once __DIR__ . '/../includes/pdf_extraction.php';
 
 // Get reply ID
 $reply_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -29,7 +30,7 @@ try {
     $post_id = $reply['post_id'];
 
     // Get all files associated with this reply
-    $stmt = $pdo->prepare("SELECT file_path FROM files WHERE reply_id = ?");
+    $stmt = $pdo->prepare("SELECT file_path, extracted_images_json FROM files WHERE reply_id = ?");
     $stmt->execute([$reply_id]);
     $files = $stmt->fetchAll();
 
@@ -38,6 +39,8 @@ try {
         if (file_exists($file['file_path'])) {
             unlink($file['file_path']);
         }
+
+        cleanup_pdf_extractions($file['extracted_images_json'] ?? null);
     }
 
     // Delete reply (CASCADE will handle file records)
