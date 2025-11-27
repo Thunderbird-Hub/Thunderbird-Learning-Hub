@@ -79,13 +79,6 @@ function pdf_text_to_html(?string $text): ?string
  */
 function extract_pdf_text(string $absolute_path): ?string
 {
-    if (!function_exists('shell_exec') || !function_exists('exec')) {
-        if (function_exists('log_debug')) {
-            log_debug('pdftotext unavailable: shell_exec or exec is disabled');
-        }
-        return null;
-    }
-
     $pdftotext_path = trim(shell_exec('command -v pdftotext'));
     if ($pdftotext_path === '') {
         if (function_exists('log_debug')) {
@@ -123,13 +116,6 @@ function extract_pdf_text(string $absolute_path): ?string
  */
 function extract_pdf_images(string $absolute_path, string $stored_filename): array
 {
-    if (!function_exists('shell_exec') || !function_exists('exec')) {
-        if (function_exists('log_debug')) {
-            log_debug('pdftoppm unavailable: shell_exec or exec is disabled');
-        }
-        return [];
-    }
-
     $pdftoppm_path = trim(shell_exec('command -v pdftoppm'));
     if ($pdftoppm_path === '') {
         if (function_exists('log_debug')) {
