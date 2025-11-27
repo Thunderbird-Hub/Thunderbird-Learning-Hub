@@ -19,6 +19,8 @@ define('SESSION_TIMEOUT', 7200);
 define('MAX_FILE_SIZE', 20971520);
 define('UPLOAD_PATH_IMAGES', 'uploads/images/');
 define('UPLOAD_PATH_FILES', 'uploads/files/');
+define('PDF_EXTRACTED_IMAGE_PATH', 'uploads/pdf_pages/');
+define('PDF_EXTRACTED_IMAGE_LIMIT', 3);
 define('IMAGE_EXTENSIONS', ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp']);
 define('SITE_NAME', 'Thunderbird Learning Hub');
 define('MOBILE_BETA_ENABLED', true);
