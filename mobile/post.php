@@ -9,6 +9,7 @@ require_once __DIR__ . '/../includes/db_connect.php';
 require_once __DIR__ . '/../includes/user_helpers.php';
 require_once __DIR__ . '/../includes/department_helpers.php';
 require_once __DIR__ . '/../includes/mobile_beta_gate.php';
+require_once __DIR__ . '/../includes/pdf_extraction.php';
 
 // Load training helpers when available
 if (file_exists(__DIR__ . '/../includes/training_helpers.php')) {
@@ -16,6 +17,51 @@ if (file_exists(__DIR__ . '/../includes/training_helpers.php')) {
 }
 
 enforce_mobile_beta_access();
+
+/**
+ * Backfill extracted PDF content for legacy uploads missing HTML/images.
+ */
+function ensure_pdf_extracted(PDO $pdo, array $file): array
+{
+    $has_extracted_html = trim($file['extracted_html'] ?? '') !== '';
+    $has_extracted_images = !empty($file['extracted_images_json']);
+
+    if ($has_extracted_html || $has_extracted_images) {
+        return $file;
+    }
+
+    $file_type = $file['file_type'] ?? '';
+    $original_filename = $file['original_filename'] ?? '';
+
+    if (!is_pdf_upload($file_type, $original_filename)) {
+        return $file;
+    }
+
+    $relative_path = $file['file_path'] ?? '';
+    $stored_filename = $file['stored_filename'] ?? basename($relative_path);
+
+    $extracted = extract_pdf_content($file_type, $original_filename, $relative_path, $stored_filename);
+
+    if (empty($extracted['extracted_html']) && empty($extracted['extracted_images_json'])) {
+        return $file;
+    }
+
+    $file['extracted_html'] = $extracted['extracted_html'];
+    $file['extracted_images_json'] = $extracted['extracted_images_json'];
+
+    try {
+        $update = $pdo->prepare("UPDATE files SET extracted_html = ?, extracted_images_json = ? WHERE id = ?");
+        $update->execute([
+            $file['extracted_html'],
+            $file['extracted_images_json'],
+            intval($file['id'] ?? 0),
+        ]);
+    } catch (PDOException $e) {
+        error_log('Failed to backfill PDF extraction for file ID ' . ($file['id'] ?? 'unknown') . ': ' . $e->getMessage());
+    }
+
+    return $file;
+}
 
 // Get post ID first (needed for training progress tracking)
 $post_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -341,12 +387,14 @@ try {
         $stmt = $pdo->prepare("SELECT * FROM files WHERE post_id = ? ORDER BY uploaded_at ASC");
         $stmt->execute([$post_id]);
         $files = $stmt->fetchAll();
-        $files = array_map(function($file) {
+
+        foreach ($files as &$file) {
             if (isset($file['file_path'])) {
                 $file['file_path'] = normalize_file_path($file['file_path']);
             }
-            return $file;
-        }, $files);
+            $file = ensure_pdf_extracted($pdo, $file);
+        }
+        unset($file);
 
         $stmt = $pdo->prepare("SELECT * FROM replies WHERE post_id = ? ORDER BY created_at ASC");
         $stmt->execute([$post_id]);
@@ -439,11 +487,11 @@ $mobile_active_page = 'categories';
         .reply-bubble { border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; background: #fff; margin-bottom: 10px; }
         .reply-meta { font-size: 12px; color: #718096; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
         .empty-state { padding: 20px; text-align: center; color: #718096; background: #fff; border: 1px dashed #cbd5e0; border-radius: 12px; }
-        .pdf-lazy-shell { position: relative; width: 100%; min-height: 180px; background: #f3f4f6; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
-        .pdf-page-stack img { display: block; width: 100%; margin: 0 0 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
-        .pdf-page-stack { padding: 12px; }
-        .pdf-fallback { position: relative; display: none; align-items: center; justify-content: center; text-align: center; padding: 16px; background: linear-gradient(135deg, rgba(102,126,234,0.08), rgba(118,75,162,0.08)); color: #4a5568; font-size: 14px; }
-        .pdf-fallback a { color: #4c51bf; font-weight: 700; }
+        .training-pdf-body { font-size: 15px; line-height: 1.6; color: #2d3748; }
+        .training-pdf-body p { margin: 0 0 12px; }
+        .pdf-preview-images img { display: block; width: 100%; margin: 8px 0; border-radius: 10px; box-shadow: 0 6px 18px rgba(0,0,0,0.08); }
+        .pdf-source-link { display: inline-block; margin-top: 8px; font-size: 13px; color: #4c51bf; font-weight: 700; text-decoration: none; }
+        .pdf-fallback-message { padding: 12px; background: #fff; border: 1px dashed #e2e8f0; border-radius: 10px; color: #4a5568; }
     </style>
 </head>
 <body class="mobile-body">
@@ -501,12 +549,18 @@ $mobile_active_page = 'categories';
                             $is_pdf = ($file_ext === 'pdf');
                             $initial_display = $is_pdf ? 'block' : 'none';
                             $initial_arrow   = $is_pdf ? '▲' : '▼';
-                            $raw_src = $file['file_path'];
-                            $viewer_fragment = '#navpanes=0&pagemode=none';
-                            $iframe_src = $raw_src;
-                            if ($is_pdf && strpos($raw_src, '#') === false) {
-                                $iframe_src .= $viewer_fragment;
+
+                            $extracted_html = trim($file['extracted_html'] ?? '');
+                            $image_urls = [];
+                            if (!empty($file['extracted_images_json'])) {
+                                $decoded = json_decode($file['extracted_images_json'], true);
+                                if (is_array($decoded)) {
+                                    $image_urls = array_map(function($src) {
+                                        return normalize_file_path($src);
+                                    }, $decoded);
+                                }
                             }
+                            $has_extracted_content = ($extracted_html !== '' || !empty($image_urls));
                         ?>
                         <div class="attachment-group">
                             <div class="preview-file-header" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="togglePreview('preview_<?php echo $file['id']; ?>')">
@@ -514,29 +568,30 @@ $mobile_active_page = 'categories';
                                     <span>📄</span>
                                     <div>
                                         <div style="font-weight:600;">Document preview</div>
-                                        <div style="font-size:12px; color:#718096;">Click to view inline</div>
+                                        <div style="font-size:12px; color:#718096;">Tap to expand or collapse</div>
                                     </div>
                                 </div>
                                 <span id="preview_<?php echo $file['id']; ?>_arrow" style="font-size:14px; color:#666;"><?php echo $initial_arrow; ?></span>
                             </div>
                             <div id="preview_<?php echo $file['id']; ?>_content" style="display: <?php echo $initial_display; ?>; margin-top:10px;">
                                 <?php if ($is_pdf): ?>
-                                    <div class="pdf-lazy-shell" data-pdf-src="<?php echo htmlspecialchars($iframe_src); ?>">
-                                        <div class="pdf-skeleton" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:14px; color:#666; background:linear-gradient(135deg, #f7fafc, #edf2f7);">
-                                            <div>
-                                                <div style="text-align:center; margin-bottom:8px;">Loading PDF preview…</div>
-                                                <div class="spinner" style="width:28px;height:28px;border:3px solid #ddd;border-top-color:#999;border-radius:50%;animation:spin 1s linear infinite;"></div>
+                                    <?php if ($has_extracted_content): ?>
+                                        <?php if ($extracted_html): ?>
+                                            <div class="extracted-html" style="margin-bottom: 10px;">
+                                                <?php echo $extracted_html; ?>
                                             </div>
-                                        </div>
-                                        <div class="pdf-page-stack" aria-live="polite"></div>
-                                        <button type="button" class="pdf-manual-load" style="position:absolute; right:12px; bottom:12px; font-size:12px; padding:6px 10px; background:#fff; border:1px solid #ddd; border-radius:6px; cursor:pointer;">Reload preview</button>
-                                        <div class="pdf-fallback">
-                                            <div>
-                                                <div style="margin-bottom:8px; font-weight:700;">Inline preview is taking longer than usual.</div>
-                                                <div style="font-size:13px;">If it doesn't appear, <a class="pdf-open-link" href="<?php echo htmlspecialchars($iframe_src); ?>" target="_blank" rel="noopener">open the PDF in a new tab</a>.</div>
+                                        <?php endif; ?>
+                                        <?php if (!empty($image_urls)): ?>
+                                            <div class="pdf-preview-images">
+                                                <?php foreach ($image_urls as $img): ?>
+                                                    <img src="<?php echo htmlspecialchars($img); ?>" alt="PDF page preview">
+                                                <?php endforeach; ?>
                                             </div>
-                                        </div>
-                                    </div>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <div class="pdf-fallback-message">Training content could not be extracted.</div>
+                                    <?php endif; ?>
+                                    <a class="pdf-source-link" href="<?php echo htmlspecialchars($file['file_path']); ?>" target="_blank" rel="noopener">View original PDF</a>
                                 <?php else: ?>
                                     <div style="padding: 12px; background:#fff; border:1px solid #e2e8f0; border-radius:10px;">This file type cannot be previewed inline. Please download to view.</div>
                                 <?php endif; ?>
@@ -608,12 +663,13 @@ $mobile_active_page = 'categories';
                             $stmt = $pdo->prepare("SELECT * FROM files WHERE reply_id = ? ORDER BY uploaded_at ASC");
                             $stmt->execute([$reply['id']]);
                             $reply_files = $stmt->fetchAll();
-                            $reply_files = array_map(function($file) {
+                            foreach ($reply_files as &$file) {
                                 if (isset($file['file_path'])) {
                                     $file['file_path'] = normalize_file_path($file['file_path']);
                                 }
-                                return $file;
-                            }, $reply_files);
+                                $file = ensure_pdf_extracted($pdo, $file);
+                            }
+                            unset($file);
                         ?>
                         <div class="reply-bubble">
                             <div class="post-body" style="font-size:15px;"><?php echo $reply['content']; ?></div>
@@ -646,11 +702,7 @@ $mobile_active_page = 'categories';
             </div>
         <?php endif; ?>
     </div>
-
     <script>
-    // Global PDF.js promise to prevent multiple loads
-    let pdfJsPromise = null;
-
     function togglePreview(id) {
         var content = document.getElementById(id + '_content');
         var arrow = document.getElementById(id + '_arrow');
@@ -658,288 +710,8 @@ $mobile_active_page = 'categories';
         var isHidden = content.style.display === 'none';
         content.style.display = isHidden ? 'block' : 'none';
         arrow.textContent = isHidden ? '▲' : '▼';
-
-        // Initialize PDF loading when preview is opened
-        if (isHidden) {
-            const shell = content.querySelector('.pdf-lazy-shell');
-            if (shell && shell.dataset.loaded !== '1') {
-                initializePdfPreview(shell);
-                renderPdfToStack(shell);
-            }
-        }
     }
-
-    function showPdfFallback(shell, src) {
-        if (!shell) return;
-        const fallback = shell.querySelector('.pdf-fallback');
-        const link = shell.querySelector('.pdf-open-link');
-        if (link && src) {
-            link.href = src;
-        }
-        if (fallback) {
-            fallback.style.display = 'flex';
-        }
-        const skeleton = shell.querySelector('.pdf-skeleton');
-        if (skeleton) skeleton.style.display = 'none';
-    }
-
-    function initializePdfPreview(shell) {
-        if (!shell || shell.dataset.initialized === '1') return;
-        shell.dataset.initialized = '1';
-
-        // Enhanced memory management for mobile
-        if (window.mobilePdfPreviews === undefined) {
-            window.mobilePdfPreviews = [];
-        }
-
-        // Limit the number of concurrent PDF previews for memory
-        if (window.mobilePdfPreviews.length >= 3) {
-            const oldestShell = window.mobilePdfPreviews.shift();
-            if (oldestShell && oldestShell !== shell) {
-                cleanupPdfPreview(oldestShell);
-            }
-        }
-
-        window.mobilePdfPreviews.push(shell);
-    }
-
-    function cleanupPdfPreview(shell) {
-        if (!shell) return;
-
-        // Clear rendered images to free memory
-        const stack = shell.querySelector('.pdf-page-stack');
-        if (stack) {
-            stack.innerHTML = '';
-        }
-
-        // Reset loaded state
-        shell.dataset.loaded = '0';
-        shell.dataset.initialized = '0';
-    }
-
-    function addCacheBuster(src) {
-        if (!src) return '';
-        const [base, hash = ''] = src.split('#');
-        const separator = base.includes('?') ? '&' : '?';
-        const finalBase = `${base}${separator}ts=${Date.now()}`;
-        return hash ? `${finalBase}#${hash}` : finalBase;
-    }
-
-    function resetPdfShell(shell, { keepInitialized = true } = {}) {
-        if (!shell) return;
-        const stack = shell.querySelector('.pdf-page-stack');
-        const skeleton = shell.querySelector('.pdf-skeleton');
-        const fallback = shell.querySelector('.pdf-fallback');
-        if (stack) stack.innerHTML = '';
-        if (skeleton) skeleton.style.display = 'flex';
-        if (fallback) fallback.style.display = 'none';
-        shell.dataset.loaded = '0';
-        shell.dataset.rendering = '0';
-        if (!keepInitialized) {
-            shell.dataset.initialized = '0';
-        }
-    }
-
-    function renderPdfToStack(shell, { cacheBust = false } = {}) {
-        if (!shell || shell.dataset.rendering === '1') return;
-        const rawSrc = shell.dataset.pdfSrc;
-        const src = cacheBust ? addCacheBuster(rawSrc) : rawSrc;
-        const skeleton = shell.querySelector('.pdf-skeleton');
-        const stack = shell.querySelector('.pdf-page-stack');
-        const fallback = shell.querySelector('.pdf-fallback');
-        if (!src || !stack) return;
-
-        shell.dataset.rendering = '1';
-        stack.innerHTML = '';
-        if (fallback) fallback.style.display = 'none';
-        if (skeleton) skeleton.style.display = 'flex';
-
-        const finishSkeleton = () => { if (skeleton) skeleton.style.display = 'none'; };
-
-        let pdfLib;
-        let renderInProgress = false;
-
-        // Enhanced mobile PDF rendering with memory management
-        initPdfJs()
-            .then(lib => {
-                if (!lib || typeof lib.getDocument !== 'function') {
-                    throw new Error('PDF.js library unavailable');
-                }
-                pdfLib = lib;
-                return fetch(src, { credentials: 'same-origin' });
-            })
-            .then(resp => {
-                if (!resp.ok) throw new Error('PDF fetch failed');
-                return resp.arrayBuffer();
-            })
-            .then(buffer => {
-                // Mobile-optimized PDF loading options
-                const loadingTask = pdfLib.getDocument({
-                    data: buffer,
-                    disableAutoFetch: true,
-                    disableStream: false
-                });
-                const timedPromise = () => {
-                    let timeoutId;
-                    const taskPromise = loadingTask.promise;
-                    const racePromise = new Promise((resolve, reject) => {
-                        timeoutId = setTimeout(() => {
-                            if (loadingTask && typeof loadingTask.destroy === 'function') {
-                                loadingTask.destroy().catch(() => {});
-                            }
-                            reject(new Error('PDF render timed out'));
-                        }, 11000);
-                        taskPromise.then(resolve).catch(reject);
-                    });
-                    return racePromise.finally(() => clearTimeout(timeoutId));
-                };
-
-                return timedPromise();
-            })
-            .then(pdf => {
-                // Limit number of pages for mobile performance
-                const maxPages = Math.min(pdf.numPages, 5);
-                let renderedPages = 0;
-
-                const renderPage = (pageNum) => {
-                    if (renderInProgress) return;
-                    renderInProgress = true;
-
-                    pdf.getPage(pageNum).then(page => {
-                        // Mobile-optimized scale
-                        const scale = Math.min(1.35, window.innerWidth / page.getViewport({ scale: 1.0 }).width * 0.9);
-                        const viewport = page.getViewport({ scale });
-
-                        const canvas = document.createElement('canvas');
-                        canvas.width = viewport.width;
-                        canvas.height = viewport.height;
-                        canvas.style.cssText = 'display: block; width: 100%; margin: 0 0 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.08);';
-
-                        // Use lower quality for better mobile performance
-                        const ctx = canvas.getContext('2d', {
-                            alpha: false,
-                            willReadFrequently: false
-                        });
-
-                        page.render({ canvasContext: ctx, viewport }).promise.then(() => {
-                            stack.appendChild(canvas);
-                            renderedPages++;
-                            renderInProgress = false;
-
-                            // Add loading indicator for remaining pages
-                            if (renderedPages < maxPages && renderedPages === 1) {
-                                const loadingMsg = document.createElement('div');
-                                loadingMsg.style.cssText = 'text-align: center; padding: 10px; color: #666; font-size: 14px;';
-                                loadingMsg.textContent = `Loading page ${renderedPages + 1} of ${maxPages}...`;
-                                stack.appendChild(loadingMsg);
-                            } else if (renderedPages < maxPages) {
-                                // Update loading message
-                                const loadingMsg = stack.querySelector('div[style*="text-align: center"]');
-                                if (loadingMsg) {
-                                    loadingMsg.textContent = `Loading page ${renderedPages + 1} of ${maxPages}...`;
-                                }
-                            }
-
-                            if (renderedPages < maxPages) {
-                                // Add small delay for mobile performance
-                                setTimeout(() => renderPage(pageNum + 1), 100);
-                            } else {
-                                // Remove loading message
-                        const loadingMsg = stack.querySelector('div[style*="text-align: center"]');
-                        if (loadingMsg) loadingMsg.remove();
-
-                        shell.dataset.loaded = '1';
-                        shell.dataset.rendering = '0';
-                        finishSkeleton();
-                    }
-                        }).catch(error => {
-                            renderInProgress = false;
-                            console.error('PDF render error:', error);
-                            shell.dataset.rendering = '0';
-                            finishSkeleton();
-                            showPdfFallback(shell, src);
-                        });
-                    }).catch(error => {
-                        renderInProgress = false;
-                        console.error('PDF page error:', error);
-                        shell.dataset.rendering = '0';
-                        finishSkeleton();
-                        showPdfFallback(shell, src);
-                    });
-                };
-
-                renderPage(1);
-            })
-            .catch(error => {
-                console.error('PDF loading error:', error);
-                shell.dataset.rendering = '0';
-                finishSkeleton();
-                showPdfFallback(shell, src);
-            });
-    }
-
-    function initPdfJs() {
-        if (!pdfJsPromise) {
-            pdfJsPromise = new Promise((resolve, reject) => {
-                // Enhanced loading with timeout for better mobile experience
-                const script = document.createElement('script');
-                script.src = '/assets/js/pdf.min.js';
-                script.crossOrigin = 'anonymous';
-
-                const timeout = setTimeout(() => {
-                    reject(new Error('PDF.js loading timed out'));
-                }, 15000); // 15 second timeout for mobile
-
-                script.onload = () => {
-                    clearTimeout(timeout);
-                    if (window.pdfjsLib) {
-                        resolve(window.pdfjsLib);
-                    } else {
-                        reject(new Error('PDF.js library not available'));
-                    }
-                };
-
-                script.onerror = () => {
-                    clearTimeout(timeout);
-                    document.querySelectorAll('.pdf-lazy-shell').forEach(shell => {
-                        showPdfFallback(shell, shell.dataset.pdfSrc || '');
-                    });
-                    reject(new Error('PDF.js failed to load'));
-                };
-
-                document.head.appendChild(script);
-            }).then(lib => {
-                // Configure PDF.js for mobile performance
-                if (lib && lib.GlobalWorkerOptions) {
-                    lib.GlobalWorkerOptions.workerSrc = '/assets/js/pdf.worker.min.js';
-                    // Mobile optimizations
-                    lib.disableAutoFetch = true;
-                    lib.disableStream = false;
-                }
-                return lib;
-            }).catch(error => {
-                console.error('PDF.js initialization failed:', error);
-                throw error;
-            });
-        }
-        return pdfJsPromise;
-    }
-
-    const shells = document.querySelectorAll('.pdf-lazy-shell');
-
-    shells.forEach(shell => {
-        const manualBtn = shell.querySelector('.pdf-manual-load');
-        if (manualBtn) {
-            manualBtn.addEventListener('click', () => {
-                resetPdfShell(shell);
-                initializePdfPreview(shell);
-                renderPdfToStack(shell, { cacheBust: true });
-            });
-        }
-    });
-
-      </script>
-
+    </script>
     <?php require __DIR__ . '/mobile_nav.php'; ?>
 </body>
 </html>
