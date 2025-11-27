@@ -785,7 +785,26 @@ function get_overall_training_progress($pdo, $user_id) {
         $completed_items = (int)$data['completed_items'];
         $in_progress_items = (int)$data['in_progress_items'];
         $total_courses = (int)$data['total_courses'];
-        $completed_courses = (int)$data['completed_courses'];
+
+        // Recompute completed courses based on actual content progress to avoid stale assignment statuses
+        $courses_stmt = $pdo->prepare("
+            SELECT tc.id
+            FROM training_courses tc
+            JOIN user_training_assignments uta ON tc.id = uta.course_id
+            WHERE uta.user_id = ?
+              AND tc.is_active = 1
+        ");
+        $courses_stmt->execute([$user_id]);
+        $course_ids = array_map('intval', $courses_stmt->fetchAll(PDO::FETCH_COLUMN));
+        $total_courses = count($course_ids);
+
+        $completed_courses = 0;
+        foreach ($course_ids as $course_id) {
+            $course_progress = calculate_course_progress($pdo, $user_id, $course_id);
+            if ($course_progress === 100) {
+                $completed_courses++;
+            }
+        }
 
         $percentage = $total_items > 0 ? round(($completed_items / $total_items) * 100) : 0;
 
