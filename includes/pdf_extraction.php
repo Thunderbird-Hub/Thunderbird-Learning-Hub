@@ -75,10 +75,37 @@ function pdf_text_to_html(?string $text): ?string
 }
 
 /**
+ * Determine if shell_exec is available in the hosting environment.
+ */
+function shell_exec_available(): bool
+{
+    if (!function_exists('shell_exec')) {
+        return false;
+    }
+
+    $disabled = ini_get('disable_functions') ?: '';
+    if ($disabled !== '') {
+        $disabled_functions = array_map('trim', explode(',', $disabled));
+        if (in_array('shell_exec', $disabled_functions, true)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/**
  * Extract text from a PDF using pdftotext if available.
  */
 function extract_pdf_text(string $absolute_path): ?string
 {
+    if (!shell_exec_available()) {
+        if (function_exists('log_debug')) {
+            log_debug('shell_exec disabled - skipping PDF text extraction');
+        }
+        return null;
+    }
+
     $pdftotext_path = trim(shell_exec('command -v pdftotext'));
     if ($pdftotext_path === '') {
         if (function_exists('log_debug')) {
@@ -116,6 +143,13 @@ function extract_pdf_text(string $absolute_path): ?string
  */
 function extract_pdf_images(string $absolute_path, string $stored_filename): array
 {
+    if (!shell_exec_available()) {
+        if (function_exists('log_debug')) {
+            log_debug('shell_exec disabled - skipping PDF image extraction');
+        }
+        return [];
+    }
+
     $pdftoppm_path = trim(shell_exec('command -v pdftoppm'));
     if ($pdftoppm_path === '') {
         if (function_exists('log_debug')) {
