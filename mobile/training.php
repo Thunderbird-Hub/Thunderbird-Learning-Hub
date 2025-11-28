@@ -363,7 +363,6 @@ function format_retest_countdown($next_date) {
             <div class="training-column">
                 <div class="mobile-card">
                     <h2 class="section-title" style="margin-top:0;">⏳ Upcoming training</h2>
-                    <p style="color:#92400e; margin-top:0;">These quizzes will reopen soon. Plan to retake them once available.</p>
                     <?php if (!empty($upcoming_retests)) : ?>
                         <div class="content-list">
                             <?php foreach ($upcoming_retests as $quiz) :
