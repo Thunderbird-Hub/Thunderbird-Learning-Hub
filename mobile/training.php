@@ -50,26 +50,59 @@ if ($user_id && function_exists('get_user_assigned_courses')) {
     $courses = get_user_assigned_courses($pdo, $user_id);
 }
 
-if ($user_id && function_exists('get_retestable_quizzes')) {
+if ($user_id && function_exists('check_quiz_retest_eligibility')) {
     try {
-        $retestable_quizzes = get_retestable_quizzes($pdo, $user_id);
+        $retest_stmt = $pdo->prepare("\
+            SELECT DISTINCT\
+                tq.id,\
+                tq.title,\
+                tq.retest_period_months\
+            FROM training_quizzes tq\
+            JOIN user_quiz_attempts uqa\
+              ON uqa.quiz_id = tq.id\
+             AND uqa.user_id = ?\
+             AND uqa.status IN ('passed', 'completed')\
+            JOIN training_course_content tcc\
+              ON tcc.content_id = tq.content_id\
+             AND LOWER(COALESCE(tcc.content_type,'')) IN ('post','')\
+             AND LOWER(COALESCE(tq.content_type,'')) IN ('post','')\
+            JOIN user_training_assignments uta\
+              ON uta.course_id = tcc.course_id\
+             AND uta.user_id = ?\
+             AND COALESCE(uta.retest_exempt, 0) = 0\
+            WHERE tq.retest_period_months IS NOT NULL\
+              AND tq.retest_period_months > 0\
+        ");
+
+        $retest_stmt->execute([$user_id, $user_id]);
+        $retestable_quizzes = $retest_stmt->fetchAll(PDO::FETCH_ASSOC);
+
         foreach ($retestable_quizzes as $quiz) {
-            $has_retest_period = !empty($quiz['retest_period_months']);
-            if (!$has_retest_period) {
+            $eligibility = check_quiz_retest_eligibility($pdo, $user_id, (int) $quiz['id']);
+
+            if (!is_array($eligibility) || ($eligibility['status'] ?? '') !== 'success') {
+                continue;
+            }
+
+            $quiz = array_merge($quiz, $eligibility);
+
+            // If the user has not completed the quiz, skip it
+            if (empty($quiz['last_attempt_date'])) {
                 continue;
             }
 
             $retest_eligible = !empty($quiz['retest_eligible']);
+            $next_retest_date = $quiz['next_retest_date'] ?? null;
             $days_until = isset($quiz['days_until_retest']) ? (int) $quiz['days_until_retest'] : null;
 
-            if ($days_until === null && !empty($quiz['next_retest_date'])) {
-                $diff_seconds = strtotime($quiz['next_retest_date']) - time();
+            if ($days_until === null && !empty($next_retest_date)) {
+                $diff_seconds = strtotime($next_retest_date) - time();
                 $days_until = $diff_seconds > 0 ? (int) ceil($diff_seconds / 86400) : 0;
             }
 
             if ($retest_eligible) {
                 $available_retests[] = $quiz;
-            } elseif (!$retest_eligible && !empty($quiz['next_retest_date']) && $days_until !== null && $days_until >= 0) {
+            } elseif (!$retest_eligible && !empty($next_retest_date) && $days_until !== null && $days_until >= 0) {
                 $upcoming_retests[] = $quiz;
             }
         }
