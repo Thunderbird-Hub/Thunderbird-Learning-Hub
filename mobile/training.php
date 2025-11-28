@@ -63,7 +63,7 @@ if ($user_id && function_exists('check_quiz_retest_eligibility')) {
         $retest_sql = "
             SELECT DISTINCT
                 tq.id,
-                tq.title,
+                tq.quiz_title AS title,
                 tq.retest_period_months
             FROM training_quizzes tq
             JOIN user_quiz_attempts uqa

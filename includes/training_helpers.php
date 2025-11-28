@@ -1747,7 +1747,7 @@ function get_retestable_quizzes($pdo, $user_id) {
         $stmt = $pdo->prepare("
             SELECT
                 tq.id,
-                tq.title,
+                tq.quiz_title AS title,
                 tq.retest_period_months,
                 MAX(uqa.completed_at) AS completed_at
             FROM training_quizzes tq
@@ -1756,8 +1756,8 @@ function get_retestable_quizzes($pdo, $user_id) {
              AND uqa.user_id = ?
              AND uqa.status IN ('passed', 'completed')
             WHERE tq.retest_period_months > 0
-            GROUP BY tq.id, tq.title, tq.retest_period_months
-            ORDER BY tq.title
+            GROUP BY tq.id, tq.quiz_title, tq.retest_period_months
+            ORDER BY tq.quiz_title
         ");
         $stmt->execute([$user_id]);
         $quizzes = $stmt->fetchAll(PDO::FETCH_ASSOC);
