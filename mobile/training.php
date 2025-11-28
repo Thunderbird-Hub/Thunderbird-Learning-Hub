@@ -60,27 +60,29 @@ if ($user_id && function_exists('get_user_assigned_courses')) {
 
 if ($user_id && function_exists('check_quiz_retest_eligibility')) {
     try {
-        $retest_stmt = $pdo->prepare("\
-            SELECT DISTINCT\
-                tq.id,\
-                tq.title,\
-                tq.retest_period_months\
-            FROM training_quizzes tq\
-            JOIN user_quiz_attempts uqa\
-              ON uqa.quiz_id = tq.id\
-             AND uqa.user_id = ?\
-             AND uqa.status IN ('passed', 'completed')\
-            JOIN training_course_content tcc\
-              ON tcc.content_id = tq.content_id\
-             AND LOWER(COALESCE(tcc.content_type,'')) IN ('post','')\
-             AND LOWER(COALESCE(tq.content_type,'')) IN ('post','')\
-            JOIN user_training_assignments uta\
-              ON uta.course_id = tcc.course_id\
-             AND uta.user_id = ?\
-             AND COALESCE(uta.retest_exempt, 0) = 0\
-            WHERE tq.retest_period_months IS NOT NULL\
-              AND tq.retest_period_months > 0\
-        ");
+        $retest_sql = "
+            SELECT DISTINCT
+                tq.id,
+                tq.title,
+                tq.retest_period_months
+            FROM training_quizzes tq
+            JOIN user_quiz_attempts uqa
+              ON uqa.quiz_id = tq.id
+             AND uqa.user_id = ?
+             AND uqa.status IN ('passed', 'completed')
+            JOIN training_course_content tcc
+              ON tcc.content_id = tq.content_id
+             AND LOWER(COALESCE(tcc.content_type,'')) IN ('post','')
+             AND LOWER(COALESCE(tq.content_type,'')) IN ('post','')
+            JOIN user_training_assignments uta
+              ON uta.course_id = tcc.course_id
+             AND uta.user_id = ?
+             AND COALESCE(uta.retest_exempt, 0) = 0
+            WHERE tq.retest_period_months IS NOT NULL
+              AND tq.retest_period_months > 0
+        ";
+
+        $retest_stmt = $pdo->prepare($retest_sql);
 
         $retest_stmt->execute([$user_id, $user_id]);
         $retestable_quizzes = $retest_stmt->fetchAll(PDO::FETCH_ASSOC);
