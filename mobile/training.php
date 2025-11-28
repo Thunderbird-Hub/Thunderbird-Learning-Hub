@@ -132,6 +132,7 @@ if ($selected_course) {
                 p.title AS post_title,
                 COALESCE(tp.status, 'not_started') AS progress_status,
                 COALESCE(tp.quiz_completed, uqa.passed, 0) AS quiz_done,
+                uqa.latest_passed_attempt_id,
                 tq.id AS quiz_id
             FROM training_course_content tcc
             LEFT JOIN posts p
@@ -147,7 +148,8 @@ if ($selected_course) {
             LEFT JOIN (
                 SELECT
                     quiz_id,
-                    MAX(CASE WHEN status = 'passed' THEN 1 ELSE 0 END) AS passed
+                    MAX(CASE WHEN status = 'passed' THEN 1 ELSE 0 END) AS passed,
+                    MAX(CASE WHEN status = 'passed' THEN id ELSE NULL END) AS latest_passed_attempt_id
                 FROM user_quiz_attempts
                 WHERE user_id = ?
                 GROUP BY quiz_id
@@ -495,12 +497,21 @@ function format_retest_countdown($next_date) {
                             $button_state = $status_class === 'completed' ? 'completed' : '';
                             $button_label = $status_class === 'completed' ? 'Completed' : 'Mark complete';
                             $show_button = empty($item['quiz_id']);
+                            $item_link = '/mobile/post.php?id=' . (int) $item['post_id'];
+                            if (
+                                !empty($item['quiz_id'])
+                                && (int) $item['quiz_done'] === 1
+                                && !empty($item['latest_passed_attempt_id'])
+                            ) {
+                                $item_link = '/mobile/quiz_results.php?attempt_id=' . (int) $item['latest_passed_attempt_id'];
+                            }
                         ?>
                             <div class="content-item">
                                 <div class="content-main">
                                     <span class="status-dot <?php echo $status_class; ?>"></span>
                                     <div>
-                                        <p class="content-title"><a href="/mobile/post.php?id=<?php echo (int) $item['post_id']; ?>" style="text-decoration:none;color:#1a202c;"><?php echo htmlspecialchars($item['post_title'] ?? 'Post'); ?></a></p>
+                                        <p class="content-title"><a href="<?php echo htmlspecialchars($item_link); ?>" style="text-decoration:none;color:#1a202c;">
+                                            <?php echo htmlspecialchars($item['post_title'] ?? 'Post'); ?></a></p>
                                         <div class="content-meta"><?php echo htmlspecialchars($status_label); ?> · <?php echo htmlspecialchars($quiz_text); ?></div>
                                     </div>
                                 </div>
