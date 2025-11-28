@@ -515,7 +515,7 @@ function format_retest_countdown($next_date) {
                             $quiz_id = !empty($item['quiz_id']) ? (int) $item['quiz_id'] : null;
 
                             if ($quiz_id) {
-                                $quiz_take_url = '/training/take_quiz.php?quiz_id=' . $quiz_id . '&content_type=post&content_id=' . (int) $item['post_id'];
+                                $quiz_take_url = '/mobile/quiz.php?quiz_id=' . $quiz_id . '&content_type=post&content_id=' . (int) $item['post_id'];
                                 if (!empty($available_retest_lookup[$quiz_id])) {
                                     $quiz_buttons[] = [
                                         'label' => 'Retake test',
