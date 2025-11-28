@@ -173,7 +173,7 @@ try {
         $retry_is_resume = false;
 
         if (isset($_SESSION['user_id']) && (int)$attempt['user_id'] === (int)$_SESSION['user_id']) {
-            $retry_url = '/training/take_quiz.php?quiz_id=' . intval($attempt['quiz_id']) .
+            $retry_url = '/mobile/quiz.php?quiz_id=' . intval($attempt['quiz_id']) .
                 '&content_id=' . intval($quiz['content_id']) .
                 '&content_type=' . urlencode($quiz['content_type']) .
                 '&mobile=1';

@@ -142,7 +142,7 @@ if (function_exists('is_training_user') && is_training_user() && $post_id > 0) {
 
             if ($training_data['training_status'] === 'assigned') {
                 $quiz_completed = $training_data['quiz_completed'] ?? false;
-                $quiz_url = "/training/take_quiz.php?quiz_id=" . $training_data['quiz_id'] . "&content_type=post&content_id=" . $post_id;
+                $quiz_url = "/mobile/quiz.php?quiz_id=" . $training_data['quiz_id'] . "&content_type=post&content_id=" . $post_id;
 
                 if ($quiz_completed) {
                     $quiz_banner_html .= "<div class='training-quiz-banner' style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px; border-radius: 12px; margin: 12px 0; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15);'>";
