@@ -375,10 +375,10 @@ function format_retest_countdown($next_date) {
         <?php endif; ?>
 
         <div class="training-layout">
-            <div class="training-column">
-                <div class="mobile-card">
-                    <h2 class="section-title" style="margin-top:0;">⏳ Upcoming training</h2>
-                    <?php if (!empty($upcoming_retests)) : ?>
+            <?php if (!empty($upcoming_retests)) : ?>
+                <div class="training-column">
+                    <div class="mobile-card">
+                        <h2 class="section-title" style="margin-top:0;">⏳ Upcoming training</h2>
                         <div class="content-list">
                             <?php foreach ($upcoming_retests as $quiz) :
                                 $next_date = isset($quiz['next_retest_date']) ? $quiz['next_retest_date'] : null;
@@ -401,11 +401,9 @@ function format_retest_countdown($next_date) {
                                 </div>
                             <?php endforeach; ?>
                         </div>
-                    <?php else : ?>
-                        <div class="empty">No retests scheduled yet.</div>
-                    <?php endif; ?>
+                    </div>
                 </div>
-            </div>
+            <?php endif; ?>
 
             <div class="training-column">
                 <div class="mobile-card" style="height:100%;">
