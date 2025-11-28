@@ -279,6 +279,8 @@ function format_retest_countdown($next_date) {
         .section-title { margin: 12px 0 8px; color: #2d3748; font-size: 16px; font-weight: 800; }
         .empty { padding: 12px; border: 1px dashed #cbd5e0; border-radius: 12px; text-align: center; color: #4a5568; background: #fff; }
         .meta-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .training-layout { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; margin-top: 12px; }
+        .training-column { flex: 1 1 320px; min-width: 280px; display: flex; flex-direction: column; gap: 12px; }
         @media (max-width: 640px) {
             .mobile-shell { padding: 14px 12px 90px; }
             .course-card { padding: 12px; }
@@ -357,80 +359,88 @@ function format_retest_countdown($next_date) {
             </div>
         <?php endif; ?>
 
-        <div class="mobile-card">
-            <h2 class="section-title" style="margin-top:0;">⏳ Upcoming training</h2>
-            <p style="color:#92400e; margin-top:0;">These quizzes will reopen soon. Plan to retake them once available.</p>
-            <?php if (!empty($upcoming_retests)) : ?>
-                <div class="content-list">
-                    <?php foreach ($upcoming_retests as $quiz) :
-                        $next_date = isset($quiz['next_retest_date']) ? $quiz['next_retest_date'] : null;
-                        $countdown = format_retest_countdown($next_date);
-                        $reopen_date = $next_date ? format_mobile_date($next_date) : null;
-                    ?>
-                        <div class="content-item" style="align-items:flex-start;">
-                            <div>
-                                <p class="content-title" style="margin:0 0 4px;">
-                                    <?php echo htmlspecialchars($quiz['title'] ?? 'Quiz'); ?>
-                                </p>
-                                <div class="content-meta">
-                                    <span class="pill" style="background:#fef3c7; color:#92400e;">Retest every <?php echo (int)($quiz['retest_period_months'] ?? 0); ?> month(s)</span>
-                                    <?php if ($reopen_date) : ?>
-                                        <span class="pill">Reopens <?php echo htmlspecialchars($reopen_date); ?></span>
-                                    <?php endif; ?>
+        <div class="training-layout">
+            <div class="training-column">
+                <div class="mobile-card">
+                    <h2 class="section-title" style="margin-top:0;">⏳ Upcoming training</h2>
+                    <p style="color:#92400e; margin-top:0;">These quizzes will reopen soon. Plan to retake them once available.</p>
+                    <?php if (!empty($upcoming_retests)) : ?>
+                        <div class="content-list">
+                            <?php foreach ($upcoming_retests as $quiz) :
+                                $next_date = isset($quiz['next_retest_date']) ? $quiz['next_retest_date'] : null;
+                                $countdown = format_retest_countdown($next_date);
+                                $reopen_date = $next_date ? format_mobile_date($next_date) : null;
+                            ?>
+                                <div class="content-item" style="align-items:flex-start;">
+                                    <div>
+                                        <p class="content-title" style="margin:0 0 4px;">
+                                            <?php echo htmlspecialchars($quiz['title'] ?? 'Quiz'); ?>
+                                        </p>
+                                        <div class="content-meta">
+                                            <span class="pill" style="background:#fef3c7; color:#92400e;">Retest every <?php echo (int)($quiz['retest_period_months'] ?? 0); ?> month(s)</span>
+                                            <?php if ($reopen_date) : ?>
+                                                <span class="pill">Reopens <?php echo htmlspecialchars($reopen_date); ?></span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    <div class="pill" style="background:#fefcbf; color:#92400e;"><?php echo htmlspecialchars($countdown); ?></div>
                                 </div>
-                            </div>
-                            <div class="pill" style="background:#fefcbf; color:#92400e;"><?php echo htmlspecialchars($countdown); ?></div>
+                            <?php endforeach; ?>
                         </div>
-                    <?php endforeach; ?>
+                    <?php else : ?>
+                        <div class="empty">No retests scheduled yet.</div>
+                    <?php endif; ?>
                 </div>
-            <?php else : ?>
-                <div class="empty">No retests scheduled yet.</div>
-            <?php endif; ?>
-        </div>
-
-        <h2 class="section-title" id="assignments">Assigned courses</h2>
-        <?php if (empty($courses)) : ?>
-            <div class="empty">No training assignments yet.</div>
-        <?php else : ?>
-            <div class="course-list">
-                <?php foreach ($courses as $course) :
-                    $progress = isset($course['progress_percentage']) ? (int) $course['progress_percentage'] : 0;
-                    $status = strtolower((string) $course['assignment_status']);
-                    $status_class = 'not-started';
-                    $status_label = 'Not started';
-                    if ($progress >= 100) {
-                        $status_class = 'completed';
-                        $status_label = 'Completed';
-                    } elseif ($progress > 0 || $status === 'in_progress') {
-                        $status_class = 'in-progress';
-                        $status_label = 'In progress';
-                    }
-                    $due_date = format_mobile_date($course['due_date'] ?? null);
-                    $assigned_date = format_mobile_date($course['assigned_date'] ?? null);
-                ?>
-                    <div class="course-card">
-                        <div class="course-meta">
-                            <span class="badge <?php echo $status_class; ?>"><?php echo htmlspecialchars($status_label); ?></span>
-                            <?php if (!empty($course['department_name'])) : ?>
-                                <span class="pill">Dept: <?php echo htmlspecialchars($course['department_name']); ?></span>
-                            <?php endif; ?>
-                        </div>
-                        <p class="course-title"><?php echo htmlspecialchars($course['name']); ?></p>
-                        <div class="course-meta">
-                            <span>Assigned <?php echo $assigned_date ? $assigned_date : 'Recently'; ?></span>
-                            <span>Due <?php echo $due_date ? $due_date : 'No due date'; ?></span>
-                        </div>
-                        <div class="progress-track" style="margin: 10px 0 6px;">
-                            <div class="progress-fill" style="width: <?php echo $progress; ?>%;"></div>
-                        </div>
-                        <div class="course-footer">
-                            <span class="pill"><?php echo $progress; ?>% complete</span>
-                            <a class="cta" href="/mobile/training.php?course_id=<?php echo (int) $course['id']; ?>#course-detail">View</a>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
             </div>
-        <?php endif; ?>
+
+            <div class="training-column">
+                <div class="mobile-card" style="height:100%;">
+                    <h2 class="section-title" id="assignments" style="margin-top:0;">Assigned courses</h2>
+                    <?php if (empty($courses)) : ?>
+                        <div class="empty">No training assignments yet.</div>
+                    <?php else : ?>
+                        <div class="course-list">
+                            <?php foreach ($courses as $course) :
+                                $progress = isset($course['progress_percentage']) ? (int) $course['progress_percentage'] : 0;
+                                $status = strtolower((string) $course['assignment_status']);
+                                $status_class = 'not-started';
+                                $status_label = 'Not started';
+                                if ($progress >= 100) {
+                                    $status_class = 'completed';
+                                    $status_label = 'Completed';
+                                } elseif ($progress > 0 || $status === 'in_progress') {
+                                    $status_class = 'in-progress';
+                                    $status_label = 'In progress';
+                                }
+                                $due_date = format_mobile_date($course['due_date'] ?? null);
+                                $assigned_date = format_mobile_date($course['assigned_date'] ?? null);
+                            ?>
+                                <div class="course-card">
+                                    <div class="course-meta">
+                                        <span class="badge <?php echo $status_class; ?>"><?php echo htmlspecialchars($status_label); ?></span>
+                                        <?php if (!empty($course['department_name'])) : ?>
+                                            <span class="pill">Dept: <?php echo htmlspecialchars($course['department_name']); ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <p class="course-title"><?php echo htmlspecialchars($course['name']); ?></p>
+                                    <div class="course-meta">
+                                        <span>Assigned <?php echo $assigned_date ? $assigned_date : 'Recently'; ?></span>
+                                        <span>Due <?php echo $due_date ? $due_date : 'No due date'; ?></span>
+                                    </div>
+                                    <div class="progress-track" style="margin: 10px 0 6px;">
+                                        <div class="progress-fill" style="width: <?php echo $progress; ?>%;"></div>
+                                    </div>
+                                    <div class="course-footer">
+                                        <span class="pill"><?php echo $progress; ?>% complete</span>
+                                        <a class="cta" href="/mobile/training.php?course_id=<?php echo (int) $course['id']; ?>#course-detail">View</a>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
 
         <div id="course-detail" style="margin-top: 18px;">
             <h2 class="section-title">Course detail</h2>
