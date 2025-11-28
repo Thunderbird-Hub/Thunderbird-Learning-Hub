@@ -737,16 +737,24 @@ function remove_training_if_none_remaining($pdo, $user_id) {
  */
 function is_assigned_training_content($pdo, $user_id, $content_id, $content_type) {
     try {
+        $normalized_type = strtolower(trim((string) $content_type));
+        if ($normalized_type === '') {
+            $normalized_type = 'post';
+        }
+
         $stmt = $pdo->prepare("
-            SELECT COUNT(*) as count
+            SELECT COUNT(DISTINCT tcc.id) as count
             FROM training_course_content tcc
             JOIN user_training_assignments uta ON tcc.course_id = uta.course_id
             WHERE uta.user_id = ?
-            AND tcc.content_type = ?
-            AND tcc.content_id = ?
-            AND uta.status != 'completed'
+              AND uta.status != 'completed'
+              AND tcc.content_id = ?
+              AND (
+                    LOWER(COALESCE(tcc.content_type, '')) = ?
+                 OR (LOWER(COALESCE(tcc.content_type, '')) = '' AND ? = 'post')
+              )
         ");
-        $stmt->execute([$user_id, $content_type, $content_id]);
+        $stmt->execute([$user_id, $content_id, $normalized_type, $normalized_type]);
         return $stmt->fetch()['count'] > 0;
     } catch (PDOException $e) {
         error_log("Error checking training content assignment: " . $e->getMessage());
