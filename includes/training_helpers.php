@@ -773,7 +773,7 @@ function get_overall_training_progress($pdo, $user_id) {
                 COUNT(DISTINCT CASE
                     WHEN tp.status = 'completed'
                       OR tp.quiz_completed = 1
-                      OR uqa.passed = 1 THEN tcc.id END) as completed_items,
+                      OR (uqa.passed = 1 AND COALESCE(qrt.retest_enabled, 0) = 0) THEN tcc.id END) as completed_items,
                 COUNT(DISTINCT CASE WHEN tp.status = 'in_progress' THEN tcc.id END) as in_progress_items,
                 COUNT(DISTINCT uta.course_id) as total_courses,
                 COUNT(DISTINCT CASE WHEN uta.status = 'completed' THEN uta.course_id END) as completed_courses
@@ -786,6 +786,9 @@ function get_overall_training_progress($pdo, $user_id) {
             LEFT JOIN training_quizzes tq
                    ON tq.content_id = tcc.content_id
                   AND LOWER(COALESCE(tq.content_type,'')) IN ('post','')
+            LEFT JOIN quiz_retest_tracking qrt
+                   ON qrt.quiz_id = tq.id
+                  AND qrt.user_id = ?
             LEFT JOIN (
                 SELECT
                     quiz_id,
@@ -799,7 +802,7 @@ function get_overall_training_progress($pdo, $user_id) {
             AND tc.is_active = 1
             AND tcc.content_type = 'post'  -- Only count posts
         ");
-        $stmt->execute([$user_id, $user_id, $user_id]);
+        $stmt->execute([$user_id, $user_id, $user_id, $user_id]);
         $data = $stmt->fetch(PDO::FETCH_ASSOC);
 
         $total_items = (int)$data['total_items'];
@@ -866,7 +869,9 @@ function calculate_course_progress($pdo, $user_id, $course_id) {
             SELECT
                 COUNT(DISTINCT tcc.id) as total_items,
                 COUNT(DISTINCT CASE
-                    WHEN tp.status = 'completed' OR tp.quiz_completed = 1 OR uqa.passed = 1 THEN tcc.id
+                    WHEN tp.status = 'completed'
+                      OR tp.quiz_completed = 1
+                      OR (uqa.passed = 1 AND COALESCE(qrt.retest_enabled, 0) = 0) THEN tcc.id
                 END) as completed_items,
                 COUNT(DISTINCT CASE WHEN tp.status = 'in_progress' THEN tcc.id END) as in_progress_items
             FROM training_course_content tcc
@@ -878,6 +883,9 @@ function calculate_course_progress($pdo, $user_id, $course_id) {
             LEFT JOIN training_quizzes tq
                    ON tq.content_id = tcc.content_id
                   AND LOWER(COALESCE(tq.content_type,'')) IN ('post','')
+            LEFT JOIN quiz_retest_tracking qrt
+                   ON qrt.quiz_id = tq.id
+                  AND qrt.user_id = ?
             LEFT JOIN (
                 SELECT
                     quiz_id,
@@ -890,7 +898,7 @@ function calculate_course_progress($pdo, $user_id, $course_id) {
             WHERE tcc.course_id = ?
               AND tcc.content_type = 'post'
         ");
-        $stmt->execute([$user_id, $user_id, $course_id]);
+        $stmt->execute([$user_id, $user_id, $user_id, $course_id]);
         $data = $stmt->fetch(PDO::FETCH_ASSOC);
 
         $total_items = (int)$data['total_items'];
@@ -1654,12 +1662,24 @@ function check_and_enable_retests($pdo, $user_id) {
 
         // Get all quizzes user has passed
         $quiz_stmt = $pdo->prepare("
-            SELECT DISTINCT tq.id, tq.retest_period_months, uqa.completed_at, uqa.id as attempt_id
-            FROM training_quizzes tq
-            JOIN user_quiz_attempts uqa ON tq.id = uqa.quiz_id
-            WHERE uqa.user_id = ?
-            AND uqa.status = 'passed'
-            ORDER BY uqa.completed_at DESC
+            SELECT DISTINCT
+                   tq.id,
+                   tq.retest_period_months,
+                   uqa.completed_at,
+                   uqa.id              AS attempt_id,
+                   tcc.content_id,
+                   LOWER(COALESCE(tcc.content_type, '')) AS content_type,
+                   tcc.course_id
+              FROM training_quizzes tq
+              JOIN user_quiz_attempts uqa
+                ON tq.id = uqa.quiz_id
+              JOIN training_course_content tcc
+                ON tq.content_id = tcc.content_id
+               AND (LOWER(COALESCE(tq.content_type, '')) = LOWER(COALESCE(tcc.content_type, ''))
+                 OR COALESCE(tq.content_type, '') = '')
+             WHERE uqa.user_id = ?
+               AND uqa.status = 'passed'
+             ORDER BY uqa.completed_at DESC
         ");
         $quiz_stmt->execute([$user_id]);
         $quizzes = $quiz_stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -1685,6 +1705,11 @@ function check_and_enable_retests($pdo, $user_id) {
                     'retest_date' => $completed_date->format('Y-m-d H:i:s')
                 ];
 
+                // Ensure retest tracking reflects the expired period
+                if (function_exists('upsert_quiz_retest_tracking')) {
+                    upsert_quiz_retest_tracking($pdo, $user_id, (int)$quiz['id'], $quiz['completed_at']);
+                }
+
                 // Create new "pending" attempt to allow retaking
                 $new_attempt_stmt = $pdo->prepare("
                     INSERT INTO user_quiz_attempts
@@ -1696,7 +1721,34 @@ function check_and_enable_retests($pdo, $user_id) {
                 ");
                 $new_attempt_stmt->execute([$user_id, $quiz['id']]);
 
-                log_debug("Retest enabled for user $user_id on quiz {$quiz['id']}", 'INFO');
+                // Re-open the related training progress so this quiz no longer counts toward completion
+                $norm_ct = $quiz['content_type'] ?: 'post';
+                $progress_stmt = $pdo->prepare("
+                    UPDATE training_progress
+                       SET status = 'in_progress',
+                           quiz_completed = 0,
+                           completion_date = NULL,
+                           quiz_completed_at = NULL
+                     WHERE user_id = ?
+                       AND content_id = ?
+                       AND (content_type = ? OR content_type = '' OR content_type IS NULL)
+                ");
+                $progress_stmt->execute([$user_id, $quiz['content_id'], $norm_ct]);
+
+                // Re-open the parent course assignment if it was marked completed
+                if (!empty($quiz['course_id'])) {
+                    $assignment_stmt = $pdo->prepare("
+                        UPDATE user_training_assignments
+                           SET status = 'in_progress',
+                               completion_date = NULL
+                         WHERE user_id = ?
+                           AND course_id = ?
+                           AND status = 'completed'
+                    ");
+                    $assignment_stmt->execute([$user_id, $quiz['course_id']]);
+                }
+
+                log_debug("Retest enabled for user $user_id on quiz {$quiz['id']} (progress reopened)", 'INFO');
             }
         }
 
