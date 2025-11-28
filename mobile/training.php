@@ -300,6 +300,8 @@ function format_retest_countdown($next_date) {
                         $next_date = isset($quiz['next_retest_date']) ? $quiz['next_retest_date'] : null;
                         $reopen_date = $next_date ? format_mobile_date($next_date) : 'Available now';
                         $last_attempt = isset($quiz['last_attempt_date']) ? format_mobile_date($quiz['last_attempt_date']) : 'Unknown';
+                        $countdown = format_retest_countdown($next_date);
+                        $due_label = ($countdown === 'Available now') ? 'Due now' : 'Due in ' . $countdown;
                     ?>
                         <div class="content-item" style="align-items:flex-start;">
                             <div>
@@ -310,6 +312,7 @@ function format_retest_countdown($next_date) {
                                     <span class="pill" style="background:#fef3c7; color:#92400e;">Retest every <?php echo (int) ($quiz['retest_period_months'] ?? 0); ?> month(s)</span>
                                     <span class="pill">Last completed <?php echo htmlspecialchars($last_attempt); ?></span>
                                     <span class="pill">Reopened <?php echo htmlspecialchars($reopen_date); ?></span>
+                                    <span class="pill" style="background:#ecfccb; color:#166534;"><?php echo htmlspecialchars($due_label); ?></span>
                                 </div>
                             </div>
                             <div class="pill" style="background:#ecfccb; color:#15803d;">Ready to retake</div>
