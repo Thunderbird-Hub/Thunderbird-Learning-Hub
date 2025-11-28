@@ -511,26 +511,34 @@ function format_retest_countdown($next_date) {
                             $button_label = $status_class === 'completed' ? 'Completed' : 'Mark complete';
                             $show_button = empty($item['quiz_id']);
                             $item_link = '/mobile/post.php?id=' . (int) $item['post_id'];
-                            $quiz_button = null;
+                            $quiz_buttons = [];
                             $quiz_id = !empty($item['quiz_id']) ? (int) $item['quiz_id'] : null;
 
                             if ($quiz_id) {
                                 $quiz_take_url = '/training/take_quiz.php?quiz_id=' . $quiz_id . '&content_type=post&content_id=' . (int) $item['post_id'];
                                 if (!empty($available_retest_lookup[$quiz_id])) {
-                                    $quiz_button = [
+                                    $quiz_buttons[] = [
                                         'label' => 'Retake test',
                                         'url' => $quiz_take_url,
                                         'style' => 'warning',
                                     ];
+                                    if (!empty($item['latest_passed_attempt_id'])) {
+                                        $quiz_buttons[] = [
+                                            'label' => 'View results',
+                                            'url' => '/mobile/quiz_results.php?attempt_id=' . (int) $item['latest_passed_attempt_id'],
+                                            'style' => 'secondary',
+                                        ];
+                                        $item_link = $quiz_buttons[count($quiz_buttons) - 1]['url'];
+                                    }
                                 } elseif ((int) $item['quiz_done'] === 1 && !empty($item['latest_passed_attempt_id'])) {
-                                    $quiz_button = [
+                                    $quiz_buttons[] = [
                                         'label' => 'View results',
                                         'url' => '/mobile/quiz_results.php?attempt_id=' . (int) $item['latest_passed_attempt_id'],
                                         'style' => 'secondary',
                                     ];
-                                    $item_link = $quiz_button['url'];
+                                    $item_link = $quiz_buttons[0]['url'];
                                 } else {
-                                    $quiz_button = [
+                                    $quiz_buttons[] = [
                                         'label' => 'Take quiz',
                                         'url' => $quiz_take_url,
                                         'style' => 'primary',
@@ -548,9 +556,9 @@ function format_retest_countdown($next_date) {
                                     </div>
                                 </div>
                                 <div class="quiz-actions">
-                                    <?php if ($quiz_button) : ?>
+                                    <?php foreach ($quiz_buttons as $quiz_button) : ?>
                                         <a class="quiz-btn <?php echo htmlspecialchars($quiz_button['style']); ?>" href="<?php echo htmlspecialchars($quiz_button['url']); ?>"><?php echo htmlspecialchars($quiz_button['label']); ?></a>
-                                    <?php endif; ?>
+                                    <?php endforeach; ?>
                                     <?php if ($show_button) : ?>
                                         <button class="toggle-btn <?php echo $button_state; ?>" data-content-id="<?php echo (int) $item['post_id']; ?>" data-status="<?php echo $status_class; ?>" <?php echo $button_state ? 'disabled' : ''; ?>><?php echo $button_label; ?></button>
                                     <?php endif; ?>
