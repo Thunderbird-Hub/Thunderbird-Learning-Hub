@@ -31,6 +31,7 @@ $course_items = [];
 $upcoming_retests = [];
 $available_retests = [];
 $show_progress = $user_id && function_exists('should_show_training_progress') ? should_show_training_progress($pdo, $user_id) : false;
+$available_retest_lookup = [];
 
 if ($user_id && function_exists('get_overall_training_progress')) {
     try {
@@ -111,6 +112,12 @@ if ($user_id && function_exists('check_quiz_retest_eligibility')) {
     } catch (Exception $e) {
         $upcoming_retests = [];
         $available_retests = [];
+    }
+}
+
+if (!empty($available_retests)) {
+    foreach ($available_retests as $quiz) {
+        $available_retest_lookup[(int) ($quiz['id'] ?? 0)] = true;
     }
 }
 
@@ -278,6 +285,12 @@ function format_retest_countdown($next_date) {
         .content-meta { font-size: 12px; color: #4a5568; }
         .toggle-btn { border: 1px solid #e2e8f0; background: #f7fafc; color: #1a202c; border-radius: 12px; padding: 8px 10px; font-weight: 700; cursor: pointer; }
         .toggle-btn.completed { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; cursor: default; }
+        .quiz-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+        .quiz-btn { border-radius: 10px; padding: 8px 12px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid transparent; }
+        .quiz-btn.primary { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
+        .quiz-btn.secondary { background: #edf2f7; color: #1a202c; border-color: #e2e8f0; }
+        .quiz-btn.warning { background: #fef3c7; color: #92400e; border-color: #fbd38d; }
+        .quiz-btn:hover { opacity: 0.95; }
         .section-title { margin: 12px 0 8px; color: #2d3748; font-size: 16px; font-weight: 800; }
         .empty { padding: 12px; border: 1px dashed #cbd5e0; border-radius: 12px; text-align: center; color: #4a5568; background: #fff; }
         .meta-row { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -498,12 +511,40 @@ function format_retest_countdown($next_date) {
                             $button_label = $status_class === 'completed' ? 'Completed' : 'Mark complete';
                             $show_button = empty($item['quiz_id']);
                             $item_link = '/mobile/post.php?id=' . (int) $item['post_id'];
-                            if (
-                                !empty($item['quiz_id'])
-                                && (int) $item['quiz_done'] === 1
-                                && !empty($item['latest_passed_attempt_id'])
-                            ) {
-                                $item_link = '/mobile/quiz_results.php?attempt_id=' . (int) $item['latest_passed_attempt_id'];
+                            $quiz_buttons = [];
+                            $quiz_id = !empty($item['quiz_id']) ? (int) $item['quiz_id'] : null;
+
+                            if ($quiz_id) {
+                                $quiz_take_url = '/training/take_quiz.php?quiz_id=' . $quiz_id . '&content_type=post&content_id=' . (int) $item['post_id'];
+
+                                if (!empty($available_retest_lookup[$quiz_id])) {
+                                    $quiz_buttons[] = [
+                                        'label' => 'Retake test',
+                                        'url' => $quiz_take_url,
+                                        'style' => 'warning',
+                                    ];
+
+                                    if (!empty($item['latest_passed_attempt_id'])) {
+                                        $quiz_buttons[] = [
+                                            'label' => 'View results',
+                                            'url' => '/mobile/quiz_results.php?attempt_id=' . (int) $item['latest_passed_attempt_id'],
+                                            'style' => 'secondary',
+                                        ];
+                                    }
+                                } elseif ((int) $item['quiz_done'] === 1 && !empty($item['latest_passed_attempt_id'])) {
+                                    $quiz_buttons[] = [
+                                        'label' => 'View results',
+                                        'url' => '/mobile/quiz_results.php?attempt_id=' . (int) $item['latest_passed_attempt_id'],
+                                        'style' => 'secondary',
+                                    ];
+                                    $item_link = $quiz_buttons[0]['url'];
+                                } else {
+                                    $quiz_buttons[] = [
+                                        'label' => 'Take quiz',
+                                        'url' => $quiz_take_url,
+                                        'style' => 'primary',
+                                    ];
+                                }
                             }
                         ?>
                             <div class="content-item">
@@ -515,9 +556,16 @@ function format_retest_countdown($next_date) {
                                         <div class="content-meta"><?php echo htmlspecialchars($status_label); ?> · <?php echo htmlspecialchars($quiz_text); ?></div>
                                     </div>
                                 </div>
-                                <?php if ($show_button) : ?>
-                                    <button class="toggle-btn <?php echo $button_state; ?>" data-content-id="<?php echo (int) $item['post_id']; ?>" data-status="<?php echo $status_class; ?>" <?php echo $button_state ? 'disabled' : ''; ?>><?php echo $button_label; ?></button>
-                                <?php endif; ?>
+                                <div class="quiz-actions">
+                                    <?php if (!empty($quiz_buttons)) : ?>
+                                        <?php foreach ($quiz_buttons as $quiz_button) : ?>
+                                            <a class="quiz-btn <?php echo htmlspecialchars($quiz_button['style']); ?>" href="<?php echo htmlspecialchars($quiz_button['url']); ?>"><?php echo htmlspecialchars($quiz_button['label']); ?></a>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                    <?php if ($show_button) : ?>
+                                        <button class="toggle-btn <?php echo $button_state; ?>" data-content-id="<?php echo (int) $item['post_id']; ?>" data-status="<?php echo $status_class; ?>" <?php echo $button_state ? 'disabled' : ''; ?>><?php echo $button_label; ?></button>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         <?php endforeach; ?>
                     </div>
