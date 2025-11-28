@@ -30,14 +30,6 @@ $selected_course = null;
 $course_items = [];
 $upcoming_retests = [];
 $available_retests = [];
-$retest_debug_log = [];
-$retest_stats = [
-    'fetched' => 0,
-    'available' => 0,
-    'upcoming' => 0,
-    'skipped' => 0,
-    'errors' => [],
-];
 $show_progress = $user_id && function_exists('should_show_training_progress') ? should_show_training_progress($pdo, $user_id) : false;
 
 if ($user_id && function_exists('get_overall_training_progress')) {
@@ -63,7 +55,7 @@ if ($user_id && function_exists('check_quiz_retest_eligibility')) {
         $retest_sql = "
             SELECT DISTINCT
                 tq.id,
-                tq.title,
+                tq.quiz_title AS title,
                 tq.retest_period_months
             FROM training_quizzes tq
             JOIN user_quiz_attempts uqa
@@ -86,20 +78,11 @@ if ($user_id && function_exists('check_quiz_retest_eligibility')) {
 
         $retest_stmt->execute([$user_id, $user_id]);
         $retestable_quizzes = $retest_stmt->fetchAll(PDO::FETCH_ASSOC);
-        $retest_stats['fetched'] = count($retestable_quizzes);
 
         foreach ($retestable_quizzes as $quiz) {
             $eligibility = check_quiz_retest_eligibility($pdo, $user_id, (int) $quiz['id']);
 
             if (!is_array($eligibility) || ($eligibility['status'] ?? '') !== 'success') {
-                $retest_stats['skipped']++;
-                $retest_debug_log[] = [
-                    'quiz_id' => isset($quiz['id']) ? (int) $quiz['id'] : null,
-                    'title' => $quiz['title'] ?? 'Quiz',
-                    'classification' => 'skipped',
-                    'reason' => 'eligibility check failed',
-                    'detail' => $eligibility,
-                ];
                 continue;
             }
 
@@ -107,14 +90,6 @@ if ($user_id && function_exists('check_quiz_retest_eligibility')) {
 
             // If the user has not completed the quiz, skip it
             if (empty($quiz['last_attempt_date'])) {
-                $retest_stats['skipped']++;
-                $retest_debug_log[] = [
-                    'quiz_id' => isset($quiz['id']) ? (int) $quiz['id'] : null,
-                    'title' => $quiz['title'] ?? 'Quiz',
-                    'classification' => 'skipped',
-                    'reason' => 'no last attempt date',
-                    'detail' => $eligibility,
-                ];
                 continue;
             }
 
@@ -129,46 +104,13 @@ if ($user_id && function_exists('check_quiz_retest_eligibility')) {
 
             if ($retest_eligible) {
                 $available_retests[] = $quiz;
-                $retest_stats['available']++;
-                $retest_debug_log[] = [
-                    'quiz_id' => isset($quiz['id']) ? (int) $quiz['id'] : null,
-                    'title' => $quiz['title'] ?? 'Quiz',
-                    'classification' => 'available',
-                    'next_retest_date' => $next_retest_date,
-                    'days_until_retest' => $days_until,
-                    'last_attempt_date' => $quiz['last_attempt_date'] ?? null,
-                    'retest_period_months' => isset($quiz['retest_period_months']) ? (int) $quiz['retest_period_months'] : null,
-                ];
             } elseif (!$retest_eligible && !empty($next_retest_date) && $days_until !== null && $days_until >= 0) {
                 $upcoming_retests[] = $quiz;
-                $retest_stats['upcoming']++;
-                $retest_debug_log[] = [
-                    'quiz_id' => isset($quiz['id']) ? (int) $quiz['id'] : null,
-                    'title' => $quiz['title'] ?? 'Quiz',
-                    'classification' => 'upcoming',
-                    'next_retest_date' => $next_retest_date,
-                    'days_until_retest' => $days_until,
-                    'last_attempt_date' => $quiz['last_attempt_date'] ?? null,
-                    'retest_period_months' => isset($quiz['retest_period_months']) ? (int) $quiz['retest_period_months'] : null,
-                ];
-            } else {
-                $retest_stats['skipped']++;
-                $retest_debug_log[] = [
-                    'quiz_id' => isset($quiz['id']) ? (int) $quiz['id'] : null,
-                    'title' => $quiz['title'] ?? 'Quiz',
-                    'classification' => 'skipped',
-                    'reason' => 'not eligible and no future date',
-                    'next_retest_date' => $next_retest_date,
-                    'days_until_retest' => $days_until,
-                    'last_attempt_date' => $quiz['last_attempt_date'] ?? null,
-                    'retest_period_months' => isset($quiz['retest_period_months']) ? (int) $quiz['retest_period_months'] : null,
-                ];
             }
         }
     } catch (Exception $e) {
         $upcoming_retests = [];
         $available_retests = [];
-        $retest_stats['errors'][] = $e->getMessage();
     }
 }
 
@@ -385,7 +327,7 @@ function format_retest_countdown($next_date) {
         </div>
 
         <?php if (!empty($available_retests)) : ?>
-            <div class="mobile-card" style="border:1px solid #fcd34d; background:#fffbeb;">
+            <div class="mobile-card">
                 <h2 class="section-title" style="margin-top:0;">🔄 Retests available</h2>
                 <p style="color:#92400e; margin-top:0;">You can retake these quizzes now. Retaking will reset your quiz progress.</p>
                 <div class="content-list">
@@ -415,51 +357,9 @@ function format_retest_countdown($next_date) {
             </div>
         <?php endif; ?>
 
-        <div class="mobile-card" style="border:1px solid #fcd34d; background:#fffbeb;">
+        <div class="mobile-card">
             <h2 class="section-title" style="margin-top:0;">⏳ Upcoming training</h2>
             <p style="color:#92400e; margin-top:0;">These quizzes will reopen soon. Plan to retake them once available.</p>
-            <div class="mobile-card" style="background:#fff7ed; border:1px dashed #f59e0b; margin-bottom:12px;">
-                <h3 style="margin-top:0; color:#92400e;">Debug info</h3>
-                <p style="margin:0 0 8px; color:#92400e;">Counts — fetched: <?php echo (int) $retest_stats['fetched']; ?>, available: <?php echo (int) $retest_stats['available']; ?>, upcoming: <?php echo (int) $retest_stats['upcoming']; ?>, skipped: <?php echo (int) $retest_stats['skipped']; ?>.</p>
-                <?php if (!empty($retest_stats['errors'])) : ?>
-                    <div class="pill" style="background:#fee2e2; color:#991b1b; margin-bottom:8px;">Errors: <?php echo htmlspecialchars(implode(' | ', $retest_stats['errors'])); ?></div>
-                <?php endif; ?>
-                <?php if (!empty($retest_debug_log)) : ?>
-                    <details style="background:#fff; border:1px solid #fcd34d; padding:8px; border-radius:6px;" open>
-                        <summary style="cursor:pointer; color:#92400e;">Quiz classification log (<?php echo count($retest_debug_log); ?> item<?php echo count($retest_debug_log) === 1 ? '' : 's'; ?>)</summary>
-                        <div style="max-height:220px; overflow:auto; margin-top:8px; font-size:0.95em;">
-                            <?php foreach ($retest_debug_log as $log_entry) : ?>
-                                <div style="padding:6px 8px; border-bottom:1px solid #ffe8c2;">
-                                    <div style="font-weight:600; color:#92400e;">Quiz #<?php echo htmlspecialchars($log_entry['quiz_id'] ?? ''); ?> — <?php echo htmlspecialchars($log_entry['title'] ?? ''); ?></div>
-                                    <div style="display:flex; flex-wrap:wrap; gap:6px; margin:6px 0;">
-                                        <span class="pill" style="background:#fff7ed; color:#92400e;">Type: <?php echo htmlspecialchars($log_entry['classification'] ?? ''); ?></span>
-                                        <?php if (!empty($log_entry['reason'])) : ?>
-                                            <span class="pill" style="background:#fef9c3; color:#854d0e;">Reason: <?php echo htmlspecialchars($log_entry['reason']); ?></span>
-                                        <?php endif; ?>
-                                        <?php if (isset($log_entry['days_until_retest'])) : ?>
-                                            <span class="pill">Days until: <?php echo htmlspecialchars((string) $log_entry['days_until_retest']); ?></span>
-                                        <?php endif; ?>
-                                        <?php if (!empty($log_entry['next_retest_date'])) : ?>
-                                            <span class="pill">Next date: <?php echo htmlspecialchars(format_mobile_date($log_entry['next_retest_date'])); ?></span>
-                                        <?php endif; ?>
-                                        <?php if (!empty($log_entry['last_attempt_date'])) : ?>
-                                            <span class="pill">Last attempt: <?php echo htmlspecialchars(format_mobile_date($log_entry['last_attempt_date'])); ?></span>
-                                        <?php endif; ?>
-                                        <?php if (isset($log_entry['retest_period_months'])) : ?>
-                                            <span class="pill">Period: <?php echo htmlspecialchars((string) $log_entry['retest_period_months']); ?> month(s)</span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <?php if (!empty($log_entry['detail'])) : ?>
-                                        <pre style="white-space:pre-wrap; word-break:break-word; margin:0; background:#fff7ed; padding:6px; border-radius:4px; border:1px solid #fde68a;"><?php echo htmlspecialchars(print_r($log_entry['detail'], true)); ?></pre>
-                                    <?php endif; ?>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </details>
-                <?php else : ?>
-                    <div class="empty" style="margin:0;">No quiz logs captured.</div>
-                <?php endif; ?>
-            </div>
             <?php if (!empty($upcoming_retests)) : ?>
                 <div class="content-list">
                     <?php foreach ($upcoming_retests as $quiz) :
