@@ -811,7 +811,9 @@ function get_overall_training_progress($pdo, $user_id) {
                 COUNT(DISTINCT CASE
                     WHEN tp.status = 'completed'
                       OR tp.quiz_completed = 1
-                      OR (uqa.passed = 1 AND COALESCE(qrt.retest_enabled, 0) = 0) THEN tcc.id END) as completed_items,
+                      OR (uqa.passed = 1 AND
+                          (SELECT retest_enabled FROM quiz_retest_tracking
+                           WHERE quiz_id = tq.id AND user_id = ?) = 0) THEN tcc.id END) as completed_items,
                 COUNT(DISTINCT CASE WHEN tp.status = 'in_progress' THEN tcc.id END) as in_progress_items,
                 COUNT(DISTINCT uta.course_id) as total_courses,
                 COUNT(DISTINCT CASE WHEN uta.status = 'completed' THEN uta.course_id END) as completed_courses
@@ -824,9 +826,6 @@ function get_overall_training_progress($pdo, $user_id) {
             LEFT JOIN training_quizzes tq
                    ON tq.content_id = tcc.content_id
                   AND LOWER(COALESCE(tq.content_type,'')) IN ('post','')
-            LEFT JOIN quiz_retest_tracking qrt
-                   ON qrt.quiz_id = tq.id
-                  AND qrt.user_id = ?
             LEFT JOIN (
                 SELECT
                     quiz_id,
@@ -909,7 +908,9 @@ function calculate_course_progress($pdo, $user_id, $course_id) {
                 COUNT(DISTINCT CASE
                     WHEN tp.status = 'completed'
                       OR tp.quiz_completed = 1
-                      OR (uqa.passed = 1 AND COALESCE(qrt.retest_enabled, 0) = 0) THEN tcc.id
+                      OR (uqa.passed = 1 AND
+                          (SELECT retest_enabled FROM quiz_retest_tracking
+                           WHERE quiz_id = tq.id AND user_id = ?) = 0) THEN tcc.id
                 END) as completed_items,
                 COUNT(DISTINCT CASE WHEN tp.status = 'in_progress' THEN tcc.id END) as in_progress_items
             FROM training_course_content tcc
@@ -921,9 +922,6 @@ function calculate_course_progress($pdo, $user_id, $course_id) {
             LEFT JOIN training_quizzes tq
                    ON tq.content_id = tcc.content_id
                   AND LOWER(COALESCE(tq.content_type,'')) IN ('post','')
-            LEFT JOIN quiz_retest_tracking qrt
-                   ON qrt.quiz_id = tq.id
-                  AND qrt.user_id = ?
             LEFT JOIN (
                 SELECT
                     quiz_id,
@@ -1050,7 +1048,9 @@ $stmt = $pdo->prepare("
            COUNT(DISTINCT CASE
                 WHEN tp.status = 'completed'
                      OR tp.quiz_completed = 1
-                     OR uqa.passed = 1 THEN tcc.id
+                     OR (uqa.passed = 1 AND
+                          (SELECT retest_enabled FROM quiz_retest_tracking
+                           WHERE quiz_id = tq.id AND user_id = ?) = 0) THEN tcc.id
            END) AS completed_items
     FROM training_course_content tcc
     LEFT JOIN training_progress tp

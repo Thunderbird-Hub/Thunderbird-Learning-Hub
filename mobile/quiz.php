@@ -599,12 +599,6 @@ if ($can_attempt && $quiz) {
                 <form method="POST" id="quiz-form">
                     <input type="hidden" name="action" value="submit_quiz">
 
-                    <div class="mobile-step-controls">
-                        <button type="button" class="btn btn-secondary" id="prev-question-btn">Previous</button>
-                        <div class="mobile-step-label" id="mobile-step-label">Question 1 of <?php echo count($questions); ?></div>
-                        <button type="button" class="btn btn-primary" id="next-question-btn">Next</button>
-                    </div>
-
                     <?php foreach ($questions as $index => $question): ?>
                         <div class="question-card" data-question="<?php echo $index + 1; ?>" data-index="<?php echo $index; ?>">
                             <?php if (!empty($question['question_image'])): ?>
@@ -657,23 +651,6 @@ if ($can_attempt && $quiz) {
         const progressDots = document.querySelectorAll('.progress-dot');
         const completionStatus = document.getElementById('completion-status');
         const submitBtn = document.getElementById('submit-btn');
-        const nextBtns = [document.getElementById('next-question-btn'), document.getElementById('next-question-btn-bottom')].filter(Boolean);
-        const prevBtns = [document.getElementById('prev-question-btn'), document.getElementById('prev-question-btn-bottom')].filter(Boolean);
-        const labels = [document.getElementById('mobile-step-label'), document.getElementById('mobile-step-label-bottom')].filter(Boolean);
-        let currentIndex = 0;
-
-        function showQuestion(index) {
-            questions.forEach((card, idx) => {
-                card.style.display = idx === index ? 'block' : 'none';
-            });
-            progressDots.forEach((dot, idx) => {
-                dot.classList.toggle('active', idx === index);
-            });
-            labels.forEach(label => {
-                if (label) label.textContent = `Question ${index + 1} of ${questions.length}`;
-            });
-            if (progressDots[index]) progressDots[index].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-        }
 
         function selectAnswer(choiceEl) {
             const radio = choiceEl.querySelector('input[type="radio"]');
@@ -689,10 +666,10 @@ if ($can_attempt && $quiz) {
         }
 
         function updateProgress() {
-            const answers = document.querySelectorAll('.answer-choices');
+            const answerContainers = document.querySelectorAll('.answer-choices');
             let answered = 0;
 
-            answers.forEach((container, idx) => {
+            answerContainers.forEach((container, idx) => {
                 const checked = container.querySelector('input[type="radio"]:checked');
                 const dot = progressDots[idx];
                 if (checked) {
@@ -703,26 +680,12 @@ if ($can_attempt && $quiz) {
                 }
             });
 
-            const allAnswered = answered === answers.length && answers.length > 0;
-            completionStatus.textContent = allAnswered ? 'All questions answered. Ready to submit.' : `Answered ${answered} of ${answers.length}`;
+            const allAnswered = answered === answerContainers.length && answerContainers.length > 0;
+            completionStatus.textContent = allAnswered ? 'All questions answered. Ready to submit.' : `Answered ${answered} of ${answerContainers.length}`;
             submitBtn.disabled = !allAnswered;
         }
 
-        nextBtns.forEach(btn => btn.addEventListener('click', () => {
-            if (currentIndex < questions.length - 1) {
-                currentIndex++;
-                showQuestion(currentIndex);
-            }
-        }));
-
-        prevBtns.forEach(btn => btn.addEventListener('click', () => {
-            if (currentIndex > 0) {
-                currentIndex--;
-                showQuestion(currentIndex);
-            }
-        }));
-
-        showQuestion(currentIndex);
+        // Initialize progress tracking
         updateProgress();
 
         <?php if (!empty($quiz['time_limit_minutes'])): ?>
