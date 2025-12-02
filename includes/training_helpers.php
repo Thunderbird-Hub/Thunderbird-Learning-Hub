@@ -804,7 +804,7 @@ function is_assigned_training_content($pdo, $user_id, $content_id, $content_type
  */
 function get_overall_training_progress($pdo, $user_id) {
     try {
-        // Count only POSTS for training progress (not categories/subcategories)
+        // Count ALL assigned content types for unified progress calculation
         $stmt = $pdo->prepare("
             SELECT
                 COUNT(DISTINCT tcc.id) as total_items,
@@ -825,7 +825,7 @@ function get_overall_training_progress($pdo, $user_id) {
                 AND (tcc.content_type = tp.content_type OR tp.content_type = '' OR tp.content_type IS NULL OR tp.content_type ='' OR tp.content_type IS NULL)
             LEFT JOIN training_quizzes tq
                    ON tq.content_id = tcc.content_id
-                  AND LOWER(COALESCE(tq.content_type,'')) IN ('post','')
+                  AND (LOWER(COALESCE(tq.content_type,'')) = LOWER(COALESCE(tcc.content_type,'')) OR COALESCE(tq.content_type,'') = '')
             LEFT JOIN (
                 SELECT
                     quiz_id,
@@ -837,7 +837,7 @@ function get_overall_training_progress($pdo, $user_id) {
                    ON uqa.quiz_id = tq.id
             WHERE uta.user_id = ?
             AND tc.is_active = 1
-            AND tcc.content_type = 'post'  -- Only count posts
+            -- Count all assigned content types (posts, categories, subcategories)
         ");
         $stmt->execute([$user_id, $user_id, $user_id, $user_id]);
         $data = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -847,18 +847,7 @@ function get_overall_training_progress($pdo, $user_id) {
         $in_progress_items = (int)$data['in_progress_items'];
         $total_courses = (int)$data['total_courses'];
 
-        // Recompute completed courses based on actual content progress to avoid stale assignment statuses
-        $courses_stmt = $pdo->prepare("
-            SELECT tc.id
-            FROM training_courses tc
-            JOIN user_training_assignments uta ON tc.id = uta.course_id
-            WHERE uta.user_id = ?
-              AND tc.is_active = 1
-        ");
-        $courses_stmt->execute([$user_id]);
-        $course_ids = array_map('intval', $courses_stmt->fetchAll(PDO::FETCH_COLUMN));
-        $total_courses = count($course_ids);
-
+        // Calculate completed courses using the same unified logic as individual items
         $completed_courses = 0;
         foreach ($course_ids as $course_id) {
             $course_progress = calculate_course_progress($pdo, $user_id, $course_id);
@@ -921,7 +910,7 @@ function calculate_course_progress($pdo, $user_id, $course_id) {
                 AND (tcc.content_type = tp.content_type OR tp.content_type = '' OR tp.content_type IS NULL)
             LEFT JOIN training_quizzes tq
                    ON tq.content_id = tcc.content_id
-                  AND LOWER(COALESCE(tq.content_type,'')) IN ('post','')
+                  AND (LOWER(COALESCE(tq.content_type,'')) = LOWER(COALESCE(tcc.content_type,'')) OR COALESCE(tq.content_type,'') = '')
             LEFT JOIN (
                 SELECT
                     quiz_id,
@@ -932,7 +921,7 @@ function calculate_course_progress($pdo, $user_id, $course_id) {
             ) uqa
                    ON uqa.quiz_id = tq.id
             WHERE tcc.course_id = ?
-              AND tcc.content_type = 'post'
+            -- Count all assigned content types for unified progress calculation
         ");
         $stmt->execute([$user_id, $user_id, $user_id, $course_id]);
         $data = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -1073,7 +1062,7 @@ $stmt = $pdo->prepare("
     ) uqa
            ON uqa.quiz_id = tq.id
     WHERE tcc.course_id = ?
-      AND tcc.content_type = 'post'
+      -- Count all assigned content types for unified progress calculation
 ");
 
         $stmt->execute([$user_id, $user_id, $course_id]);
