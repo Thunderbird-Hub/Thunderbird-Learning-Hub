@@ -354,6 +354,35 @@ function format_retest_countdown($next_date) {
                         $last_attempt = isset($quiz['last_attempt_date']) ? format_mobile_date($quiz['last_attempt_date']) : 'Unknown';
                         $countdown = format_retest_countdown($next_date);
                         $due_label = ($countdown === 'Available now') ? 'Due now' : 'Due in ' . $countdown;
+
+                        // Get quiz details for retake URL with robust fallback
+                        $content_id = 0;
+                        $content_type = 'post';
+                        try {
+                            if (function_exists('get_retestable_quizzes')) {
+                                $quiz_details_stmt = $pdo->prepare("
+                                    SELECT tq.content_id, tq.content_type
+                                    FROM training_quizzes tq
+                                    WHERE tq.id = ?
+                                ");
+                                $quiz_details_stmt->execute([(int) $quiz['id']]);
+                                $quiz_details = $quiz_details_stmt->fetch(PDO::FETCH_ASSOC);
+                                if ($quiz_details) {
+                                    $content_id = (int) $quiz_details['content_id'];
+                                    $content_type = !empty($quiz_details['content_type']) ? $quiz_details['content_type'] : 'post';
+                                }
+                            }
+                        } catch (Exception $e) {
+                            error_log("Error getting quiz details for retake: " . $e->getMessage());
+                        }
+
+                        // Fallback: use available retest lookup data if available
+                        if ($content_id === 0 && !empty($available_retest_lookup[(int) $quiz['id']])) {
+                            // This should already have the correct content_id from the main query
+                            $content_id = (int) $quiz['id']; // This will be corrected by quiz.php auto-correction
+                        }
+
+                        $quiz_retake_url = "/mobile/quiz.php?quiz_id=" . (int) $quiz['id'] . "&content_type=" . urlencode($content_type) . "&content_id=" . $content_id;
                     ?>
                         <div class="content-item" style="align-items:flex-start;">
                             <div>
@@ -367,7 +396,11 @@ function format_retest_countdown($next_date) {
                                     <span class="pill" style="background:#ecfccb; color:#166534;"><?php echo htmlspecialchars($due_label); ?></span>
                                 </div>
                             </div>
-                            <div class="pill" style="background:#ecfccb; color:#15803d;">Ready to retake</div>
+                            <div class="quiz-actions">
+                                <a href="<?php echo htmlspecialchars($quiz_retake_url); ?>" class="quiz-btn primary" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 8px 12px; border-radius: 10px; text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                                    🔄 Retake Quiz
+                                </a>
+                            </div>
                         </div>
                     <?php endforeach; ?>
                 </div>

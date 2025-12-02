@@ -742,6 +742,7 @@ function is_assigned_training_content($pdo, $user_id, $content_id, $content_type
             $normalized_type = 'post';
         }
 
+        // First check: Active training assignment
         $stmt = $pdo->prepare("
             SELECT COUNT(DISTINCT tcc.id) as count
             FROM training_course_content tcc
@@ -755,7 +756,36 @@ function is_assigned_training_content($pdo, $user_id, $content_id, $content_type
               )
         ");
         $stmt->execute([$user_id, $content_id, $normalized_type, $normalized_type]);
-        return $stmt->fetch()['count'] > 0;
+        $active_assignment_count = (int) $stmt->fetch()['count'];
+
+        // Second check: Retest-enabled quiz access
+        $retest_stmt = $pdo->prepare("
+            SELECT COUNT(DISTINCT tq.id) as count
+            FROM training_quizzes tq
+            JOIN user_quiz_attempts uqa ON tq.id = uqa.quiz_id
+            LEFT JOIN quiz_retest_tracking qrt ON tq.id = qrt.quiz_id AND uqa.user_id = qrt.user_id
+            WHERE uqa.user_id = ?
+              AND uqa.status IN ('passed', 'completed')
+              AND tq.content_id = ?
+              AND (
+                    LOWER(COALESCE(tq.content_type, '')) = ?
+                 OR (LOWER(COALESCE(tq.content_type, '')) = '' AND ? = 'post')
+              )
+              AND tq.retest_period_months > 0
+              AND (qrt.retest_enabled = 1 OR qrt.retest_enabled IS NULL)
+        ");
+        $retest_stmt->execute([$user_id, $content_id, $normalized_type, $normalized_type]);
+        $retest_count = (int) $retest_stmt->fetch()['count'];
+
+        // Allow access if either condition is met
+        $result = $active_assignment_count > 0 || $retest_count > 0;
+
+        // Enhanced debug logging for access control decisions
+        if (function_exists('log_debug')) {
+            log_debug("Access check for user {$user_id}, content {$content_id} ({$content_type}): active_assignments={$active_assignment_count}, retest_count={$retest_count}, final_result=" . ($result ? 'ALLOWED' : 'DENIED'), 'INFO');
+        }
+
+        return $result;
     } catch (PDOException $e) {
         error_log("Error checking training content assignment: " . $e->getMessage());
         return false;
