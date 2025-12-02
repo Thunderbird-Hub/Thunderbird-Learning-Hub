@@ -599,8 +599,14 @@ if ($can_attempt && $quiz) {
                 <form method="POST" id="quiz-form">
                     <input type="hidden" name="action" value="submit_quiz">
 
+                    <div class="mobile-step-controls">
+                        <button type="button" class="btn btn-secondary" id="prev-question-btn">Previous</button>
+                        <div class="mobile-step-label" id="mobile-step-label">Question 1 of <?php echo count($questions); ?></div>
+                        <button type="button" class="btn btn-primary" id="next-question-btn">Next</button>
+                    </div>
+
                     <?php foreach ($questions as $index => $question): ?>
-                        <div class="question-card">
+                        <div class="question-card" data-question="<?php echo $index + 1; ?>" data-index="<?php echo $index; ?>">
                             <?php if (!empty($question['question_image'])): ?>
                                 <div style="text-align:center;margin-bottom:10px;">
                                     <img src="/images/<?php echo htmlspecialchars($question['question_image']); ?>" alt="Question Image" style="max-width:100%;height:auto;border-radius:10px;border:1px solid #e2e8f0;">
@@ -628,6 +634,12 @@ if ($can_attempt && $quiz) {
                         </div>
                     <?php endforeach; ?>
 
+                    <div class="mobile-step-controls">
+                        <button type="button" class="btn btn-secondary" id="prev-question-btn-bottom">Previous</button>
+                        <div class="mobile-step-label" id="mobile-step-label-bottom">Question 1 of <?php echo count($questions); ?></div>
+                        <button type="button" class="btn btn-primary" id="next-question-btn-bottom">Next</button>
+                    </div>
+
                     <div class="nav-row">
                         <a class="btn btn-secondary" href="/mobile/training.php">Back</a>
                         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
@@ -645,51 +657,22 @@ if ($can_attempt && $quiz) {
         const progressDots = document.querySelectorAll('.progress-dot');
         const completionStatus = document.getElementById('completion-status');
         const submitBtn = document.getElementById('submit-btn');
+        const nextBtns = [document.getElementById('next-question-btn'), document.getElementById('next-question-btn-bottom')].filter(Boolean);
+        const prevBtns = [document.getElementById('prev-question-btn'), document.getElementById('prev-question-btn-bottom')].filter(Boolean);
+        const labels = [document.getElementById('mobile-step-label'), document.getElementById('mobile-step-label-bottom')].filter(Boolean);
+        let currentIndex = 0;
 
-        // Detect if we're in mobile mode
-        const isMobileMode = window.innerWidth <= 768;
-
-        // For mobile: show all questions and hide navigation controls
-        if (isMobileMode) {
-            questions.forEach(card => {
-                card.style.display = 'block';
+        function showQuestion(index) {
+            questions.forEach((card, idx) => {
+                card.style.display = idx === index ? 'block' : 'none';
             });
-            // Hide step controls (they were already removed from HTML)
-        } else {
-            // Desktop mode: keep existing navigation
-            const nextBtns = [document.getElementById('next-question-btn'), document.getElementById('next-question-btn-bottom')].filter(Boolean);
-            const prevBtns = [document.getElementById('prev-question-btn'), document.getElementById('prev-question-btn-bottom')].filter(Boolean);
-            const labels = [document.getElementById('mobile-step-label'), document.getElementById('mobile-step-label-bottom')].filter(Boolean);
-            let currentIndex = 0;
-
-            function showQuestion(index) {
-                questions.forEach((card, idx) => {
-                    card.style.display = idx === index ? 'block' : 'none';
-                });
-                progressDots.forEach((dot, idx) => {
-                    dot.classList.toggle('active', idx === index);
-                });
-                labels.forEach(label => {
-                    if (label) label.textContent = `Question ${index + 1} of ${questions.length}`;
-                });
-                if (progressDots[index]) progressDots[index].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-            }
-
-            nextBtns.forEach(btn => btn.addEventListener('click', () => {
-                if (currentIndex < questions.length - 1) {
-                    currentIndex++;
-                    showQuestion(currentIndex);
-                }
-            }));
-
-            prevBtns.forEach(btn => btn.addEventListener('click', () => {
-                if (currentIndex > 0) {
-                    currentIndex--;
-                    showQuestion(currentIndex);
-                }
-            }));
-
-            showQuestion(currentIndex);
+            progressDots.forEach((dot, idx) => {
+                dot.classList.toggle('active', idx === index);
+            });
+            labels.forEach(label => {
+                if (label) label.textContent = `Question ${index + 1} of ${questions.length}`;
+            });
+            if (progressDots[index]) progressDots[index].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
         }
 
         function selectAnswer(choiceEl) {
@@ -725,7 +708,21 @@ if ($can_attempt && $quiz) {
             submitBtn.disabled = !allAnswered;
         }
 
-        // Initial progress update
+        nextBtns.forEach(btn => btn.addEventListener('click', () => {
+            if (currentIndex < questions.length - 1) {
+                currentIndex++;
+                showQuestion(currentIndex);
+            }
+        }));
+
+        prevBtns.forEach(btn => btn.addEventListener('click', () => {
+            if (currentIndex > 0) {
+                currentIndex--;
+                showQuestion(currentIndex);
+            }
+        }));
+
+        showQuestion(currentIndex);
         updateProgress();
 
         <?php if (!empty($quiz['time_limit_minutes'])): ?>
