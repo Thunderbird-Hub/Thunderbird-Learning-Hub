@@ -112,7 +112,9 @@ if (function_exists('is_training_user') && is_training_user() && $post_id > 0) {
 
         $stmt = $pdo->prepare(
             "SELECT tq.id as quiz_id, tq.quiz_title, tp.quiz_completed, tp.last_quiz_attempt_id,
-                    CASE WHEN uta.user_id IS NOT NULL THEN 'assigned' ELSE 'unassigned' END as training_status
+                    CASE WHEN uta.user_id IS NOT NULL THEN 'assigned'
+                        WHEN qrt.retest_enabled = 1 THEN 'retest_available'
+                        ELSE 'unassigned' END as training_status
              FROM training_quizzes tq
              LEFT JOIN training_progress tp ON tq.content_id = ? AND (tq.content_type = 'post' OR tq.content_type = '' OR tq.content_type IS NULL)
                  AND tp.user_id = ? AND (tp.content_type = 'post' OR tp.content_type = '' OR tp.content_type IS NULL) AND tp.content_id = ?
@@ -121,6 +123,7 @@ if (function_exists('is_training_user') && is_training_user() && $post_id > 0) {
                  WHERE tcc.content_type = 'post' AND tcc.content_id = ?
                  LIMIT 1
              ) AND uta.user_id = ? AND uta.status != 'completed'
+             LEFT JOIN quiz_retest_tracking qrt ON qrt.quiz_id = tq.id AND qrt.user_id = ?
              WHERE tq.content_id = ? AND (tq.content_type = 'post' OR tq.content_type = '' OR tq.content_type IS NULL) AND tq.is_active = TRUE
              LIMIT 1"
         );
@@ -140,7 +143,7 @@ if (function_exists('is_training_user') && is_training_user() && $post_id > 0) {
             );
             $stmt->execute([$_SESSION['user_id'], $post_id]);
 
-            if ($training_data['training_status'] === 'assigned') {
+            if ($training_data['training_status'] === 'assigned' || $training_data['training_status'] === 'retest_available') {
                 $quiz_completed = $training_data['quiz_completed'] ?? false;
                 $quiz_url = "/mobile/quiz.php?quiz_id=" . $training_data['quiz_id'] . "&content_type=post&content_id=" . $post_id;
 
@@ -155,8 +158,8 @@ if (function_exists('is_training_user') && is_training_user() && $post_id > 0) {
                     $quiz_banner_html .= "<div class='training-quiz-banner' style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px; border-radius: 12px; margin: 12px 0; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.15);'>";
                     $quiz_banner_html .= "<div style='display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;'>";
                     $quiz_banner_html .= "<span style='font-size: 22px;'>📝</span>";
-                    $quiz_banner_html .= "<div><h3 style='margin:0 0 4px 0; font-size:16px;'>Quiz Available: " . htmlspecialchars($training_data['quiz_title']) . "</h3><p style='margin:0; opacity:0.9;'>After reading this content, take the quiz to mark it as complete.</p></div>";
-                    $quiz_banner_html .= "<a href='" . $quiz_url . "' class='btn' style='background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding:8px 12px; border-radius:10px;'>Take Quiz</a>";
+                    $quiz_banner_html .= "<div><h3 style='margin:0 0 4px 0; font-size:16px;'>" . ($training_data['training_status'] === 'retest_available' ? 'Retake Required: ' : 'Quiz Available: ') . htmlspecialchars($training_data['quiz_title']) . "</h3><p style='margin:0; opacity:0.9;'>" . ($training_data['training_status'] === 'retest_available' ? 'Your retest period has expired. Please retake the quiz to mark this content as complete.' : 'After reading this content, take the quiz to mark it as complete.') . "</p></div>";
+                    $quiz_banner_html .= "<a href='" . $quiz_url . "' class='btn' style='background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding:8px 12px; border-radius:10px;'>" . ($training_data['training_status'] === 'retest_available' ? 'Retake Quiz' : 'Take Quiz') . "</a>";
                     $quiz_banner_html .= "</div></div>";
                 }
             } else {
