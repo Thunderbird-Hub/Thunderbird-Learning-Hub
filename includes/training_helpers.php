@@ -847,7 +847,18 @@ function get_overall_training_progress($pdo, $user_id) {
         $in_progress_items = (int)$data['in_progress_items'];
         $total_courses = (int)$data['total_courses'];
 
-        // Calculate completed courses using the same unified logic as individual items
+        // Get course IDs for completion calculation
+        $courses_stmt = $pdo->prepare("
+            SELECT tc.id
+            FROM training_courses tc
+            JOIN user_training_assignments uta ON tc.id = uta.course_id
+            WHERE uta.user_id = ?
+              AND tc.is_active = 1
+        ");
+        $courses_stmt->execute([$user_id]);
+        $course_ids = array_map('intval', $courses_stmt->fetchAll(PDO::FETCH_COLUMN));
+        $total_courses = count($course_ids);
+
         $completed_courses = 0;
         foreach ($course_ids as $course_id) {
             $course_progress = calculate_course_progress($pdo, $user_id, $course_id);
