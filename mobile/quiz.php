@@ -98,7 +98,30 @@ try {
         }
 
         if (!$can_attempt) {
-            $error_message = 'You do not have access to this quiz.';
+            // Check if this is a retest scenario
+            $retest_check = $pdo->prepare("
+                SELECT tq.retest_period_months, uqa.completed_at
+                FROM training_quizzes tq
+                LEFT JOIN user_quiz_attempts uqa ON tq.id = uqa.quiz_id AND uqa.user_id = ? AND uqa.status IN ('passed', 'completed')
+                WHERE tq.id = ?
+            ");
+            $retest_check->execute([$_SESSION['user_id'], $quiz_id]);
+            $retest_info = $retest_check->fetch(PDO::FETCH_ASSOC);
+
+            if ($retest_info && $retest_info['retest_period_months'] > 0 && $retest_info['completed_at']) {
+                $completed_date = new DateTime($retest_info['completed_at']);
+                $retest_date = clone $completed_date;
+                $retest_date->add(new DateInterval('P' . $retest_info['retest_period_months'] . 'M'));
+                $days_until = ceil(($retest_date->getTimestamp() - time()) / 86400);
+
+                if ($days_until > 0) {
+                    $error_message = "This quiz requires a waiting period of {$retest_info['retest_period_months']} month(s) before retaking. You can retake this quiz in {$days_until} day(s).";
+                } else {
+                    $error_message = "This quiz is ready for retake. Please return to the training page to access it.";
+                }
+            } else {
+                $error_message = 'You do not have access to this quiz. This quiz may be part of a training assignment you are not currently enrolled in.';
+            }
         }
 
         switch ($content_type) {
