@@ -811,24 +811,7 @@ function get_overall_training_progress($pdo, $user_id) {
                 COUNT(DISTINCT CASE
                     WHEN tp.status = 'completed'
                       OR tp.quiz_completed = 1
-                      OR (uqa.passed = 1 AND COALESCE(qrt.retest_enabled, 0) = 0)
-                      OR (
-                          uqa.passed = 1
-                          AND tq.retest_period_months > 0
-                          AND (
-                              qrt.retest_enabled = 0
-                              OR qrt.retest_enabled IS NULL
-                              OR qrt.retest_eligible_date <= CURRENT_DATE
-                          )
-                      )
-                    THEN tcc.id
-                    WHEN (
-                        uqa.passed = 1
-                        AND tq.retest_period_months > 0
-                        AND qrt.retest_enabled = 1
-                        AND qrt.retest_eligible_date > CURRENT_DATE
-                    ) THEN NULL  -- Exclude retestable completed quizzes
-                    END) as completed_items,
+                      OR (uqa.passed = 1 AND COALESCE(qrt.retest_enabled, 0) = 0) THEN tcc.id END) as completed_items,
                 COUNT(DISTINCT CASE WHEN tp.status = 'in_progress' THEN tcc.id END) as in_progress_items,
                 COUNT(DISTINCT uta.course_id) as total_courses,
                 COUNT(DISTINCT CASE WHEN uta.status = 'completed' THEN uta.course_id END) as completed_courses
@@ -926,24 +909,8 @@ function calculate_course_progress($pdo, $user_id, $course_id) {
                 COUNT(DISTINCT CASE
                     WHEN tp.status = 'completed'
                       OR tp.quiz_completed = 1
-                      OR (uqa.passed = 1 AND COALESCE(qrt.retest_enabled, 0) = 0)
-                      OR (
-                          uqa.passed = 1
-                          AND tq.retest_period_months > 0
-                          AND (
-                              qrt.retest_enabled = 0
-                              OR qrt.retest_enabled IS NULL
-                              OR qrt.retest_eligible_date <= CURRENT_DATE
-                          )
-                      )
-                    THEN tcc.id
-                    WHEN (
-                        uqa.passed = 1
-                        AND tq.retest_period_months > 0
-                        AND qrt.retest_enabled = 1
-                        AND qrt.retest_eligible_date > CURRENT_DATE
-                    ) THEN NULL  -- Exclude retestable completed quizzes
-                    END) as completed_items,
+                      OR (uqa.passed = 1 AND COALESCE(qrt.retest_enabled, 0) = 0) THEN tcc.id
+                END) as completed_items,
                 COUNT(DISTINCT CASE WHEN tp.status = 'in_progress' THEN tcc.id END) as in_progress_items
             FROM training_course_content tcc
             JOIN user_training_assignments uta ON uta.course_id = tcc.course_id AND uta.user_id = ?
@@ -1245,42 +1212,6 @@ function get_next_training_item($pdo, $user_id) {
     } catch (PDOException $e) {
         error_log("Error getting next training item: " . $e->getMessage());
         return null;
-    }
-}
-
-// ============================================================
-// RETEST PROGRESS CALCULATION HELPERS
-// ============================================================
-
-/**
- * Check if a completed quiz should be excluded from progress due to retest eligibility
- * @param PDO $pdo Database connection
- * @param int $user_id User ID
- * @param int $quiz_id Quiz ID
- * @return bool True if quiz should be excluded from completed count
- */
-function should_exclude_quiz_from_progress($pdo, $user_id, $quiz_id) {
-    try {
-        $stmt = $pdo->prepare("
-            SELECT tq.retest_period_months, qrt.retest_enabled, qrt.retest_eligible_date
-            FROM training_quizzes tq
-            LEFT JOIN quiz_retest_tracking qrt ON tq.id = qrt.quiz_id AND qrt.user_id = ?
-            WHERE tq.id = ?
-              AND tq.retest_period_months > 0
-        ");
-        $stmt->execute([$user_id, $quiz_id]);
-        $data = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$data) {
-            return false; // No retest period, always count as completed
-        }
-
-        // If retest is enabled and eligible date has passed, exclude from progress
-        return ($data['retest_enabled'] == 1 && $data['retest_eligible_date'] <= date('Y-m-d'));
-
-    } catch (PDOException $e) {
-        error_log("Error checking quiz exclusion: " . $e->getMessage());
-        return false; // On error, include in progress
     }
 }
 
@@ -1859,7 +1790,7 @@ function check_and_enable_retests($pdo, $user_id) {
             }
         }
 
-        // If any retests were enabled, set is_in_training flag and recalculate progress
+        // If any retests were enabled, set is_in_training flag
         if (!empty($retests_enabled)) {
             $flag_stmt = $pdo->prepare("
                 UPDATE users
@@ -1875,26 +1806,6 @@ function check_and_enable_retests($pdo, $user_id) {
             }
 
             log_debug("Set is_in_training = 1 for user $user_id ({count($retests_enabled)} retests available)", 'INFO');
-
-            // Update training progress to exclude newly retestable quizzes
-            if (function_exists('get_overall_training_progress')) {
-                // Force progress recalculation by refreshing course completion status
-                $course_stmt = $pdo->prepare("
-                    SELECT DISTINCT uta.course_id
-                    FROM user_training_assignments uta
-                    JOIN training_courses tc ON uta.course_id = tc.id
-                    WHERE uta.user_id = ?
-                      AND tc.is_active = 1
-                ");
-                $course_stmt->execute([$user_id]);
-                $course_ids = array_map('intval', $course_stmt->fetchAll(PDO::FETCH_COLUMN));
-
-                foreach ($course_ids as $course_id) {
-                    update_course_completion_status($pdo, $user_id, $course_id);
-                }
-
-                log_debug("Recalculated training progress for user $user_id after enabling " . count($retests_enabled) . " retests", 'INFO');
-            }
         }
 
         $pdo->commit();
