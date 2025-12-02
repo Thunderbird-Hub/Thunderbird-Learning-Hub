@@ -184,9 +184,15 @@ try {
 
             if ($can_create_new_attempt) {
                 $stmt = $pdo->prepare(
-                    "INSERT INTO user_quiz_attempts (user_id, quiz_id, status, started_at)\n                    VALUES (?, ?, 'in_progress', NOW())"
+                    "INSERT INTO user_quiz_attempts
+                    (user_id, quiz_id, attempt_number, status, started_at)
+                    VALUES (?, ?, (
+                        SELECT COALESCE(MAX(attempt_number), 0) + 1
+                        FROM user_quiz_attempts
+                        WHERE user_id = ? AND quiz_id = ?
+                    ), 'in_progress', NOW())"
                 );
-                $stmt->execute([$_SESSION['user_id'], $quiz_id]);
+                $stmt->execute([$_SESSION['user_id'], $quiz_id, $_SESSION['user_id'], $quiz_id]);
                 $quiz_attempt = [
                     'id' => $pdo->lastInsertId(),
                     'status' => 'in_progress',
