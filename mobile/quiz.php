@@ -527,8 +527,6 @@ if ($can_attempt && $quiz) {
         .btn-secondary { background: #e2e8f0; color: #2d3748; }
         .btn-success { background: #10b981; color: white; }
         .nav-row { display: flex; justify-content: space-between; gap: 10px; margin-top: 12px; }
-        .mobile-step-controls { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
-        .mobile-step-label { flex: 1; text-align: center; font-weight: 600; }
         @media (max-width: 640px) {
             .mobile-shell { padding: 12px; }
             .question-header { flex-direction: column; align-items: flex-start; }
@@ -628,12 +626,7 @@ if ($can_attempt && $quiz) {
                         </div>
                     <?php endforeach; ?>
 
-                    <div class="mobile-step-controls">
-                        <button type="button" class="btn btn-secondary" id="prev-question-btn-bottom">Previous</button>
-                        <div class="mobile-step-label" id="mobile-step-label-bottom">Question 1 of <?php echo count($questions); ?></div>
-                        <button type="button" class="btn btn-primary" id="next-question-btn-bottom">Next</button>
-                    </div>
-
+  
                     <div class="nav-row">
                         <a class="btn btn-secondary" href="/mobile/training.php">Back</a>
                         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
