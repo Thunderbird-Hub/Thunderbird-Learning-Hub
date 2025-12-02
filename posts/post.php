@@ -54,7 +54,9 @@ if (function_exists('is_training_user') && is_training_user() && $post_id > 0) {
         // Now check if there's a quiz for this post and if user is assigned to the training
         $stmt = $pdo->prepare("
             SELECT tq.id as quiz_id, tq.quiz_title, tp.quiz_completed, tp.last_quiz_attempt_id,
-                   CASE WHEN uta.user_id IS NOT NULL THEN 'assigned' ELSE 'unassigned' END as training_status
+                   CASE WHEN uta.user_id IS NOT NULL THEN 'assigned'
+                        WHEN qrt.retest_enabled = 1 THEN 'retest_available'
+                        ELSE 'unassigned' END as training_status
             FROM training_quizzes tq
             LEFT JOIN training_progress tp ON tq.content_id = ? AND (tq.content_type = 'post' OR tq.content_type = '' OR tq.content_type IS NULL)
                 AND tp.user_id = ? AND (tp.content_type = 'post' OR tp.content_type = '' OR tp.content_type IS NULL) AND tp.content_id = ?
@@ -63,6 +65,7 @@ if (function_exists('is_training_user') && is_training_user() && $post_id > 0) {
                 WHERE tcc.content_type = 'post' AND tcc.content_id = ?
                 LIMIT 1
             ) AND uta.user_id = ? AND uta.status != 'completed'
+            LEFT JOIN quiz_retest_tracking qrt ON qrt.quiz_id = tq.id AND qrt.user_id = ?
             WHERE tq.content_id = ? AND (tq.content_type = 'post' OR tq.content_type = '' OR tq.content_type IS NULL) AND tq.is_active = TRUE
             LIMIT 1
         ");
@@ -82,8 +85,8 @@ if (function_exists('is_training_user') && is_training_user() && $post_id > 0) {
             $stmt->execute([$_SESSION['user_id'], $post_id]);
 
             // Generate quiz availability banner HTML
-            if ($training_data['training_status'] === 'assigned') {
-                // Content is assigned to user's training
+            if ($training_data['training_status'] === 'assigned' || $training_data['training_status'] === 'retest_available') {
+                // Content is assigned to user's training or retest is available
                 $quiz_completed = $training_data['quiz_completed'] ?? false;
                 $quiz_url = "/training/take_quiz.php?quiz_id=" . $training_data['quiz_id'] . "&content_type=post&content_id=" . $post_id;
 
@@ -100,10 +103,15 @@ if (function_exists('is_training_user') && is_training_user() && $post_id > 0) {
                 } else {
                     $quiz_banner_html .= "<span style='font-size: 24px;'>📝</span>";
                     $quiz_banner_html .= "<div>";
-                    $quiz_banner_html .= "<h3 style='margin: 0 0 5px 0; font-size: 18px;'>Quiz Available: " . htmlspecialchars($training_data['quiz_title']) . "</h3>";
-                    $quiz_banner_html .= "<p style='margin: 0; opacity: 0.9;'>After reading this content, take the quiz to mark it as complete.</p>";
+                    if ($training_data['training_status'] === 'retest_available') {
+                        $quiz_banner_html .= "<h3 style='margin: 0 0 5px 0; font-size: 18px;'>Retake Required: " . htmlspecialchars($training_data['quiz_title']) . "</h3>";
+                        $quiz_banner_html .= "<p style='margin: 0; opacity: 0.9;'>Your retest period has expired. Please retake the quiz to mark this content as complete.</p>";
+                    } else {
+                        $quiz_banner_html .= "<h3 style='margin: 0 0 5px 0; font-size: 18px;'>Quiz Available: " . htmlspecialchars($training_data['quiz_title']) . "</h3>";
+                        $quiz_banner_html .= "<p style='margin: 0; opacity: 0.9;'>After reading this content, take the quiz to mark it as complete.</p>";
+                    }
                     $quiz_banner_html .= "</div>";
-                    $quiz_banner_html .= "<a href='" . $quiz_url . "' class='btn' style='background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);'>Take Quiz</a>";
+                    $quiz_banner_html .= "<a href='" . $quiz_url . "' class='btn' style='background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);'>" . ($training_data['training_status'] === 'retest_available' ? 'Retake Quiz' : 'Take Quiz') . "</a>";
                 }
 
                 $quiz_banner_html .= "</div>";
