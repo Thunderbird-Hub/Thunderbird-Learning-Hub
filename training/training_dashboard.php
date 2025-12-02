@@ -70,11 +70,15 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 // Load training helpers
-if (!file_exists(__DIR__ . '/../includes/training_helpers.php')) {
-    // Define fallback functions
+require_once __DIR__ . '/../includes/training_helpers.php';
+
+// Define fallback functions if training_helpers.php doesn't have them
+if (!function_exists('is_training_user')) {
     function is_training_user() {
         return isset($_SESSION['user_is_in_training']) && $_SESSION['user_is_in_training'] == 1;
     }
+}
+if (!function_exists('get_overall_training_progress')) {
     function get_overall_training_progress($pdo, $user_id) {
         return [
             'percentage' => 0,
@@ -85,8 +89,16 @@ if (!file_exists(__DIR__ . '/../includes/training_helpers.php')) {
             'total_courses' => 0
         ];
     }
-} else {
-    require_once __DIR__ . '/../includes/training_helpers.php';
+}
+if (!function_exists('get_retestable_quizzes')) {
+    function get_retestable_quizzes($pdo, $user_id) {
+        return [];
+    }
+}
+if (!function_exists('check_quiz_retest_eligibility')) {
+    function check_quiz_retest_eligibility($pdo, $user_id, $quiz_id) {
+        return ['status' => 'error', 'message' => 'Training helpers not available'];
+    }
 }
 
 function format_retest_countdown($next_date) {
